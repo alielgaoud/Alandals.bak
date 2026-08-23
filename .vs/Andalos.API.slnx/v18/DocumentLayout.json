@@ -1,0 +1,1482 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\Backend\\Andalos.API\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823193837_LinkUserToTenant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Andalos.API\\Migrations\\20260823193837_LinkUserToTenant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\tenantportalcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\tenantportalcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\tenantportalservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\tenantportalservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\itenantportalservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\itenantportalservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\portal\\tenantportaldtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\portal\\tenantportaldtos.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\data\\appdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\user.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\userscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\userscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\userservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\iuserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\iuserservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\users\\createuserbyadmindto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\users\\createuserbyadmindto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823023246_AddSettingsAndNumberSequences.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Andalos.API\\Migrations\\20260823023246_AddSettingsAndNumberSequences.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\contractservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\contractservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\seed\\settingsseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\seed\\settingsseeder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\settingscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\settingscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\numbergeneratorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\numbergeneratorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\settingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\settingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\inumbergeneratorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\inumbergeneratorservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\isettingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\isettingservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\imaintenanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\imaintenanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\settings\\settingresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\settings\\settingresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\constants\\settingkeys.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\constants\\settingkeys.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\numbersequence.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\numbersequence.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\setting.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\setting.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\reportscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\reportscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\reportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\reportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\ireportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\ireportservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\reports\\dashboardstatsdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\reports\\dashboardstatsdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\migrations\\20260823014714_addvisitorpassestables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\migrations\\20260823014714_addvisitorpassestables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\gatecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\gatecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\visitorpassescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\visitorpassescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\visitorpassservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\visitorpassservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\ivisitorpassservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\ivisitorpassservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\visitors\\createvisitorpassdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\visitors\\createvisitorpassdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\entrylog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\entrylog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\visitorpass.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\visitorpass.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\visitortype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\visitortype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823013624_AddMaintenanceAndExpensesTables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Andalos.API\\Migrations\\20260823013624_AddMaintenanceAndExpensesTables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\expensescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\expensescontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\maintenancecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\maintenancecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\expenseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\expenseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\maintenanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\maintenanceservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\iexpenseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\iexpenseservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\expenses\\createexpensedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\expenses\\createexpensedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\maintenance\\createmaintenancerequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\maintenance\\createmaintenancerequestdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\expense.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\expense.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\maintenancerequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\maintenancerequest.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\expensetype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\expensetype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\maintenancepriority.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\maintenancepriority.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\paymentscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\paymentscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\paymentservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\paymentservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\ipaymentservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\ipaymentservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\payments\\createpaymentdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\payments\\createpaymentdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\payment.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\payment.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\paymenttype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\paymenttype.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822215804_AddContractsTables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Andalos.API\\Migrations\\20260822215804_AddContractsTables.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\contractscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\contractscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\icontractservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\icontractservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\contracts\\createcontractdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\contracts\\createcontractdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\contractdocument.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\contractdocument.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\contractitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\contractitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\contract.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\contract.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\contractstatus.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\contractstatus.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\tenant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\tenant.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822214326_AddTenantsTable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Andalos.API\\Migrations\\20260822214326_AddTenantsTable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\tenantscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\tenantscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\tenantservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\tenantservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\itenantservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\itenantservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\tenants\\createtenantdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\tenants\\createtenantdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822213123_AddUnitsTable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Andalos.API\\Migrations\\20260822213123_AddUnitsTable.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\unitscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\unitscontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\unitservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\unitservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\iunitservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\iunitservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\common\\apiresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\common\\apiresponsedto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\units\\createunitdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\units\\createunitdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\models\\unit.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\models\\unit.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\unitstatus.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\unitstatus.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\services\\authservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\interfaces\\iauthservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\interfaces\\iauthservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\helpers\\jwthelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\helpers\\jwthelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\dtos\\auth\\logindto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\dtos\\auth\\logindto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\enums\\userrole.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\enums\\userrole.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|d:\\backend\\andalos.api\\andalos.api\\common\\baseentity.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{64E6311A-4406-716A-14B2-354BC75427F0}|Andalos.API\\Andalos.API.csproj|solutionrelative:andalos.api\\common\\baseentity.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 345,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "20260823193837_LinkUserToTenant.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823193837_LinkUserToTenant.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260823193837_LinkUserToTenant.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823193837_LinkUserToTenant.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260823193837_LinkUserToTenant.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T19:38:37.712Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TenantPortalController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\TenantPortalController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\TenantPortalController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\TenantPortalController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\TenantPortalController.cs",
+              "ViewState": "AgIAAFIAAAAAAAAAAAAmwG4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T19:37:06.666Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "TenantPortalService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\TenantPortalService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\TenantPortalService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\TenantPortalService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\TenantPortalService.cs",
+              "ViewState": "AgIAAN4AAAAAAAAAAAAmwO4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T19:36:17.685Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ITenantPortalService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\ITenantPortalService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\ITenantPortalService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\ITenantPortalService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\ITenantPortalService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T19:35:48.704Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "TenantPortalDtos.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Portal\\TenantPortalDtos.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Portal\\TenantPortalDtos.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Portal\\TenantPortalDtos.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Portal\\TenantPortalDtos.cs",
+              "ViewState": "AgIAADcAAAAAAAAAAAA7wEgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T19:35:16.838Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Program.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Program.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Program.cs",
+              "RelativeToolTip": "Andalos.API\\Program.cs",
+              "ViewState": "AgIAAA8AAAAAAAAAAAAAACIAAABIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:05:14.64Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "UserService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\UserService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\UserService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\UserService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\UserService.cs",
+              "ViewState": "AgIAAH8AAAAAAAAAAAAuwJMAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:51:33.669Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "IUserService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IUserService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IUserService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IUserService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IUserService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:50:54.731Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "CreateUserByAdminDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Users\\CreateUserByAdminDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Users\\CreateUserByAdminDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Users\\CreateUserByAdminDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Users\\CreateUserByAdminDto.cs",
+              "ViewState": "AgIAAC4AAAAAAAAAAAA4wDwAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:49:01.5Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "User.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\User.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\User.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\User.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\User.cs",
+              "ViewState": "AgIAABQAAAAAAAAAAAAwwCIAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:11:00.946Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "AppDbContext.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Data\\AppDbContext.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Data\\AppDbContext.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Data\\AppDbContext.cs",
+              "RelativeToolTip": "Andalos.API\\Data\\AppDbContext.cs",
+              "ViewState": "AgIAABkAAAAAAAAAAAAwwCkAAAAPAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:04:29.937Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 78,
+              "Title": "AuthController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\AuthController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\AuthController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\AuthController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\AuthController.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAAuwC0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:27:17.779Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "UsersController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\UsersController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\UsersController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\UsersController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\UsersController.cs",
+              "ViewState": "AgIAAF0AAAAAAAAAAAAuwGsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:52:11.529Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "20260823023246_AddSettingsAndNumberSequences.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823023246_AddSettingsAndNumberSequences.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260823023246_AddSettingsAndNumberSequences.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823023246_AddSettingsAndNumberSequences.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260823023246_AddSettingsAndNumberSequences.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAABCAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:32:46.754Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "SettingsSeeder.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Seed\\SettingsSeeder.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Seed\\SettingsSeeder.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Seed\\SettingsSeeder.cs",
+              "RelativeToolTip": "Andalos.API\\Seed\\SettingsSeeder.cs",
+              "ViewState": "AgIAAD8AAAAAAAAAAAAmwFsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:26:59.285Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "ContractService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\ContractService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\ContractService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\ContractService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\ContractService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:56:04.904Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "SettingsController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\SettingsController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\SettingsController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\SettingsController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\SettingsController.cs",
+              "ViewState": "AgIAACQAAAAAAAAAAAAmwEAAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:26:08.058Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "NumberGeneratorService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\NumberGeneratorService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\NumberGeneratorService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\NumberGeneratorService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\NumberGeneratorService.cs",
+              "ViewState": "AgIAAEwAAAAAAAAAAAAmwGgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:25:38.233Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "SettingService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\SettingService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\SettingService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\SettingService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\SettingService.cs",
+              "ViewState": "AgIAAG4AAAAAAAAAAAAuwIIAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:24:56.524Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "INumberGeneratorService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\INumberGeneratorService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\INumberGeneratorService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\INumberGeneratorService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\INumberGeneratorService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:23:57.444Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "ISettingService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\ISettingService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\ISettingService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\ISettingService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\ISettingService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:23:09.931Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "SettingResponseDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Settings\\SettingResponseDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Settings\\SettingResponseDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Settings\\SettingResponseDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Settings\\SettingResponseDto.cs",
+              "ViewState": "AgIAAAkAAAAAAAAAAAA4wBkAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:21:42.772Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "SettingKeys.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Constants\\SettingKeys.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Constants\\SettingKeys.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Constants\\SettingKeys.cs",
+              "RelativeToolTip": "Andalos.API\\Constants\\SettingKeys.cs",
+              "ViewState": "AgIAACYAAAAAAAAAAAAQwDsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:20:41.264Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "IMaintenanceService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IMaintenanceService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IMaintenanceService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IMaintenanceService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IMaintenanceService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:31:54.276Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "NumberSequence.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\NumberSequence.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\NumberSequence.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\NumberSequence.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\NumberSequence.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:19:26.343Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "Setting.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Setting.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\Setting.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Setting.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\Setting.cs",
+              "ViewState": "AgIAABUAAAAAAAAAAAAmwDEAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:18:42.587Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "ReportsController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\ReportsController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\ReportsController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\ReportsController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\ReportsController.cs",
+              "ViewState": "AgIAACoAAAAAAAAAAAAuwD4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:09:51.575Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "ReportService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\ReportService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\ReportService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\ReportService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\ReportService.cs",
+              "ViewState": "AgIAAOEAAAAAAAAAAAAuwPgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:09:00.568Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "IReportService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IReportService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IReportService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IReportService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IReportService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:08:28.481Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "DashboardStatsDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Reports\\DashboardStatsDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Reports\\DashboardStatsDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Reports\\DashboardStatsDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Reports\\DashboardStatsDto.cs",
+              "ViewState": "AgIAAEAAAAAAAAAAAAAYwFAAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T02:07:22.661Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "20260823014714_AddVisitorPassesTables.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823014714_AddVisitorPassesTables.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260823014714_AddVisitorPassesTables.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823014714_AddVisitorPassesTables.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260823014714_AddVisitorPassesTables.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:47:16.524Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "GateController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\GateController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\GateController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\GateController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\GateController.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAAzwCUAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:45:11.459Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "VisitorPassesController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\VisitorPassesController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\VisitorPassesController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\VisitorPassesController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\VisitorPassesController.cs",
+              "ViewState": "AgIAACkAAAAAAAAAAAAuwEAAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:44:10.472Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "VisitorPassService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\VisitorPassService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\VisitorPassService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\VisitorPassService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\VisitorPassService.cs",
+              "ViewState": "AgIAAAEBAAAAAAAAAAA8wBgBAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:43:45.284Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 33,
+              "Title": "IVisitorPassService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IVisitorPassService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IVisitorPassService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IVisitorPassService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IVisitorPassService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:42:54.795Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 34,
+              "Title": "CreateVisitorPassDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Visitors\\CreateVisitorPassDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Visitors\\CreateVisitorPassDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Visitors\\CreateVisitorPassDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Visitors\\CreateVisitorPassDto.cs",
+              "ViewState": "AgIAAEYAAAAAAAAAAAAUwFEAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:41:22.525Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 35,
+              "Title": "EntryLog.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\EntryLog.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\EntryLog.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\EntryLog.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\EntryLog.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAQwBgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:40:33.322Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 36,
+              "Title": "VisitorPass.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\VisitorPass.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\VisitorPass.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\VisitorPass.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\VisitorPass.cs",
+              "ViewState": "AgIAABoAAAAAAAAAAAAkwC0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:40:08.473Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 37,
+              "Title": "VisitorType.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\VisitorType.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\VisitorType.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\VisitorType.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\VisitorType.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:38:55.084Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 38,
+              "Title": "20260823013624_AddMaintenanceAndExpensesTables.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823013624_AddMaintenanceAndExpensesTables.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260823013624_AddMaintenanceAndExpensesTables.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260823013624_AddMaintenanceAndExpensesTables.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260823013624_AddMaintenanceAndExpensesTables.cs",
+              "ViewState": "AgIAADQAAAAAAAAAAAAgwDwAAABiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:36:25.247Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 39,
+              "Title": "ExpensesController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\ExpensesController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\ExpensesController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\ExpensesController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\ExpensesController.cs",
+              "ViewState": "AgIAADAAAAAAAAAAAAAmwEMAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:34:25.839Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 40,
+              "Title": "MaintenanceController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\MaintenanceController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\MaintenanceController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\MaintenanceController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\MaintenanceController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAFIAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:33:58.176Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 41,
+              "Title": "ExpenseService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\ExpenseService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\ExpenseService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\ExpenseService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\ExpenseService.cs",
+              "ViewState": "AgIAAFwAAAAAAAAAAAAmwHgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:33:07.958Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 42,
+              "Title": "MaintenanceService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\MaintenanceService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\MaintenanceService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\MaintenanceService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\MaintenanceService.cs",
+              "ViewState": "AgIAAG8AAAAAAAAAAAAmwIsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:32:54.146Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 43,
+              "Title": "IExpenseService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IExpenseService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IExpenseService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IExpenseService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IExpenseService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:32:19.516Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 44,
+              "Title": "CreateExpenseDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Expenses\\CreateExpenseDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Expenses\\CreateExpenseDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Expenses\\CreateExpenseDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Expenses\\CreateExpenseDto.cs",
+              "ViewState": "AgIAABcAAAAAAAAAAAAcwCcAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:31:07.805Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 45,
+              "Title": "CreateMaintenanceRequestDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Maintenance\\CreateMaintenanceRequestDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Maintenance\\CreateMaintenanceRequestDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Maintenance\\CreateMaintenanceRequestDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Maintenance\\CreateMaintenanceRequestDto.cs",
+              "ViewState": "AgIAACYAAAAAAAAAAAAYwDMAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:30:06.548Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 46,
+              "Title": "Expense.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Expense.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\Expense.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Expense.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\Expense.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAmwCEAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:29:10.202Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 47,
+              "Title": "MaintenanceRequest.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\MaintenanceRequest.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\MaintenanceRequest.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\MaintenanceRequest.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\MaintenanceRequest.cs",
+              "ViewState": "AgIAAAoAAAAAAAAAAAA4wCYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:28:53.55Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 48,
+              "Title": "ExpenseType.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\ExpenseType.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\ExpenseType.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\ExpenseType.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\ExpenseType.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:28:01.003Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 49,
+              "Title": "MaintenancePriority.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\MaintenancePriority.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\MaintenancePriority.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\MaintenancePriority.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\MaintenancePriority.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:26:50.599Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 50,
+              "Title": "PaymentsController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\PaymentsController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\PaymentsController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\PaymentsController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\PaymentsController.cs",
+              "ViewState": "AgIAAEsAAAAAAAAAAAAuwF8AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:23:31.222Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 51,
+              "Title": "PaymentService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\PaymentService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\PaymentService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\PaymentService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\PaymentService.cs",
+              "ViewState": "AgIAALQAAAAAAAAAAAAmwM0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:22:54.966Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 52,
+              "Title": "IPaymentService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IPaymentService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IPaymentService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IPaymentService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IPaymentService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:22:14.728Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 53,
+              "Title": "CreatePaymentDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Payments\\CreatePaymentDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Payments\\CreatePaymentDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Payments\\CreatePaymentDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Payments\\CreatePaymentDto.cs",
+              "ViewState": "AgIAACUAAAAAAAAAAAAowDMAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:21:14.291Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 54,
+              "Title": "Payment.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Payment.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\Payment.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Payment.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\Payment.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAmwCQAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:20:29.366Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 55,
+              "Title": "PaymentType.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\PaymentType.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\PaymentType.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\PaymentType.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\PaymentType.cs",
+              "ViewState": "AgIAAAsAAAAAAAAAAAAAwBIAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-23T01:19:16.902Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 56,
+              "Title": "20260822215804_AddContractsTables.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822215804_AddContractsTables.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260822215804_AddContractsTables.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822215804_AddContractsTables.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260822215804_AddContractsTables.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAxwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:58:05.08Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 57,
+              "Title": "ContractsController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\ContractsController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\ContractsController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\ContractsController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\ContractsController.cs",
+              "ViewState": "AgIAADkAAAAAAAAAAAAmwEoAAAAcAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:56:38.935Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 58,
+              "Title": "IContractService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IContractService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IContractService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IContractService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IContractService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:55:31.788Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 59,
+              "Title": "CreateContractDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Contracts\\CreateContractDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Contracts\\CreateContractDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Contracts\\CreateContractDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Contracts\\CreateContractDto.cs",
+              "ViewState": "AgIAAEoAAAAAAAAAAAAiwFYAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:53:16.835Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 60,
+              "Title": "ContractDocument.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\ContractDocument.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\ContractDocument.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\ContractDocument.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\ContractDocument.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:52:14.798Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 61,
+              "Title": "ContractItem.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\ContractItem.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\ContractItem.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\ContractItem.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\ContractItem.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:51:23.212Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 62,
+              "Title": "Contract.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Contract.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\Contract.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Contract.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\Contract.cs",
+              "ViewState": "AgIAAB4AAAAAAAAAAADwvywAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:50:35.322Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 63,
+              "Title": "ContractStatus.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\ContractStatus.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\ContractStatus.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\ContractStatus.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\ContractStatus.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:49:04.271Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 65,
+              "Title": "20260822214326_AddTenantsTable.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822214326_AddTenantsTable.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260822214326_AddTenantsTable.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822214326_AddTenantsTable.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260822214326_AddTenantsTable.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:43:26.528Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 66,
+              "Title": "TenantsController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\TenantsController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\TenantsController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\TenantsController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\TenantsController.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAFcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:41:40.517Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 67,
+              "Title": "TenantService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\TenantService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\TenantService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\TenantService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\TenantService.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAxwC8AAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:39:35.343Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 64,
+              "Title": "Tenant.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Tenant.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\Tenant.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Tenant.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\Tenant.cs",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAQwBkAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:33:25.926Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 68,
+              "Title": "ITenantService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\ITenantService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\ITenantService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\ITenantService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\ITenantService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:39:08.417Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 69,
+              "Title": "CreateTenantDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Tenants\\CreateTenantDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Tenants\\CreateTenantDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Tenants\\CreateTenantDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Tenants\\CreateTenantDto.cs",
+              "ViewState": "AgIAACYAAAAAAAAAAAAcwC0AAAA5AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:37:13.107Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 70,
+              "Title": "20260822213123_AddUnitsTable.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822213123_AddUnitsTable.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Migrations\\20260822213123_AddUnitsTable.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Migrations\\20260822213123_AddUnitsTable.cs",
+              "RelativeToolTip": "Andalos.API\\Migrations\\20260822213123_AddUnitsTable.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:31:24.602Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 71,
+              "Title": "UnitsController.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\UnitsController.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Controllers\\UnitsController.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Controllers\\UnitsController.cs",
+              "RelativeToolTip": "Andalos.API\\Controllers\\UnitsController.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAIwFgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:28:57.297Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 72,
+              "Title": "UnitService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\UnitService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\UnitService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\UnitService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\UnitService.cs",
+              "ViewState": "AgIAAHEAAAAAAAAAAAAmwIcAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:28:05.605Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 73,
+              "Title": "IUnitService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IUnitService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IUnitService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IUnitService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IUnitService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:27:31.106Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 74,
+              "Title": "ApiResponseDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Common\\ApiResponseDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Common\\ApiResponseDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Common\\ApiResponseDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Common\\ApiResponseDto.cs",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAowBwAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:26:52.278Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 75,
+              "Title": "CreateUnitDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Units\\CreateUnitDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Units\\CreateUnitDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Units\\CreateUnitDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Units\\CreateUnitDto.cs",
+              "ViewState": "AgIAADgAAAAAAAAAAAAqwEYAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:25:28.488Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 76,
+              "Title": "Unit.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Unit.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Models\\Unit.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Models\\Unit.cs",
+              "RelativeToolTip": "Andalos.API\\Models\\Unit.cs",
+              "ViewState": "AgIAAAoAAAAAAAAAAAA4wBoAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:23:57.61Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 77,
+              "Title": "UnitStatus.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\UnitStatus.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\UnitStatus.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\UnitStatus.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\UnitStatus.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T21:22:42.078Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 79,
+              "Title": "AuthService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\AuthService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Services\\AuthService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Services\\AuthService.cs",
+              "RelativeToolTip": "Andalos.API\\Services\\AuthService.cs",
+              "ViewState": "AgIAAGcAAAAAAAAAAAAmwHQAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:26:35.8Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 80,
+              "Title": "IAuthService.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IAuthService.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Interfaces\\IAuthService.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Interfaces\\IAuthService.cs",
+              "RelativeToolTip": "Andalos.API\\Interfaces\\IAuthService.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:15:59.793Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 81,
+              "Title": "JwtHelper.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Helpers\\JwtHelper.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Helpers\\JwtHelper.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Helpers\\JwtHelper.cs",
+              "RelativeToolTip": "Andalos.API\\Helpers\\JwtHelper.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAmwC4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:15:10.682Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 82,
+              "Title": "LoginDto.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Auth\\LoginDto.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\DTOs\\Auth\\LoginDto.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\DTOs\\Auth\\LoginDto.cs",
+              "RelativeToolTip": "Andalos.API\\DTOs\\Auth\\LoginDto.cs",
+              "ViewState": "AgIAABMAAAAAAAAAAAAAwCoAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:12:01.539Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 83,
+              "Title": "UserRole.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\UserRole.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Enums\\UserRole.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Enums\\UserRole.cs",
+              "RelativeToolTip": "Andalos.API\\Enums\\UserRole.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:10:17.395Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 84,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\appsettings.json",
+              "RelativeDocumentMoniker": "Andalos.API\\appsettings.json",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\appsettings.json",
+              "RelativeToolTip": "Andalos.API\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABEAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-08-22T20:04:52.018Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 85,
+              "Title": "BaseEntity.cs",
+              "DocumentMoniker": "D:\\Backend\\Andalos.API\\Andalos.API\\Common\\BaseEntity.cs",
+              "RelativeDocumentMoniker": "Andalos.API\\Common\\BaseEntity.cs",
+              "ToolTip": "D:\\Backend\\Andalos.API\\Andalos.API\\Common\\BaseEntity.cs",
+              "RelativeToolTip": "Andalos.API\\Common\\BaseEntity.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-22T20:03:53.902Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
