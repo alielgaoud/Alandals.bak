@@ -56,5 +56,24 @@
         public const string SystemDateFormat = "System.DateFormat";
         public const string SystemSessionTimeout = "System.SessionTimeout";
         public const string SystemMaintenanceMode = "System.MaintenanceMode";
+
+        // ===== محتوى العقد =====
+        public const string ContractTemplateTitle = "Contract.TemplateTitle";
+        public const string ContractTemplateIntro = "Contract.TemplateIntro";
+        public const string ContractLandlordLabel = "Contract.LandlordLabel";
+        public const string ContractTenantLabel = "Contract.TenantLabel";
+        public const string ContractUnitSectionTitle = "Contract.UnitSectionTitle";
+        public const string ContractTermsSectionTitle = "Contract.TermsSectionTitle";
+        public const string ContractPaymentSectionTitle = "Contract.PaymentSectionTitle";
+        public const string ContractMaintenanceSectionTitle = "Contract.MaintenanceSectionTitle";
+        public const string ContractTerminationSectionTitle = "Contract.TerminationSectionTitle";
+        public const string ContractClauses = "Contract.Clauses";
+        public const string ContractSignatureLandlord = "Contract.SignatureLandlordLabel";
+        public const string ContractSignatureTenant = "Contract.SignatureTenantLabel";
+        public const string ContractWitnessLabel = "Contract.WitnessLabel";
+        public const string ContractFooterNote = "Contract.FooterNote";
+        public const string ContractShowWitnesses = "Contract.ShowWitnesses";
+        public const string ContractShowHijriDate = "Contract.ShowHijriDate";
+
     }
 }

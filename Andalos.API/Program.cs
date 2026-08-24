@@ -9,16 +9,19 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 
+// 1. تفعيل ترخيص مكتبة الـ PDF المجاني
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Database
+// 2. Database
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// 2. Helpers
+// 3. Helpers
 builder.Services.AddSingleton<JwtHelper>();
 
-// 3. Application Services
+// 4. Application Services
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUnitService, UnitService>();
@@ -33,17 +36,28 @@ builder.Services.AddScoped<ISettingService, SettingService>();
 builder.Services.AddScoped<INumberGeneratorService, NumberGeneratorService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITenantPortalService, TenantPortalService>();
+builder.Services.AddScoped<ContractPdfService>();
+builder.Services.AddScoped<ReceiptPdfService>();
+builder.Services.AddScoped<ReportPdfService>();
 
-// =========================================================================
-// 👈 إيقاف التحقق من التوكن وجعل كل الطلبات مفتوحة ومصرح لها كـ SuperAdmin
-// =========================================================================
+// 5. 👈 تفعيل الـ CORS للسماح لتطبيق Angular بالاتصال بالـ API بدون قيود
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// 6. إيقاف التحقق من التوكن مؤقتاً لتسهيل الاختبار
 builder.Services.AddAuthentication("BypassAuth")
     .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("BypassAuth", options => { });
 
 builder.Services.AddAuthorization();
-// =========================================================================
 
-// 4. AutoMapper
+// 7. AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddControllers();
@@ -74,6 +88,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// 👈 استخدام سياسة الـ CORS (يجب أن توضع قبل Authentication)
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();

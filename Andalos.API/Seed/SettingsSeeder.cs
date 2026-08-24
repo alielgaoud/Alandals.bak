@@ -21,6 +21,50 @@ namespace Andalos.API.Seed
                 New("Company", SettingKeys.CompanyAddress, "ليبيا", "String", "العنوان", "", 5),
                 New("Company", SettingKeys.CompanyTaxNumber, "", "String", "الرقم الضريبي", "", 6),
 
+                // ===== محتوى عقد الإيجار =====
+New("ContractTemplate", "Contract.TemplateTitle", "عقد إيجار محل تجاري", "String", "عنوان العقد", "يظهر أعلى العقد", 1),
+
+New("ContractTemplate", "Contract.TemplateIntro",
+    "إنه في يوم {Date} الموافق {HijriDate}، تم الاتفاق بين كل من:",
+    "Text", "مقدمة العقد", "الرموز: {Date} التاريخ, {HijriDate} التاريخ الهجري", 2),
+
+New("ContractTemplate", "Contract.LandlordLabel", "الطرف الأول (المؤجر)", "String", "تسمية المؤجر", "", 3),
+
+New("ContractTemplate", "Contract.TenantLabel", "الطرف الثاني (المستأجر)", "String", "تسمية المستأجر", "", 4),
+
+New("ContractTemplate", "Contract.UnitSectionTitle", "البند الأول: بيانات المحل", "String", "عنوان قسم المحل", "", 5),
+
+New("ContractTemplate", "Contract.TermsSectionTitle", "البند الثاني: شروط الإيجار", "String", "عنوان قسم الشروط", "", 6),
+
+New("ContractTemplate", "Contract.PaymentSectionTitle", "البند الثالث: قيمة الإيجار وطريقة السداد", "String", "عنوان قسم الدفع", "", 7),
+
+New("ContractTemplate", "Contract.MaintenanceSectionTitle", "البند الرابع: الصيانة", "String", "عنوان قسم الصيانة", "", 8),
+
+New("ContractTemplate", "Contract.TerminationSectionTitle", "البند الخامس: إنهاء العقد", "String", "عنوان قسم الإنهاء", "", 9),
+
+New("ContractTemplate", "Contract.Clauses",
+    "1- يلتزم المستأجر بالحفاظ على المحل بحالة جيدة.\n" +
+    "2- لا يجوز للمستأجر التنازل عن العقد أو تأجير المحل من الباطن إلا بموافقة خطية من المؤجر.\n" +
+    "3- يلتزم المستأجر بسداد الإيجار في الموعد المحدد.\n" +
+    "4- في حال التأخر عن السداد لأكثر من {GraceDays} يوم، يحق للمؤجر فسخ العقد.\n" +
+    "5- يتحمل المستأجر تكاليف الصيانة الداخلية ويتحمل المؤجر الصيانة الهيكلية.\n" +
+    "6- يلتزم المستأجر بإخلاء المحل عند انتهاء مدة العقد ما لم يتم التجديد.",
+    "Text", "بنود العقد", "البنود القانونية - كل بند في سطر", 10, true),
+
+New("ContractTemplate", "Contract.SignatureLandlordLabel", "الطرف الأول (المؤجر)", "String", "توقيع المؤجر", "", 11),
+
+New("ContractTemplate", "Contract.SignatureTenantLabel", "الطرف الثاني (المستأجر)", "String", "توقيع المستأجر", "", 12),
+
+New("ContractTemplate", "Contract.WitnessLabel", "الشهود", "String", "توقيع الشهود", "", 13),
+
+New("ContractTemplate", "Contract.FooterNote",
+    "حُرر هذا العقد من نسختين أصليتين، بيد كل طرف نسخة للعمل بموجبها.",
+    "Text", "ملاحظة التذييل", "تظهر أسفل العقد", 14),
+
+New("ContractTemplate", "Contract.ShowWitnesses", "False", "Boolean", "إظهار خانة الشهود", "", 15),
+
+New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظهار التاريخ الهجري", "", 16),
+
                 // ===== المالية =====
                 New("Financial", SettingKeys.Currency, "LYD", "Dropdown", "العملة", "LYD / USD / EUR", 1),
                 New("Financial", SettingKeys.CurrencySymbol, "د.ل", "String", "رمز العملة", "", 2),
