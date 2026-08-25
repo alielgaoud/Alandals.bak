@@ -1,9 +1,8 @@
-﻿using Andalos.API.Data;
+﻿
 using Andalos.API.DTOs.Reports;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using QuestPDF.Fluent;
-using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
 namespace Andalos.API.Services
@@ -17,9 +16,14 @@ namespace Andalos.API.Services
             _reportService = reportService;
         }
 
+        // =========================================================
+        // تقرير المتأخرات
+        // =========================================================
+
         public async Task<byte[]> GenerateOverdueReportPdfAsync()
         {
-            var data = await _reportService.GetOverdueReportAsync();
+            var data =
+                await _reportService.GetOverdueReportAsync();
 
             var document = Document.Create(container =>
             {
@@ -27,16 +31,25 @@ namespace Andalos.API.Services
                     container,
                     "تقرير المتأخرات",
                     $"تاريخ: {DateTime.Now:yyyy/MM/dd}",
-                    content => BuildOverdueContent(content, data)
+                    content =>
+                        BuildOverdueContent(
+                            content,
+                            data)
                 );
             });
 
             return document.GeneratePdf();
         }
 
+        // =========================================================
+        // تقرير الإشغال
+        // =========================================================
+
         public async Task<byte[]> GenerateOccupancyReportPdfAsync()
         {
-            var data = await _reportService.GetUnitsOccupancyReportAsync();
+            var data =
+                await _reportService
+                    .GetUnitsOccupancyReportAsync();
 
             var document = Document.Create(container =>
             {
@@ -44,16 +57,26 @@ namespace Andalos.API.Services
                     container,
                     "تقرير إشغال المحلات",
                     $"تاريخ: {DateTime.Now:yyyy/MM/dd}",
-                    content => BuildOccupancyContent(content, data)
+                    content =>
+                        BuildOccupancyContent(
+                            content,
+                            data)
                 );
             });
 
             return document.GeneratePdf();
         }
 
-        public async Task<byte[]> GenerateFinancialReportPdfAsync(int year)
+        // =========================================================
+        // التقرير المالي
+        // =========================================================
+
+        public async Task<byte[]> GenerateFinancialReportPdfAsync(
+            int year)
         {
-            var data = await _reportService.GetAnnualFinancialPerformanceAsync(year);
+            var data =
+                await _reportService
+                    .GetAnnualFinancialPerformanceAsync(year);
 
             var document = Document.Create(container =>
             {
@@ -61,27 +84,68 @@ namespace Andalos.API.Services
                     container,
                     "التقرير المالي السنوي",
                     $"السنة: {year}",
-                    content => BuildFinancialContent(content, data, year)
+                    content =>
+                        BuildFinancialContent(
+                            content,
+                            data,
+                            year)
                 );
             });
 
             return document.GeneratePdf();
         }
 
-        private void BuildOverdueContent(IContainer container, List<OverdueReportItemDto> data)
+        // =========================================================
+        // تقرير المتأخرات
+        // =========================================================
+
+        private void BuildOverdueContent(
+            IContainer container,
+            List<OverdueReportItemDto> data)
         {
             container.Column(col =>
             {
-                col.Spacing(10);
+                col.Spacing(12);
 
-                // ملخص
-                decimal totalOverdue = data.Sum(x => x.RemainingAmount);
-                col.Item().Background(PdfMasterTemplate.AccentColor).Padding(12)
-                    .Text($"إجمالي المتأخرات: {totalOverdue:N2} د.ل | عدد العقود المتأخرة: {data.Count}")
-                    .FontSize(13).Bold().FontColor(PdfMasterTemplate.White).AlignCenter();
+                decimal totalOverdue =
+                    data.Sum(x => x.RemainingAmount);
 
-                // الجدول
-                var headers = new[] { "العقد", "المستأجر", "المحل", "الإيجار", "المستحق", "المدفوع", "المتبقي" };
+                // Summary
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "إجمالي المتأخرات",
+                                $"{totalOverdue:N2} د.ل"));
+
+                    row.ConstantItem(10);
+
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "العقود المتأخرة",
+                                data.Count.ToString("N0")));
+                });
+
+                // Table
+                PdfMasterTemplate.SectionTitle(
+                    col.Item(),
+                    "تفاصيل المتأخرات");
+
+                var headers = new[]
+                {
+                    "العقد",
+                    "المستأجر",
+                    "المحل",
+                    "الإيجار",
+                    "المستحق",
+                    "المدفوع",
+                    "المتبقي"
+                };
+
                 var rows = data.Select(x => new[]
                 {
                     x.ContractNumber,
@@ -93,51 +157,178 @@ namespace Andalos.API.Services
                     $"{x.RemainingAmount:N0}"
                 });
 
-                col.Item().Element(c => PdfMasterTemplate.BuildTable(c, headers, rows));
+                col.Item()
+                    .Element(c =>
+                        PdfMasterTemplate.BuildTable(
+                            c,
+                            headers,
+                            rows));
             });
         }
 
-        private void BuildOccupancyContent(IContainer container, List<UnitOccupancyReportDto> data)
+        // =========================================================
+        // تقرير الإشغال
+        // =========================================================
+
+        private void BuildOccupancyContent(
+            IContainer container,
+            List<UnitOccupancyReportDto> data)
         {
             container.Column(col =>
             {
-                col.Spacing(10);
+                col.Spacing(12);
 
-                int rented = data.Count(u => u.Status == "Rented");
-                int vacant = data.Count(u => u.Status == "Vacant");
-                col.Item().Background(PdfMasterTemplate.SecondaryColor).Padding(12)
-                    .Text($"إجمالي المحلات: {data.Count} | مؤجر: {rented} | شاغر: {vacant} | نسبة الإشغال: {(data.Count > 0 ? (rented * 100.0 / data.Count) : 0):F1}%")
-                    .FontSize(12).Bold().FontColor(PdfMasterTemplate.White).AlignCenter();
+                int rented =
+                    data.Count(u => u.Status == "Rented");
 
-                var headers = new[] { "الرقم", "الاسم", "النوع", "الحالة", "المساحة", "المستأجر", "الإيجار" };
+                int vacant =
+                    data.Count(u => u.Status == "Vacant");
+
+                double occupancyRate =
+                    data.Count > 0
+                        ? rented * 100.0 / data.Count
+                        : 0;
+
+                // Summary
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "إجمالي المحلات",
+                                data.Count.ToString("N0")));
+
+                    row.ConstantItem(8);
+
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "مؤجر",
+                                rented.ToString("N0")));
+
+                    row.ConstantItem(8);
+
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "شاغر",
+                                vacant.ToString("N0")));
+
+                    row.ConstantItem(8);
+
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "نسبة الإشغال",
+                                $"{occupancyRate:F1}%"));
+                });
+
+                // Table
+                PdfMasterTemplate.SectionTitle(
+                    col.Item(),
+                    "تفاصيل الإشغال");
+
+                var headers = new[]
+                {
+                    "الرقم",
+                    "الاسم",
+                    "النوع",
+                    "الحالة",
+                    "المساحة",
+                    "المستأجر",
+                    "الإيجار"
+                };
+
                 var rows = data.Select(x => new[]
                 {
                     x.UnitNumber,
                     x.UnitName,
                     x.UnitType,
                     x.Status,
-                    $"{x.Area} م²",
+                    $"{x.Area:N2} م²",
                     x.CurrentTenantName ?? "-",
-                    x.CurrentRentAmount.HasValue ? $"{x.CurrentRentAmount:N0}" : "-"
+                    x.CurrentRentAmount.HasValue
+                        ? $"{x.CurrentRentAmount:N0}"
+                        : "-"
                 });
 
-                col.Item().Element(c => PdfMasterTemplate.BuildTable(c, headers, rows));
+                col.Item()
+                    .Element(c =>
+                        PdfMasterTemplate.BuildTable(
+                            c,
+                            headers,
+                            rows));
             });
         }
 
-        private void BuildFinancialContent(IContainer container, List<MonthlyFinancialBarDto> data, int year)
+        // =========================================================
+        // التقرير المالي
+        // =========================================================
+
+        private void BuildFinancialContent(
+            IContainer container,
+            List<MonthlyFinancialBarDto> data,
+            int year)
         {
             container.Column(col =>
             {
-                col.Spacing(10);
+                col.Spacing(12);
 
-                decimal totalRev = data.Sum(x => x.Revenue);
-                decimal totalExp = data.Sum(x => x.Expenses);
-                col.Item().Background(PdfMasterTemplate.PrimaryColor).Padding(12)
-                    .Text($"إجمالي الإيرادات: {totalRev:N2} | المصروفات: {totalExp:N2} | صافي الربح: {totalRev - totalExp:N2} د.ل")
-                    .FontSize(12).Bold().FontColor(PdfMasterTemplate.White).AlignCenter();
+                decimal totalRevenue =
+                    data.Sum(x => x.Revenue);
 
-                var headers = new[] { "الشهر", "الإيرادات", "المصروفات", "صافي الربح" };
+                decimal totalExpenses =
+                    data.Sum(x => x.Expenses);
+
+                decimal netProfit =
+                    totalRevenue - totalExpenses;
+
+                // Summary
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "إجمالي الإيرادات",
+                                $"{totalRevenue:N2} د.ل"));
+
+                    row.ConstantItem(10);
+
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "إجمالي المصروفات",
+                                $"{totalExpenses:N2} د.ل"));
+
+                    row.ConstantItem(10);
+
+                    row.RelativeItem()
+                        .Element(c =>
+                            SummaryCard(
+                                c,
+                                "صافي الربح",
+                                $"{netProfit:N2} د.ل"));
+                });
+
+                // Table
+                PdfMasterTemplate.SectionTitle(
+                    col.Item(),
+                    $"الأداء المالي الشهري - {year}");
+
+                var headers = new[]
+                {
+                    "الشهر",
+                    "الإيرادات",
+                    "المصروفات",
+                    "صافي الربح"
+                };
+
                 var rows = data.Select(x => new[]
                 {
                     x.MonthName,
@@ -146,8 +337,45 @@ namespace Andalos.API.Services
                     $"{x.NetProfit:N2}"
                 });
 
-                col.Item().Element(c => PdfMasterTemplate.BuildTable(c, headers, rows));
+                col.Item()
+                    .Element(c =>
+                        PdfMasterTemplate.BuildTable(
+                            c,
+                            headers,
+                            rows));
             });
+        }
+
+        // =========================================================
+        // Summary Card
+        // =========================================================
+
+        private static void SummaryCard(
+            IContainer container,
+            string label,
+            string value)
+        {
+            container
+                .Background(PdfMasterTemplate.LightGray)
+                .Border(0.8f)
+                .BorderColor(PdfMasterTemplate.BorderGray)
+                .Padding(10)
+                .Column(c =>
+                {
+                    c.Item()
+                        .Text(label)
+                        .FontSize(8)
+                        .FontColor(PdfMasterTemplate.Gray)
+                        .AlignCenter();
+
+                    c.Item()
+                        .PaddingTop(5)
+                        .Text(value)
+                        .FontSize(14)
+                        .Bold()
+                        .FontColor(PdfMasterTemplate.Black)
+                        .AlignCenter();
+                });
         }
     }
 }
