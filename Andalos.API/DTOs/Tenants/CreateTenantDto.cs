@@ -47,5 +47,14 @@ namespace Andalos.API.DTOs.Tenants
         public string? ContactPerson { get; set; }
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
+    }  
+    // 👈 إضافة الكلاس المفقود هنا لحل كل أخطاء البناء السبعة
+    public class TenantFinancialSummaryDto
+    {
+        public decimal TotalRequiredRent { get; set; } // إجمالي الإيجار المستحق تاريخياً
+        public decimal TotalPaidAmount { get; set; }   // إجمالي المبالغ المدفوعة فعلياً
+        public decimal RemainingBalance { get; set; }  // المتبقي غير المدفوع (المتأخرات)
+        public int TotalContractsCount { get; set; }     // إجمالي العقود
+        public int ActiveContractsCount { get; set; }    // العقود النشطة حالياً
     }
 }
