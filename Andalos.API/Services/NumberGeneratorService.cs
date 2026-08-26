@@ -11,7 +11,6 @@ namespace Andalos.API.Services
         private readonly AppDbContext _db;
         private readonly ISettingService _settings;
 
-        // خريطة بين مفتاح التسلسل ومفتاح الإعداد الخاص بصيغته
         private static readonly Dictionary<string, string> FormatKeyMap = new()
         {
             { "Contract", SettingKeys.ContractNumberFormat },
@@ -29,56 +28,89 @@ namespace Andalos.API.Services
 
         public async Task<string> GenerateAsync(string sequenceKey)
         {
-            // 1. جلب الصيغة من الإعدادات
             if (!FormatKeyMap.TryGetValue(sequenceKey, out var formatKey))
                 throw new ArgumentException($"مفتاح التسلسل '{sequenceKey}' غير معروف");
 
             string format = await _settings.GetValueAsync(formatKey) ?? GetDefaultFormat(sequenceKey);
-
-            // 2. جلب أو إنشاء سجل العداد
             var now = DateTime.Now;
+
+            // 1. جلب أو إنشاء سجل العداد
             var sequence = await _db.NumberSequences
                 .FirstOrDefaultAsync(s => s.SequenceKey == sequenceKey);
 
             if (sequence == null)
             {
+                // إذا كان ينشأ لأول مرة، نتحقق من عدد السجلات الفعلية الموجودة لتفادي التكرار
+                int existingCount = await GetExistingCountAsync(sequenceKey, now.Year);
+
                 sequence = new NumberSequence
                 {
                     SequenceKey = sequenceKey,
                     CurrentYear = now.Year,
-                    LastNumber = 0
+                    LastNumber = existingCount
                 };
                 _db.NumberSequences.Add(sequence);
             }
 
-            // 3. إذا تغيرت السنة → إعادة العداد للصفر
+            // 2. إذا تغيرت السنة → إعادة العداد
             if (sequence.CurrentYear != now.Year)
             {
                 sequence.CurrentYear = now.Year;
                 sequence.LastNumber = 0;
             }
 
-            // 4. زيادة العداد
-            sequence.LastNumber++;
+            // 3. توليد رقم فريد والتأكد من عدم وجوده في قاعدة البيانات (حماية من التكرار)
+            string generatedNumber;
+            bool exists;
+            do
+            {
+                sequence.LastNumber++;
+                generatedNumber = BuildNumber(format, sequence.LastNumber, now);
+                exists = await CheckIfNumberExistsAsync(sequenceKey, generatedNumber);
+            }
+            while (exists); // إذا وُجد رقم مكرر، سيزيد العداد فوراً للرقم التالي
+
             sequence.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            // 5. بناء الرقم النهائي بناءً على الصيغة
-            return BuildNumber(format, sequence.LastNumber, now);
+            return generatedNumber;
+        }
+
+        // ===== فحص وجود الرقم مسبقاً لمنع أي خطأ SQL =====
+        private async Task<bool> CheckIfNumberExistsAsync(string sequenceKey, string number)
+        {
+            return sequenceKey switch
+            {
+                "Contract" => await _db.Contracts.AnyAsync(c => c.ContractNumber == number),
+                "Receipt" => await _db.Payments.AnyAsync(p => p.ReceiptNumber == number),
+                "Maintenance" => await _db.MaintenanceRequests.AnyAsync(m => m.RequestNumber == number),
+                "Expense" => await _db.Expenses.AnyAsync(e => e.ExpenseNumber == number),
+                "PassCode" => await _db.VisitorPasses.AnyAsync(v => v.PassCode == number),
+                _ => false
+            };
+        }
+
+        private async Task<int> GetExistingCountAsync(string sequenceKey, int year)
+        {
+            return sequenceKey switch
+            {
+                "Contract" => await _db.Contracts.CountAsync(c => c.CreatedAt.Year == year),
+                "Receipt" => await _db.Payments.CountAsync(p => p.CreatedAt.Year == year),
+                "Maintenance" => await _db.MaintenanceRequests.CountAsync(m => m.CreatedAt.Year == year),
+                "Expense" => await _db.Expenses.CountAsync(e => e.CreatedAt.Year == year),
+                "PassCode" => await _db.VisitorPasses.CountAsync(v => v.CreatedAt.Year == year),
+                _ => 0
+            };
         }
 
         private static string BuildNumber(string format, int seqNumber, DateTime now)
         {
             string result = format;
-
-            // استبدال الرموز
             result = result.Replace("{YYYY}", now.Year.ToString());
             result = result.Replace("{YY}", now.ToString("yy"));
             result = result.Replace("{MM}", now.Month.ToString("D2"));
             result = result.Replace("{DD}", now.Day.ToString("D2"));
 
-            // استبدال {SEQ:n} بالرقم التسلسلي مع الحشو بالأصفار
-            // مثال: {SEQ:4} → 0001, {SEQ:5} → 00001
             var seqMatch = System.Text.RegularExpressions.Regex.Match(result, @"\{SEQ:(\d+)\}");
             if (seqMatch.Success)
             {
