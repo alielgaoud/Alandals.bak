@@ -8,10 +8,17 @@ namespace Andalos.API.Models
     {
         [Required]
         [MaxLength(50)]
-        public string ExpenseNumber { get; set; } = string.Empty; // رقم السند (مثال: EXP-2026-00001)
+        public string ExpenseNumber { get; set; } = string.Empty;
 
-        public int? UnitId { get; set; } // اختياري: إذا كان المصروف خاص بمحل معين (إذا null = مصروف عام للمجمع)
+        public int? UnitId { get; set; }
         public Unit? Unit { get; set; }
+
+        // 👈 الجديد: هل المصروف محمل على حساب المستأجر؟
+        public bool IsChargedToTenant { get; set; } = false;
+
+        // 👈 الجديد: المستأجر المستهدف بالتحميل
+        public int? TenantId { get; set; }
+        public Tenant? Tenant { get; set; }
 
         public ExpenseType ExpenseType { get; set; } = ExpenseType.Other;
 
@@ -22,13 +29,13 @@ namespace Andalos.API.Models
         public DateTime ExpenseDate { get; set; } = DateTime.Now;
 
         [MaxLength(150)]
-        public string? PaidTo { get; set; } // المدفوع له (اسم الفني، الشركة، الجهة)
+        public string? PaidTo { get; set; }
 
         [Required]
         [MaxLength(500)]
-        public string Description { get; set; } = string.Empty; // بيان المصروف
+        public string Description { get; set; } = string.Empty;
 
         [MaxLength(100)]
-        public string? InvoiceNumber { get; set; } // رقم الفاتورة الورقية إن وُجدت
+        public string? InvoiceNumber { get; set; }
     }
 }

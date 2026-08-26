@@ -38,11 +38,31 @@ namespace Andalos.API.Services
 
         public async Task<ExpenseResponseDto> CreateAsync(CreateExpenseDto dto)
         {
+            int? detectedTenantId = null;
+
             if (dto.UnitId.HasValue)
             {
                 var unitExists = await _db.Units.AnyAsync(u => u.Id == dto.UnitId.Value && u.IsActive);
                 if (!unitExists)
                     throw new KeyNotFoundException("المحل المحدد غير موجود");
+
+                // 👈 الجديد: إذا كان المصروف محملاً على المستأجر، نجلب العقد النشط حالياً للمحل
+                if (dto.IsChargedToTenant)
+                {
+                    var activeContract = await _db.Contracts
+                        .FirstOrDefaultAsync(c => c.UnitId == dto.UnitId.Value
+                                             && c.Status == ContractStatus.Active
+                                             && c.IsActive);
+
+                    if (activeContract == null)
+                        throw new InvalidOperationException("لا يمكن تحميل المصروف على المستأجر لعدم وجود عقد إيجار نشط حالياً لهذا المحل.");
+
+                    detectedTenantId = activeContract.TenantId;
+                }
+            }
+            else if (dto.IsChargedToTenant)
+            {
+                throw new InvalidOperationException("لا يمكن تحميل المصروف على مستأجر دون تحديد المحل المرتبط به.");
             }
 
             string expenseNumber = await GenerateExpenseNumberAsync();
@@ -56,7 +76,9 @@ namespace Andalos.API.Services
                 ExpenseDate = dto.ExpenseDate,
                 PaidTo = dto.PaidTo,
                 Description = dto.Description,
-                InvoiceNumber = dto.InvoiceNumber
+                InvoiceNumber = dto.InvoiceNumber,
+                IsChargedToTenant = dto.IsChargedToTenant, // 👈 الجديد
+                TenantId = detectedTenantId               // 👈 الجديد
             };
 
             _db.Expenses.Add(expense);
@@ -64,6 +86,7 @@ namespace Andalos.API.Services
 
             var saved = await _db.Expenses
                 .Include(e => e.Unit)
+                .Include(e => e.Tenant) // 👈 الجديد
                 .FirstAsync(e => e.Id == expense.Id);
 
             return MapToDto(saved);
@@ -114,8 +137,12 @@ namespace Andalos.API.Services
                 ExpenseDate = e.ExpenseDate,
                 PaidTo = e.PaidTo,
                 Description = e.Description,
-                InvoiceNumber = e.InvoiceNumber
+                InvoiceNumber = e.InvoiceNumber,
+                IsChargedToTenant = e.IsChargedToTenant, // 👈 الجديد
+                TenantId = e.TenantId,                   // 👈 الجديد
+                TenantName = e.Tenant?.FullName          // 👈 الجديد
             };
         }
+
     }
 }

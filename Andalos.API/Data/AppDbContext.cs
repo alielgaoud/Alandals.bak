@@ -165,8 +165,13 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(e => e.UnitId)
                       .OnDelete(DeleteBehavior.SetNull);
-            });
 
+                // 👈 الجديد: علاقة المصروف بالمستأجر عند تحميل التكلفة عليه
+                entity.HasOne(e => e.Tenant)
+                      .WithMany()
+                      .HasForeignKey(e => e.TenantId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
             // 👈 VisitorPass
             modelBuilder.Entity<VisitorPass>(entity =>
             {
