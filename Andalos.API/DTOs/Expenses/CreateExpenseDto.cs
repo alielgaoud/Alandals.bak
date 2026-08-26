@@ -6,6 +6,11 @@ namespace Andalos.API.DTOs.Expenses
     public class CreateExpenseDto
     {
         public int? UnitId { get; set; }
+
+        // 👈 الجديد
+        public int? TenantId { get; set; }
+        public bool IsChargedToTenant { get; set; } = false;
+
         public ExpenseType ExpenseType { get; set; } = ExpenseType.Other;
 
         [Required(ErrorMessage = "المبلغ مطلوب")]
@@ -23,8 +28,7 @@ namespace Andalos.API.DTOs.Expenses
 
         public string? InvoiceNumber { get; set; }
 
-        // 👈 الجديد
-        public bool IsChargedToTenant { get; set; } = false;
+        public IFormFile? Attachment { get; set; }
     }
     public class ExpenseResponseDto
     {
@@ -44,5 +48,7 @@ namespace Andalos.API.DTOs.Expenses
         public bool IsChargedToTenant { get; set; }
         public int? TenantId { get; set; }
         public string? TenantName { get; set; }
+        public string? AttachmentUrl { get; set; }
+
     }
 }

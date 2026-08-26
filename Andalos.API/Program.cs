@@ -67,6 +67,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.UseStaticFiles();
 
 // تشغيل Seeder الإعدادات عند الإقلاع
 using (var scope = app.Services.CreateScope())

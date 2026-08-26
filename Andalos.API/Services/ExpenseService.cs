@@ -10,16 +10,21 @@ namespace Andalos.API.Services
     public class ExpenseService : IExpenseService
     {
         private readonly AppDbContext _db;
+        private readonly INumberGeneratorService _numberGen;
+        private readonly IWebHostEnvironment _env;
 
-        public ExpenseService(AppDbContext db)
+        public ExpenseService(AppDbContext db, INumberGeneratorService numberGen, IWebHostEnvironment env)
         {
             _db = db;
+            _numberGen = numberGen;
+            _env = env;
         }
 
         public async Task<List<ExpenseResponseDto>> GetAllAsync()
         {
             return await _db.Expenses
                 .Include(e => e.Unit)
+                .Include(e => e.Tenant) // 👈 تضمين المستأجر
                 .Where(e => e.IsActive)
                 .OrderByDescending(e => e.ExpenseDate)
                 .Select(e => MapToDto(e))
@@ -30,6 +35,7 @@ namespace Andalos.API.Services
         {
             return await _db.Expenses
                 .Include(e => e.Unit)
+                .Include(e => e.Tenant) // 👈 تضمين المستأجر
                 .Where(e => e.UnitId == unitId && e.IsActive)
                 .OrderByDescending(e => e.ExpenseDate)
                 .Select(e => MapToDto(e))
@@ -38,47 +44,42 @@ namespace Andalos.API.Services
 
         public async Task<ExpenseResponseDto> CreateAsync(CreateExpenseDto dto)
         {
-            int? detectedTenantId = null;
-
             if (dto.UnitId.HasValue)
             {
                 var unitExists = await _db.Units.AnyAsync(u => u.Id == dto.UnitId.Value && u.IsActive);
                 if (!unitExists)
                     throw new KeyNotFoundException("المحل المحدد غير موجود");
-
-                // 👈 الجديد: إذا كان المصروف محملاً على المستأجر، نجلب العقد النشط حالياً للمحل
-                if (dto.IsChargedToTenant)
-                {
-                    var activeContract = await _db.Contracts
-                        .FirstOrDefaultAsync(c => c.UnitId == dto.UnitId.Value
-                                             && c.Status == ContractStatus.Active
-                                             && c.IsActive);
-
-                    if (activeContract == null)
-                        throw new InvalidOperationException("لا يمكن تحميل المصروف على المستأجر لعدم وجود عقد إيجار نشط حالياً لهذا المحل.");
-
-                    detectedTenantId = activeContract.TenantId;
-                }
             }
-            else if (dto.IsChargedToTenant)
+
+            // التحقق من وجود المستأجر في حال تم تحديده
+            if (dto.TenantId.HasValue)
             {
-                throw new InvalidOperationException("لا يمكن تحميل المصروف على مستأجر دون تحديد المحل المرتبط به.");
+                var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == dto.TenantId.Value && t.IsActive);
+                if (!tenantExists)
+                    throw new KeyNotFoundException("المستأجر المحدد غير موجود");
             }
 
-            string expenseNumber = await GenerateExpenseNumberAsync();
+            string expenseNumber = await _numberGen.GenerateAsync("Expense");
+
+            string? attachmentPath = null;
+            if (dto.Attachment != null && dto.Attachment.Length > 0)
+            {
+                attachmentPath = await SaveFileAsync(dto.Attachment);
+            }
 
             var expense = new Expense
             {
                 ExpenseNumber = expenseNumber,
                 UnitId = dto.UnitId,
+                TenantId = dto.TenantId, // 👈 حفظ المستأجر
+                IsChargedToTenant = dto.IsChargedToTenant, // 👈 حفظ حالة التحميل المالي
                 ExpenseType = dto.ExpenseType,
                 Amount = dto.Amount,
                 ExpenseDate = dto.ExpenseDate,
                 PaidTo = dto.PaidTo,
                 Description = dto.Description,
                 InvoiceNumber = dto.InvoiceNumber,
-                IsChargedToTenant = dto.IsChargedToTenant, // 👈 الجديد
-                TenantId = detectedTenantId               // 👈 الجديد
+                AttachmentUrl = attachmentPath
             };
 
             _db.Expenses.Add(expense);
@@ -86,7 +87,7 @@ namespace Andalos.API.Services
 
             var saved = await _db.Expenses
                 .Include(e => e.Unit)
-                .Include(e => e.Tenant) // 👈 الجديد
+                .Include(e => e.Tenant) // 👈 تضمين المستأجر
                 .FirstAsync(e => e.Id == expense.Id);
 
             return MapToDto(saved);
@@ -116,11 +117,24 @@ namespace Andalos.API.Services
             return await query.SumAsync(e => e.Amount);
         }
 
-        private async Task<string> GenerateExpenseNumberAsync()
+        private async Task<string> SaveFileAsync(IFormFile file)
         {
-            int year = DateTime.Now.Year;
-            int count = await _db.Expenses.CountAsync(e => e.ExpenseDate.Year == year);
-            return $"EXP-{year}-{(count + 1):D5}";
+            string webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            string uploadsFolder = Path.Combine(webRoot, "uploads", "expenses");
+
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            string fileExtension = Path.GetExtension(file.FileName);
+            string uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            return $"/uploads/expenses/{uniqueFileName}";
         }
 
         private static ExpenseResponseDto MapToDto(Expense e)
@@ -132,17 +146,17 @@ namespace Andalos.API.Services
                 UnitId = e.UnitId,
                 UnitNumber = e.Unit?.UnitNumber,
                 UnitName = e.Unit?.UnitName,
+                TenantId = e.TenantId, // 👈 إرجاع البيانات للـ Frontend
+                TenantName = e.Tenant?.FullName, // 👈 اسم المستأجر
+                IsChargedToTenant = e.IsChargedToTenant,
                 ExpenseType = e.ExpenseType.ToString(),
                 Amount = e.Amount,
                 ExpenseDate = e.ExpenseDate,
                 PaidTo = e.PaidTo,
                 Description = e.Description,
                 InvoiceNumber = e.InvoiceNumber,
-                IsChargedToTenant = e.IsChargedToTenant, // 👈 الجديد
-                TenantId = e.TenantId,                   // 👈 الجديد
-                TenantName = e.Tenant?.FullName          // 👈 الجديد
+                AttachmentUrl = e.AttachmentUrl
             };
         }
-
     }
 }

@@ -32,14 +32,16 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<List<ExpenseResponseDto>>.SuccessResponse(list));
         }
 
+        // في دالة Create داخل ExpensesController.cs استبدلها بهذا:
         [HttpPost]
         [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-        public async Task<IActionResult> Create([FromBody] CreateExpenseDto dto)
+        [Consumes("multipart/form-data")] // 👈 لتفعيل خيار اختيار الملف في Swagger
+        public async Task<IActionResult> Create([FromForm] CreateExpenseDto dto)
         {
             try
             {
                 var result = await _service.CreateAsync(dto);
-                return Ok(ApiResponseDto<ExpenseResponseDto>.SuccessResponse(result, "تم تسجيل المصروف بنجاح"));
+                return Ok(ApiResponseDto<ExpenseResponseDto>.SuccessResponse(result, "تم تسجيل المصروف وحفظ المرفق بنجاح"));
             }
             catch (KeyNotFoundException ex)
             {
@@ -64,5 +66,7 @@ namespace Andalos.API.Controllers
             var total = await _service.GetTotalExpensesAsync(from, to);
             return Ok(ApiResponseDto<decimal>.SuccessResponse(total));
         }
+
+
     }
 }

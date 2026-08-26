@@ -37,5 +37,8 @@ namespace Andalos.API.Models
 
         [MaxLength(100)]
         public string? InvoiceNumber { get; set; }
+        // 👈 حقل حفظ مسار صورة/ملف الفاتورة المرفقة
+        [MaxLength(500)]
+        public string? AttachmentUrl { get; set; }
     }
 }
