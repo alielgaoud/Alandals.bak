@@ -23,7 +23,7 @@ namespace Andalos.API.Services
         public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
         {
             var user = await _db.Users
-                .FirstOrDefaultAsync(u => u.Email == dto.Email && u.IsActive);
+                .FirstOrDefaultAsync(u => u.UserName == dto.UserName && u.IsActive);
 
             if (user == null)
                 throw new UnauthorizedAccessException("البريد أو كلمة المرور غير صحيحة");
@@ -65,7 +65,7 @@ namespace Andalos.API.Services
             {
                 Token = token,
                 FullName = user.FullName,
-                Email = user.Email,
+                UserName = user.UserName,
                 Role = user.Role.ToString(),
                 Expiration = DateTime.UtcNow.AddMinutes(60)
             };
@@ -73,14 +73,14 @@ namespace Andalos.API.Services
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
         {
-            var exists = await _db.Users.AnyAsync(u => u.Email == dto.Email);
+            var exists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName);
             if (exists)
                 throw new InvalidOperationException("هذا البريد مسجل مسبقاً");
 
             var user = new User
             {
                 FullName = dto.FullName,
-                Email = dto.Email,
+                UserName = dto.UserName,
                 PasswordHash = HashPassword(dto.Password),
                 Phone = dto.Phone,
                 Role = dto.Role
@@ -95,7 +95,7 @@ namespace Andalos.API.Services
             {
                 Token = token,
                 FullName = user.FullName,
-                Email = user.Email,
+                UserName = user.UserName,
                 Role = user.Role.ToString(),
                 Expiration = DateTime.UtcNow.AddMinutes(60)
             };

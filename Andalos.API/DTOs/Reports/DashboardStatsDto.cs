@@ -62,8 +62,8 @@
     {
         public int UnitId { get; set; }
         public string UnitNumber { get; set; } = string.Empty;
-        public string UnitName { get; set; } = string.Empty;
-        public string UnitType { get; set; } = string.Empty;
+        public string? UnitName { get; set; }
+        public string ActivityType { get; set; } = string.Empty; // 👈 نوع النشاط
         public string Status { get; set; } = string.Empty;
         public decimal Area { get; set; }
         public string? CurrentTenantName { get; set; }

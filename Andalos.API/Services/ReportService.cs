@@ -207,7 +207,7 @@ namespace Andalos.API.Services
                     UnitId = unit.Id,
                     UnitNumber = unit.UnitNumber,
                     UnitName = unit.UnitName,
-                    UnitType = unit.UnitType.ToString(),
+                    ActivityType = unit.ActivityType.ToString(), // 👈 تم تصحيح الخطأ الثاني هنا بتغيير اسم الحقل المستقبل في الـ DTO إلى ActivityType
                     Status = unit.Status.ToString(),
                     Area = unit.Area,
                     CurrentTenantName = contract?.Tenant?.FullName,
@@ -219,7 +219,6 @@ namespace Andalos.API.Services
 
             return report.OrderBy(u => u.UnitNumber).ToList();
         }
-
         public async Task<List<DailyVisitorTrafficDto>> GetVisitorTrafficReportAsync(DateTime fromDate, DateTime toDate)
         {
             var passes = await _db.VisitorPasses

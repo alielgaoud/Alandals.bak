@@ -114,7 +114,7 @@ namespace Andalos.API.Services
                 Id = u.Id,
                 UnitNumber = u.UnitNumber,
                 UnitName = u.UnitName,
-                UnitType = u.UnitType.ToString(),
+                ActivityType = u.ActivityType.ToString(), // 👈 تم التحديث هنا من UnitType إلى ActivityType
                 Status = u.Status.ToString(),
                 Area = u.Area,
                 Floor = u.Floor,
@@ -122,7 +122,6 @@ namespace Andalos.API.Services
                 Description = u.Description,
                 Notes = u.Notes,
                 ElectricityMeterStart = u.ElectricityMeterStart,
-                WaterMeterStart = u.WaterMeterStart,
                 CreatedAt = u.CreatedAt
             }).ToList();
         }

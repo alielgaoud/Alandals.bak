@@ -21,7 +21,7 @@ namespace Andalos.API.Helpers
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName),
-                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.UserName), // 👈 استخدام ClaimTypes.Name لاسم المستخدم لتجنب أخطاء الفريم وورك
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 

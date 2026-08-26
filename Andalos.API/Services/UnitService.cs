@@ -35,7 +35,6 @@ namespace Andalos.API.Services
 
         public async Task<UnitResponseDto> CreateAsync(CreateUnitDto dto)
         {
-            // التحقق من عدم تكرار رقم المحل
             var exists = await _db.Units
                 .AnyAsync(u => u.UnitNumber == dto.UnitNumber && u.IsActive);
 
@@ -45,16 +44,15 @@ namespace Andalos.API.Services
             var unit = new Unit
             {
                 UnitNumber = dto.UnitNumber,
-                UnitName = dto.UnitName,
-                UnitType = dto.UnitType,
+                UnitName = null, // 👈 الاسم يتحدد لاحقاً مع المستأجر
+                ActivityType = dto.ActivityType, // 👈 نوع النشاط
                 Status = UnitStatus.Vacant,
                 Area = dto.Area,
                 Floor = dto.Floor,
                 Building = dto.Building,
                 Description = dto.Description,
                 Notes = dto.Notes,
-                ElectricityMeterStart = dto.ElectricityMeterStart,
-                WaterMeterStart = dto.WaterMeterStart
+                ElectricityMeterStart = dto.ElectricityMeterStart
             };
 
             _db.Units.Add(unit);
@@ -70,8 +68,8 @@ namespace Andalos.API.Services
 
             if (unit == null) return null;
 
-            unit.UnitName = dto.UnitName;
-            unit.UnitType = dto.UnitType;
+            unit.UnitName = dto.UnitName; // 👈 يمكن تغييره عند تغيير المستأجر
+            unit.ActivityType = dto.ActivityType; // 👈 نوع النشاط
             unit.Status = dto.Status;
             unit.Area = dto.Area;
             unit.Floor = dto.Floor;
@@ -79,7 +77,6 @@ namespace Andalos.API.Services
             unit.Description = dto.Description;
             unit.Notes = dto.Notes;
             unit.ElectricityMeterStart = dto.ElectricityMeterStart;
-            unit.WaterMeterStart = dto.WaterMeterStart;
             unit.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
@@ -94,7 +91,6 @@ namespace Andalos.API.Services
 
             if (unit == null) return false;
 
-            // حذف منطقي (Soft Delete)
             unit.IsActive = false;
             unit.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
@@ -112,7 +108,6 @@ namespace Andalos.API.Services
             return 0;
         }
 
-        // ===== دالة التحويل =====
         private static UnitResponseDto MapToDto(Unit u)
         {
             return new UnitResponseDto
@@ -120,7 +115,7 @@ namespace Andalos.API.Services
                 Id = u.Id,
                 UnitNumber = u.UnitNumber,
                 UnitName = u.UnitName,
-                UnitType = u.UnitType.ToString(),
+                ActivityType = u.ActivityType.ToString(), // 👈 نوع النشاط
                 Status = u.Status.ToString(),
                 Area = u.Area,
                 Floor = u.Floor,
@@ -128,7 +123,6 @@ namespace Andalos.API.Services
                 Description = u.Description,
                 Notes = u.Notes,
                 ElectricityMeterStart = u.ElectricityMeterStart,
-                WaterMeterStart = u.WaterMeterStart,
                 CreatedAt = u.CreatedAt
             };
         }

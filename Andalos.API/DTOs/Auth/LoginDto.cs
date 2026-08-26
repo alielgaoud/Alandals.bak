@@ -5,9 +5,8 @@ namespace Andalos.API.DTOs.Auth
 {
     public class LoginDto
     {
-        [Required(ErrorMessage = "البريد الإلكتروني مطلوب")]
-        [EmailAddress(ErrorMessage = "صيغة البريد غير صحيحة")]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "اسم المستخدم مطلوب")]
+        public string UserName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "كلمة المرور مطلوبة")]
         public string Password { get; set; } = string.Empty;
@@ -20,7 +19,7 @@ namespace Andalos.API.DTOs.Auth
 
         [Required]
         [EmailAddress]
-        public string Email { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
 
         [Required]
         [MinLength(6, ErrorMessage = "كلمة المرور يجب أن تكون 6 أحرف على الأقل")]
@@ -37,7 +36,7 @@ namespace Andalos.API.DTOs.Auth
     {
         public string Token { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
     }

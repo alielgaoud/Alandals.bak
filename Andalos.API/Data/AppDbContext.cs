@@ -31,26 +31,25 @@ namespace Andalos.API.Data
             modelBuilder.Entity<User>(entity =>
             {
                 entity.ToTable("Users");
-                entity.HasIndex(e => e.Email).IsUnique();
+                entity.HasIndex(e => e.UserName).IsUnique(); // 👈 الفهرس الفريد أصبح لاسم المستخدم لمنع التكرار
                 entity.Property(e => e.Role).HasConversion<int>();
 
-                // 👈 علاقة المستخدم بالمستأجر
                 entity.HasOne(u => u.Tenant)
                       .WithMany()
                       .HasForeignKey(u => u.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // Unit
+            // Unit Configuration
             modelBuilder.Entity<Unit>(entity =>
             {
                 entity.ToTable("Units");
                 entity.HasIndex(e => e.UnitNumber).IsUnique();
-                entity.Property(e => e.UnitType).HasConversion<int>();
+                entity.Property(e => e.ActivityType).HasConversion<int>(); // 👈 تم التغيير
                 entity.Property(e => e.Status).HasConversion<int>();
                 entity.Property(e => e.Area).HasColumnType("decimal(10,2)");
                 entity.Property(e => e.ElectricityMeterStart).HasColumnType("decimal(12,2)");
-                entity.Property(e => e.WaterMeterStart).HasColumnType("decimal(12,2)");
+                // 👈 تم حذف سطر WaterMeterStart
             });
 
             // Tenant

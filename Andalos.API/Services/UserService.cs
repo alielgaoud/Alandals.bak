@@ -34,14 +34,15 @@ namespace Andalos.API.Services
 
         public async Task<UserResponseDto> CreateUserAsync(CreateUserByAdminDto dto)
         {
-            var exists = await _db.Users.AnyAsync(u => u.Email == dto.Email && u.IsActive);
+            // 👈 التحديث للتحقق من عدم تكرار اسم المستخدم
+            var exists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.IsActive);
             if (exists)
-                throw new InvalidOperationException("البريد الإلكتروني مسجل مسبقاً لمستخدم آخر");
+                throw new InvalidOperationException("اسم المستخدم مسجل مسبقاً لمستخدم آخر");
 
             var user = new User
             {
                 FullName = dto.FullName,
-                Email = dto.Email,
+                UserName = dto.UserName, // 👈 تم التحديث
                 Phone = dto.Phone,
                 PasswordHash = HashPassword(dto.Password),
                 Role = dto.Role,
@@ -59,12 +60,13 @@ namespace Andalos.API.Services
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
             if (user == null) return null;
 
-            var emailConflict = await _db.Users.AnyAsync(u => u.Email == dto.Email && u.Id != id && u.IsActive);
-            if (emailConflict)
-                throw new InvalidOperationException("البريد الإلكتروني الجديد مستخدم من قبل مستخدم آخر");
+            // 👈 التحديث للتحقق من عدم تكرار اسم المستخدم الجديد
+            var userNameConflict = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.Id != id && u.IsActive);
+            if (userNameConflict)
+                throw new InvalidOperationException("اسم المستخدم الجديد مسجل مسبقاً لمستخدم آخر");
 
             user.FullName = dto.FullName;
-            user.Email = dto.Email;
+            user.UserName = dto.UserName; // 👈 تم التحديث
             user.Phone = dto.Phone;
             user.Role = dto.Role;
             user.IsActive = dto.IsActive;
@@ -102,7 +104,7 @@ namespace Andalos.API.Services
             }
             else
             {
-                user.LockoutEnd = DateTime.UtcNow.AddYears(10); // قفل دائم حتى يفتحه الأدمن
+                user.LockoutEnd = DateTime.UtcNow.AddYears(10);
             }
             user.UpdatedAt = DateTime.UtcNow;
 
@@ -134,7 +136,7 @@ namespace Andalos.API.Services
             {
                 Id = u.Id,
                 FullName = u.FullName,
-                Email = u.Email,
+                UserName = u.UserName, // 👈 تم التحديث
                 Phone = u.Phone,
                 Role = u.Role.ToString(),
                 IsLocked = u.IsLocked,

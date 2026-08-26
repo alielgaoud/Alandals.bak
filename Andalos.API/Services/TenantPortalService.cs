@@ -209,14 +209,14 @@ namespace Andalos.API.Services
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
 
-            var emailExists = await _db.Users.AnyAsync(u => u.Email == dto.Email && u.IsActive);
+            var emailExists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.IsActive);
             if (emailExists)
                 throw new InvalidOperationException("البريد الإلكتروني مستخدم لحساب آخر");
 
             var user = new User
             {
                 FullName = tenant.FullName,
-                Email = dto.Email,
+                UserName = dto.UserName,
                 Phone = tenant.Phone,
                 PasswordHash = HashPassword(dto.Password),
                 Role = UserRole.Tenant,

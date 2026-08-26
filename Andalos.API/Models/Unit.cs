@@ -10,11 +10,12 @@ namespace Andalos.API.Models
         [MaxLength(20)]
         public string UnitNumber { get; set; } = string.Empty;
 
-        [Required]
+        // 👈 تم جعله اختياري لأن الاسم يتغير مع المستأجر
         [MaxLength(100)]
-        public string UnitName { get; set; } = string.Empty;
+        public string? UnitName { get; set; }
 
-        public UnitType UnitType { get; set; } = UnitType.Shop;
+        // 👈 تم تغييره من UnitType إلى ActivityType (نوع النشاط)
+        public ActivityType ActivityType { get; set; } = ActivityType.Other;
 
         public UnitStatus Status { get; set; } = UnitStatus.Vacant;
 
@@ -32,8 +33,7 @@ namespace Andalos.API.Models
         [MaxLength(500)]
         public string? Notes { get; set; }
 
+        // 👈 تم حذف WaterMeterStart نهائياً
         public decimal? ElectricityMeterStart { get; set; }
-
-        public decimal? WaterMeterStart { get; set; }
     }
 }

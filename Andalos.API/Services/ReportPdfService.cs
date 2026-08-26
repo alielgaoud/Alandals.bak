@@ -236,7 +236,7 @@ namespace Andalos.API.Services
                 {
                     "الرقم",
                     "الاسم",
-                    "النوع",
+                    "نوع النشاط", // 👈 تحديث التسمية العربية لتطابق نوع النشاط
                     "الحالة",
                     "المساحة",
                     "المستأجر",
@@ -246,8 +246,8 @@ namespace Andalos.API.Services
                 var rows = data.Select(x => new[]
                 {
                     x.UnitNumber,
-                    x.UnitName,
-                    x.UnitType,
+                    x.UnitName ?? "-",
+                    x.ActivityType, // 👈 تم تصحيح الخطأ الأول هنا من UnitType إلى ActivityType
                     x.Status,
                     $"{x.Area:N2} م²",
                     x.CurrentTenantName ?? "-",

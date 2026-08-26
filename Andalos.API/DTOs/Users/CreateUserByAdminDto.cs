@@ -5,13 +5,13 @@ namespace Andalos.API.DTOs.Users
 {
     public class CreateUserByAdminDto
     {
-        [Required(ErrorMessage = "اسم المستخدم مطلوب")]
+        [Required(ErrorMessage = "اسم الموظف مطلوب")]
         [MaxLength(100)]
         public string FullName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "البريد الإلكتروني مطلوب")]
-        [EmailAddress(ErrorMessage = "صيغة البريد الإلكتروني غير صحيحة")]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "اسم المستخدم للدخول مطلوب")]
+        [MaxLength(100)]
+        public string UserName { get; set; } = string.Empty; // 👈 تم التحديث
 
         [Required(ErrorMessage = "كلمة المرور مطلوبة")]
         [MinLength(6, ErrorMessage = "كلمة المرور يجب ألا تقل عن 6 خانات")]
@@ -24,13 +24,13 @@ namespace Andalos.API.DTOs.Users
     }
     public class UpdateUserDto
     {
-        [Required(ErrorMessage = "اسم المستخدم مطلوب")]
+        [Required(ErrorMessage = "اسم الموظف مطلوب")]
         [MaxLength(100)]
         public string FullName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "البريد الإلكتروني مطلوب")]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "اسم المستخدم مطلوب")]
+        [MaxLength(100)]
+        public string UserName { get; set; } = string.Empty; // 👈 تم التحديث
 
         [MaxLength(20)]
         public string? Phone { get; set; }
@@ -50,7 +50,7 @@ namespace Andalos.API.DTOs.Users
     {
         public int Id { get; set; }
         public string FullName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty; // 👈 تم التحديث
         public string? Phone { get; set; }
         public string Role { get; set; } = string.Empty;
         public bool IsLocked { get; set; }
