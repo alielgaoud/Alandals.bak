@@ -17,7 +17,8 @@ namespace Andalos.API.Services
             { "Receipt", SettingKeys.ReceiptNumberFormat },
             { "Maintenance", SettingKeys.MaintenanceNumberFormat },
             { "Expense", SettingKeys.ExpenseNumberFormat },
-            { "PassCode", SettingKeys.PassCodeFormat }
+            { "PassCode", SettingKeys.PassCodeFormat },
+            { "Refund", SettingKeys.RefundNumberFormat }
         };
 
         public NumberGeneratorService(AppDbContext db, ISettingService settings)
@@ -86,6 +87,7 @@ namespace Andalos.API.Services
                 "Maintenance" => await _db.MaintenanceRequests.AnyAsync(m => m.RequestNumber == number),
                 "Expense" => await _db.Expenses.AnyAsync(e => e.ExpenseNumber == number),
                 "PassCode" => await _db.VisitorPasses.AnyAsync(v => v.PassCode == number),
+                "Refund" => await _db.Refunds.AnyAsync(r => r.RefundNumber == number),
                 _ => false
             };
         }
@@ -99,6 +101,7 @@ namespace Andalos.API.Services
                 "Maintenance" => await _db.MaintenanceRequests.CountAsync(m => m.CreatedAt.Year == year),
                 "Expense" => await _db.Expenses.CountAsync(e => e.CreatedAt.Year == year),
                 "PassCode" => await _db.VisitorPasses.CountAsync(v => v.CreatedAt.Year == year),
+                "Refund" => await _db.Refunds.CountAsync(r => r.CreatedAt.Year == year),
                 _ => 0
             };
         }
@@ -130,6 +133,7 @@ namespace Andalos.API.Services
                 "Maintenance" => "MNT-{YYYY}-{SEQ:4}",
                 "Expense" => "EXP-{YYYY}-{SEQ:5}",
                 "PassCode" => "PASS-{SEQ:6}",
+                "Refund" => "RFD-{YYYY}-{SEQ:5}",
                 _ => "{SEQ:6}"
             };
         }

@@ -41,6 +41,7 @@ builder.Services.AddScoped<ReceiptPdfService>();
 builder.Services.AddScoped<ITenantAccountService, TenantAccountService>();
 builder.Services.AddScoped<IRefundService, RefundService>();
 builder.Services.AddScoped<ReportPdfService>();
+builder.Services.AddScoped<IVisitorBlacklistService, VisitorBlacklistService>();
 
 // 5. 👈 تفعيل الـ CORS للسماح لتطبيق Angular بالاتصال بالـ API بدون قيود
 builder.Services.AddCors(options =>

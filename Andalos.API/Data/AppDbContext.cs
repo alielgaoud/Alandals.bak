@@ -23,6 +23,8 @@ namespace Andalos.API.Data
         public DbSet<Setting> Settings { get; set; }           // 👈 جديد
         public DbSet<NumberSequence> NumberSequences { get; set; } // 👈 جديد
         public DbSet<Refund> Refunds { get; set; }
+        public DbSet<VisitorBlacklist> VisitorBlacklists { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -39,6 +41,13 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(u => u.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<VisitorBlacklist>(entity =>
+            {
+                entity.ToTable("VisitorBlacklists");
+                entity.HasIndex(e => e.Phone);
+                entity.HasIndex(e => e.NationalId);
             });
 
             // Unit Configuration
