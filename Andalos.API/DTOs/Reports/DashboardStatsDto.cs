@@ -78,5 +78,37 @@
         public int TotalPasses { get; set; }
         public int AllowedEntries { get; set; }
         public int RejectedEntries { get; set; }
+    }    // ===== تقرير الإيرادات التفصيلي =====
+    public class RevenueReportItemDto
+    {
+        public int PaymentId { get; set; }
+        public string ReceiptNumber { get; set; } = string.Empty;
+        public string ContractNumber { get; set; } = string.Empty;
+        public string TenantName { get; set; } = string.Empty;
+        public string UnitNumber { get; set; } = string.Empty;
+        public string PaymentType { get; set; } = string.Empty; // إيجار، كهرباء، إلخ...
+        public decimal Amount { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty; // نقدي، تحويل، شيك...
+        public string? ReferenceNumber { get; set; }
+        public DateTime PaymentDate { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    // ===== تقرير المصروفات التفصيلي =====
+    public class ExpenseReportItemDto
+    {
+        public int ExpenseId { get; set; }
+        public string ExpenseNumber { get; set; } = string.Empty;
+        public string? UnitNumber { get; set; } // قد يكون مصروفاً عاماً بدون محل
+        public string? UnitName { get; set; }
+        public string? TenantName { get; set; } // في حال كان محملاً على مستأجر
+        public bool IsChargedToTenant { get; set; }
+        public string ExpenseType { get; set; } = string.Empty; // صيانة، كهرباء مجمع، إلخ...
+        public decimal Amount { get; set; }
+        public DateTime ExpenseDate { get; set; }
+        public string? PaidTo { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public string? InvoiceNumber { get; set; }
+        public string? AttachmentUrl { get; set; }
     }
 }

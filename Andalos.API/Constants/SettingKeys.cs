@@ -74,6 +74,8 @@
         public const string ContractFooterNote = "Contract.FooterNote";
         public const string ContractShowWitnesses = "Contract.ShowWitnesses";
         public const string ContractShowHijriDate = "Contract.ShowHijriDate";
+        public const string RefundNumberFormat = "Numbering.RefundFormat";
+        public const string RefundNumberPrefix = "Numbering.RefundPrefix";
 
     }
 }

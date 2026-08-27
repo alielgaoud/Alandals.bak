@@ -9,5 +9,9 @@ namespace Andalos.API.Interfaces
         Task<List<OverdueReportItemDto>> GetOverdueReportAsync();
         Task<List<UnitOccupancyReportDto>> GetUnitsOccupancyReportAsync();
         Task<List<DailyVisitorTrafficDto>> GetVisitorTrafficReportAsync(DateTime fromDate, DateTime toDate);
+
+        // 👈 تقارير مفلترة حية للإيرادات والمصروفات
+        Task<List<RevenueReportItemDto>> GetRevenueReportAsync(int? unitId, int? tenantId, DateTime? fromDate, DateTime? toDate);
+        Task<List<ExpenseReportItemDto>> GetExpensesReportAsync(int? unitId, int? tenantId, DateTime? fromDate, DateTime? toDate);
     }
 }

@@ -58,6 +58,28 @@ namespace Andalos.API.Controllers
             var toDate = to ?? DateTime.Today;
             var data = await _reportService.GetVisitorTrafficReportAsync(fromDate, toDate);
             return Ok(ApiResponseDto<List<DailyVisitorTrafficDto>>.SuccessResponse(data));
+        }        // 6. تقرير الإيرادات المفلتر
+        [HttpGet("revenue")]
+        public async Task<IActionResult> GetRevenueReport(
+            [FromQuery] int? unitId,
+            [FromQuery] int? tenantId,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
+        {
+            var data = await _reportService.GetRevenueReportAsync(unitId, tenantId, from, to);
+            return Ok(ApiResponseDto<List<RevenueReportItemDto>>.SuccessResponse(data));
+        }
+
+        // 7. تقرير المصروفات المفلتر
+        [HttpGet("expenses")]
+        public async Task<IActionResult> GetExpensesReport(
+            [FromQuery] int? unitId,
+            [FromQuery] int? tenantId,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
+        {
+            var data = await _reportService.GetExpensesReportAsync(unitId, tenantId, from, to);
+            return Ok(ApiResponseDto<List<ExpenseReportItemDto>>.SuccessResponse(data));
         }
     }
 }

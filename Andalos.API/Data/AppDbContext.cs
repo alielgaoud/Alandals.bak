@@ -22,6 +22,7 @@ namespace Andalos.API.Data
         public DbSet<EntryLog> EntryLogs { get; set; }         // 👈 جديد
         public DbSet<Setting> Settings { get; set; }           // 👈 جديد
         public DbSet<NumberSequence> NumberSequences { get; set; } // 👈 جديد
+        public DbSet<Refund> Refunds { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -151,6 +152,21 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(m => m.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // Refund
+            modelBuilder.Entity<Refund>(entity =>
+            {
+                entity.ToTable("Refunds");
+                entity.HasIndex(e => e.RefundNumber).IsUnique();
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.RefundType).HasConversion<int>();
+                entity.Property(e => e.RefundMethod).HasConversion<int>();
+
+                entity.HasOne(r => r.Contract)
+                      .WithMany()
+                      .HasForeignKey(r => r.ContractId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Expense

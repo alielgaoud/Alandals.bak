@@ -71,6 +71,8 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("Financial", SettingKeys.DecimalPlaces, "3", "Number", "المنازل العشرية", "", 3),
                 New("Financial", SettingKeys.TaxRate, "0", "Percentage", "نسبة الضريبة", "0 = بدون ضريبة", 4),
                 New("Financial", SettingKeys.TaxEnabled, "False", "Boolean", "تفعيل الضريبة", "", 5),
+                New("Numbering", "Numbering.RefundFormat", "RFD-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند المرتجع", "", 11, true),
+                New("Numbering", "Numbering.RefundPrefix", "RFD", "String", "بادئة سند المرتجع", "", 12),
 
                 // ===== الترقيم التسلسلي (الأهم!) =====
                 New("Numbering", SettingKeys.ContractNumberFormat, "CTR-{YYYY}-{SEQ:4}", "String", "صيغة رقم العقد", "الرموز: {YYYY} سنة, {SEQ:4} تسلسل 4 أرقام", 1, true),

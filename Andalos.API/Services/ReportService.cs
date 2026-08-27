@@ -244,5 +244,102 @@ namespace Andalos.API.Services
 
             return list;
         }
+
+
+        // =========================================================================
+        // 👈 تقرير الإيرادات المفلتر (Payments Report)
+        // =========================================================================
+        public async Task<List<RevenueReportItemDto>> GetRevenueReportAsync(
+            int? unitId,
+            int? tenantId,
+            DateTime? fromDate,
+            DateTime? toDate)
+        {
+            var query = _db.Payments
+                .Include(p => p.Contract)
+                    .ThenInclude(c => c!.Tenant)
+                .Include(p => p.Contract)
+                    .ThenInclude(c => c!.Unit)
+                .Where(p => p.IsActive);
+
+            // تطبيق فلاتر البحث ديناميكياً
+            if (unitId.HasValue)
+                query = query.Where(p => p.UnitId == unitId.Value);
+
+            if (tenantId.HasValue)
+                query = query.Where(p => p.TenantId == tenantId.Value);
+
+            if (fromDate.HasValue)
+                query = query.Where(p => p.PaymentDate >= fromDate.Value.Date);
+
+            if (toDate.HasValue)
+                query = query.Where(p => p.PaymentDate <= toDate.Value.Date);
+
+            return await query
+                .OrderByDescending(p => p.PaymentDate)
+                .Select(p => new RevenueReportItemDto
+                {
+                    PaymentId = p.Id,
+                    ReceiptNumber = p.ReceiptNumber,
+                    ContractNumber = p.Contract != null ? p.Contract.ContractNumber : "",
+                    TenantName = p.Contract != null && p.Contract.Tenant != null ? p.Contract.Tenant.FullName : "مستأجر محذوف",
+                    UnitNumber = p.Contract != null && p.Contract.Unit != null ? p.Contract.Unit.UnitNumber : "",
+                    PaymentType = p.PaymentType.ToString(),
+                    Amount = p.Amount,
+                    PaymentMethod = p.PaymentMethod.ToString(),
+                    ReferenceNumber = p.ReferenceNumber,
+                    PaymentDate = p.PaymentDate,
+                    Notes = p.Notes
+                })
+                .ToListAsync();
+        }
+
+        // =========================================================================
+        // 👈 تقرير المصروفات المفلتر (Expenses Report)
+        // =========================================================================
+        public async Task<List<ExpenseReportItemDto>> GetExpensesReportAsync(
+            int? unitId,
+            int? tenantId,
+            DateTime? fromDate,
+            DateTime? toDate)
+        {
+            var query = _db.Expenses
+                .Include(e => e.Unit)
+                .Include(e => e.Tenant)
+                .Where(e => e.IsActive);
+
+            // تطبيق فلاتر البحث ديناميكياً
+            if (unitId.HasValue)
+                query = query.Where(e => e.UnitId == unitId.Value);
+
+            if (tenantId.HasValue)
+                query = query.Where(e => e.TenantId == tenantId.Value);
+
+            if (fromDate.HasValue)
+                query = query.Where(e => e.ExpenseDate >= fromDate.Value.Date);
+
+            if (toDate.HasValue)
+                query = query.Where(e => e.ExpenseDate <= toDate.Value.Date);
+
+            return await query
+                .OrderByDescending(e => e.ExpenseDate)
+                .Select(e => new ExpenseReportItemDto
+                {
+                    ExpenseId = e.Id,
+                    ExpenseNumber = e.ExpenseNumber,
+                    UnitNumber = e.Unit != null ? e.Unit.UnitNumber : null,
+                    UnitName = e.Unit != null ? e.Unit.UnitName : null,
+                    TenantName = e.Tenant != null ? e.Tenant.FullName : null,
+                    IsChargedToTenant = e.IsChargedToTenant,
+                    ExpenseType = e.ExpenseType.ToString(),
+                    Amount = e.Amount,
+                    ExpenseDate = e.ExpenseDate,
+                    PaidTo = e.PaidTo,
+                    Description = e.Description,
+                    InvoiceNumber = e.InvoiceNumber,
+                    AttachmentUrl = e.AttachmentUrl
+                })
+                .ToListAsync();
+        }
     }
 }
