@@ -7,6 +7,7 @@ using Andalos.API.DTOs.Visitors;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Andalos.API.Controllers
 {
@@ -22,10 +23,29 @@ namespace Andalos.API.Controllers
             _portalService = portalService;
         }
 
+        // 🔒 دالة مساعدة لحماية الطلبات من هجمات التلاعب بـ IDs (IDOR)
+        private bool ValidateCurrentUserTenant(int tenantId)
+        {
+            // استخراج الدور من الـ Token
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            // إذا كان المستخدم آدمن أو سوبر آدمن فله الحق في العرض دون قيود
+            if (role == "SuperAdmin" || role == "Admin") return true;
+
+            // استخراج الـ TenantId المشفر بالـ Token للمستأجر
+            var tokenTenantIdClaim = User.FindFirst("TenantId")?.Value;
+            if (string.IsNullOrEmpty(tokenTenantIdClaim)) return false;
+
+            return int.TryParse(tokenTenantIdClaim, out int tokenTenantId) && tokenTenantId == tenantId;
+        }
+
         // 1. كشف حساب المستأجر الشامل
         [HttpGet("statement/{tenantId}")]
         public async Task<IActionResult> GetStatement(int tenantId)
         {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<TenantAccountStatementDto>.FailResponse("غير مصرح لك بالوصول لبيانات هذا الحساب"));
+
             try
             {
                 var data = await _portalService.GetMyStatementAsync(tenantId);
@@ -41,6 +61,9 @@ namespace Andalos.API.Controllers
         [HttpGet("contracts/{tenantId}")]
         public async Task<IActionResult> GetContracts(int tenantId)
         {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<List<ContractResponseDto>>.FailResponse("غير مصرح لك بالوصول لهذه البيانات"));
+
             var data = await _portalService.GetMyContractsAsync(tenantId);
             return Ok(ApiResponseDto<List<ContractResponseDto>>.SuccessResponse(data));
         }
@@ -49,6 +72,9 @@ namespace Andalos.API.Controllers
         [HttpGet("payments/{tenantId}")]
         public async Task<IActionResult> GetPayments(int tenantId)
         {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<List<PaymentResponseDto>>.FailResponse("غير مصرح لك بالوصول لهذه البيانات"));
+
             var data = await _portalService.GetMyPaymentsAsync(tenantId);
             return Ok(ApiResponseDto<List<PaymentResponseDto>>.SuccessResponse(data));
         }
@@ -57,6 +83,9 @@ namespace Andalos.API.Controllers
         [HttpPost("maintenance/{tenantId}")]
         public async Task<IActionResult> RequestMaintenance(int tenantId, [FromBody] TenantCreateMaintenanceDto dto)
         {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<MaintenanceResponseDto>.FailResponse("غير مصرح لك برفع طلب صيانة لهذا الحساب"));
+
             try
             {
                 var result = await _portalService.RequestMaintenanceAsync(tenantId, dto);
@@ -72,6 +101,9 @@ namespace Andalos.API.Controllers
         [HttpPost("visitor-pass/{tenantId}")]
         public async Task<IActionResult> CreateVisitorPass(int tenantId, [FromBody] TenantCreatePassDto dto)
         {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<VisitorPassResponseDto>.FailResponse("غير مصرح لك بإنشاء تصريح زائر لهذا المحل"));
+
             try
             {
                 string user = User.Identity?.Name ?? "Tenant";
@@ -88,6 +120,9 @@ namespace Andalos.API.Controllers
         [HttpGet("visitor-passes/{tenantId}")]
         public async Task<IActionResult> GetVisitorPasses(int tenantId)
         {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<List<VisitorPassResponseDto>>.FailResponse("غير مصرح لك بعرض هذه البيانات"));
+
             var list = await _portalService.GetMyVisitorPassesAsync(tenantId);
             return Ok(ApiResponseDto<List<VisitorPassResponseDto>>.SuccessResponse(list));
         }

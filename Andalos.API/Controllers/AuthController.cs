@@ -1,4 +1,5 @@
 ﻿using Andalos.API.DTOs.Auth;
+using Andalos.API.DTOs.Common;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,11 +22,26 @@ namespace Andalos.API.Controllers
             try
             {
                 var result = await _auth.LoginAsync(dto);
-                return Ok(result);
+                return Ok(ApiResponseDto<AuthResponseDto>.SuccessResponse(result));
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized(new { message = ex.Message });
+                return Unauthorized(ApiResponseDto<AuthResponseDto>.FailResponse(ex.Message));
+            }
+        }
+
+        // 👈 الاندبوينت الجديد والآمن المخصص لتسجيل دخول المستأجرين من الويب
+        [HttpPost("tenant-login")]
+        public async Task<IActionResult> TenantLogin([FromBody] LoginDto dto)
+        {
+            try
+            {
+                var result = await _auth.TenantLoginAsync(dto);
+                return Ok(ApiResponseDto<TenantAuthResponseDto>.SuccessResponse(result, "تم تسجيل الدخول بنجاح"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ApiResponseDto<TenantAuthResponseDto>.FailResponse(ex.Message));
             }
         }
 

@@ -6,5 +6,6 @@ namespace Andalos.API.Interfaces
     {
         Task<AuthResponseDto> LoginAsync(LoginDto dto);
         Task<AuthResponseDto> RegisterAsync(RegisterDto dto);
+        Task<TenantAuthResponseDto> TenantLoginAsync(LoginDto dto);
     }
 }
