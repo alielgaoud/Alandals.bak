@@ -15,5 +15,7 @@ namespace Andalos.API.Interfaces
         Task<VisitorPassResponseDto> CreateVisitorPassAsync(int tenantId, TenantCreatePassDto dto, string createdBy);
         Task<List<VisitorPassResponseDto>> GetMyVisitorPassesAsync(int tenantId);
         Task<bool> CreateTenantUserAccountAsync(CreateTenantUserAccountDto dto);
+        Task<List<MaintenanceResponseDto>> GetMyMaintenanceAsync(int tenantId);
+        Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId);
     }
 }
