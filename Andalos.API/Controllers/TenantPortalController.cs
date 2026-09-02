@@ -142,5 +142,32 @@ namespace Andalos.API.Controllers
                 return BadRequest(ApiResponseDto<bool>.FailResponse(ex.Message));
             }
         }
+        [HttpGet("maintenance/{tenantId}")]
+        public async Task<IActionResult> GetMyMaintenance(int tenantId)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<List<MaintenanceResponseDto>>.FailResponse("غير مصرح"));
+
+            var data = await _portalService.GetMyMaintenanceAsync(tenantId);
+            return Ok(ApiResponseDto<List<MaintenanceResponseDto>>.SuccessResponse(data));
+        }
+
+        // جلب طلب واحد
+        [HttpGet("maintenance/{tenantId}/{requestId}")]
+        public async Task<IActionResult> GetMaintenanceById(int tenantId, int requestId)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<MaintenanceResponseDto>.FailResponse("غير مصرح"));
+
+            try
+            {
+                var data = await _portalService.GetMaintenanceByIdAsync(tenantId, requestId);
+                return Ok(ApiResponseDto<MaintenanceResponseDto>.SuccessResponse(data));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponseDto<MaintenanceResponseDto>.FailResponse(ex.Message));
+            }
+        }
     }
 }

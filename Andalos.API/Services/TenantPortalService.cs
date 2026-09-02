@@ -228,7 +228,59 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
             return true;
         }
+        public async Task<List<MaintenanceResponseDto>> GetMyMaintenanceAsync(int tenantId)
+        {
+            return await _db.MaintenanceRequests
+                .Include(m => m.Unit)
+                .Where(m => m.TenantId == tenantId && m.IsActive)
+                .OrderByDescending(m => m.RequestDate)
+                .Select(m => new MaintenanceResponseDto
+                {
+                    Id = m.Id,
+                    RequestNumber = m.RequestNumber,
+                    UnitId = m.UnitId,
+                    UnitNumber = m.Unit != null ? m.Unit.UnitNumber : "",
+                    UnitName = m.Unit != null ? m.Unit.UnitName : "",
+                    TenantId = m.TenantId,
+                    Type = m.Type.ToString(),
+                    Priority = m.Priority.ToString(),
+                    Status = m.Status.ToString(),
+                    Description = m.Description,
+                    Cost = m.Cost,
+                    RequestDate = m.RequestDate,
+                    CompletionDate = m.CompletionDate,
+                    Notes = m.Notes
+                })
+                .ToListAsync();
+        }
 
+        public async Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId)
+        {
+            var m = await _db.MaintenanceRequests
+                .Include(x => x.Unit)
+                .FirstOrDefaultAsync(x => x.Id == requestId && x.TenantId == tenantId && x.IsActive);
+
+            if (m == null)
+                throw new KeyNotFoundException("طلب الصيانة غير موجود");
+
+            return new MaintenanceResponseDto
+            {
+                Id = m.Id,
+                RequestNumber = m.RequestNumber,
+                UnitId = m.UnitId,
+                UnitNumber = m.Unit?.UnitNumber ?? "",
+                UnitName = m.Unit?.UnitName ?? "",
+                TenantId = m.TenantId,
+                Type = m.Type.ToString(),
+                Priority = m.Priority.ToString(),
+                Status = m.Status.ToString(),
+                Description = m.Description,
+                Cost = m.Cost,
+                RequestDate = m.RequestDate,
+                CompletionDate = m.CompletionDate,
+                Notes = m.Notes
+            };
+        }
         private static string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();
