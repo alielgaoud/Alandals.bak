@@ -78,4 +78,4 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<CheckBlacklistResultDto>.SuccessResponse(result));
         }
     }
-}
+}  

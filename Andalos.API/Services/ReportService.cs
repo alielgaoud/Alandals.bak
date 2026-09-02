@@ -88,6 +88,13 @@ namespace Andalos.API.Services
             var pendingMaintenance = await _db.MaintenanceRequests
                 .CountAsync(m => m.IsActive && (m.Status == MaintenanceStatus.New || m.Status == MaintenanceStatus.InProgress));
 
+            // 8. 👈 جديد: إحصائيات الشكاوى
+            var newComplaints = await _db.Complaints
+                .CountAsync(c => c.IsActive && c.Status == ComplaintStatus.New);
+
+            var unresolvedComplaints = await _db.Complaints
+                .CountAsync(c => c.IsActive && (c.Status == ComplaintStatus.New || c.Status == ComplaintStatus.InProgress));
+
             return new DashboardStatsDto
             {
                 TotalUnits = totalUnits,
@@ -107,7 +114,11 @@ namespace Andalos.API.Services
                 TodayPassesCreated = todayPasses,
                 TodayScansAllowed = todayAllowed,
                 TodayScansRejected = todayRejected,
-                PendingMaintenanceCount = pendingMaintenance
+                PendingMaintenanceCount = pendingMaintenance,
+
+                // 👈 إضافة القيم المرجعة للشكاوى
+                NewComplaintsCount = newComplaints,
+                UnresolvedComplaintsCount = unresolvedComplaints
             };
         }
 

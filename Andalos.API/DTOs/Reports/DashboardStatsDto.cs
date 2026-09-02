@@ -33,6 +33,10 @@
 
         // 🛠️ طلبات الصيانة المعلقة
         public int PendingMaintenanceCount { get; set; }
+
+        // 💬 إحصائيات الشكاوى
+        public int NewComplaintsCount { get; set; }        // الشكاوى الجديدة (لم تُقرأ/تُعالج بعد)
+        public int UnresolvedComplaintsCount { get; set; } // الشكاوى غير المعالجة (جديدة + قيد المعالجة)
     }
     public class MonthlyFinancialBarDto
     {

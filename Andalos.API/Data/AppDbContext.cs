@@ -24,7 +24,8 @@ namespace Andalos.API.Data
         public DbSet<NumberSequence> NumberSequences { get; set; } // 👈 جديد
         public DbSet<Refund> Refunds { get; set; }
         public DbSet<VisitorBlacklist> VisitorBlacklists { get; set; }
-
+        public DbSet<Complaint> Complaints { get; set; }
+        public DbSet<ComplaintReply> ComplaintReplies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +42,42 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(u => u.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
+            });
+
+
+            // ===== أضف هذا داخل OnModelCreating =====
+
+            // Complaint
+            modelBuilder.Entity<Complaint>(entity =>
+            {
+                entity.ToTable("Complaints");
+                entity.Property(e => e.Status).HasConversion<int>();
+
+                entity.HasOne(c => c.Tenant)
+                      .WithMany()
+                      .HasForeignKey(c => c.TenantId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(c => c.User)
+                      .WithMany()
+                      .HasForeignKey(c => c.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ComplaintReply
+            modelBuilder.Entity<ComplaintReply>(entity =>
+            {
+                entity.ToTable("ComplaintReplies");
+
+                entity.HasOne(r => r.Complaint)
+                      .WithMany(c => c.Replies)
+                      .HasForeignKey(r => r.ComplaintId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.RepliedByUser)
+                      .WithMany()
+                      .HasForeignKey(r => r.RepliedByUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<VisitorBlacklist>(entity =>
