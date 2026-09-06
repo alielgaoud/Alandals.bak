@@ -7,6 +7,7 @@ using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Interfaces;
 using Andalos.API.Services;
+using Andalos.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -193,6 +194,34 @@ namespace Andalos.API.Controllers
             {
                 return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }
+        }
+
+        [HttpPost("staff/{tenantId}")]
+        public async Task<IActionResult> CreateStaff(int tenantId, [FromBody] CreateTenantStaffDto dto)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<bool>.FailResponse("غير مصرح لك بإضافة موظفين لهذا الحساب"));
+
+            try
+            {
+                await _portalService.CreateTenantStaffAccountAsync(tenantId, dto);
+                return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم إنشاء حساب الموظف بنجاح"));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponseDto<bool>.FailResponse(ex.Message));
+            }
+        }
+
+        // 🆕 ب) عرض كافة الموظفين التابعين للمستأجر الحالي
+        [HttpGet("staff/{tenantId}")]
+        public async Task<IActionResult> GetMyStaff(int tenantId)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<List<User>>.FailResponse("غير مصرح لك بعرض هذه البيانات"));
+
+            var staff = await _portalService.GetMyStaffAsync(tenantId);
+            return Ok(ApiResponseDto<List<User>>.SuccessResponse(staff));
         }
     }
 }
