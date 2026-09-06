@@ -269,7 +269,7 @@ namespace Andalos.API.Services
             }).ToList();
         }
 
-        // ==================== 7. الملخص المالي ====================
+        // ==================== 7. الملخص المالي (مصحح) ====================
         public async Task<TenantFinancialSummaryDto?> GetFinancialSummaryAsync(int tenantId)
         {
             var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive);
@@ -282,6 +282,8 @@ namespace Andalos.API.Services
                 .ToListAsync();
 
             decimal totalDue = 0;
+
+            // 1. إضافة الإيجارات المستحقة
             foreach (var c in contracts.Where(c => c.Status == ContractStatus.Active))
             {
                 int months = (int)((today - c.StartDate).TotalDays / 30);
@@ -289,6 +291,14 @@ namespace Andalos.API.Services
                 totalDue += (months * c.RentAmount);
             }
 
+            // 2. 👈 جديد: إضافة مجموع المصروفات المحملة على المستأجر
+            decimal totalChargedExpenses = await _db.Expenses
+                .Where(e => e.TenantId == tenantId && e.IsChargedToTenant && e.IsActive)
+                .SumAsync(e => e.Amount);
+
+            totalDue += totalChargedExpenses; // زيادة الدين
+
+            // 3. المبالغ المدفوعة
             decimal totalPaid = await _db.Payments
                 .Where(p => p.TenantId == tenantId && p.IsActive)
                 .SumAsync(p => p.Amount);
@@ -297,7 +307,7 @@ namespace Andalos.API.Services
             {
                 TotalRequiredRent = totalDue,
                 TotalPaidAmount = totalPaid,
-                RemainingBalance = Math.Max(0, totalDue - totalPaid),
+                RemainingBalance = Math.Max(0, totalDue - totalPaid), // الرصيد المتبقي سيشمل المصروفات الآن
                 TotalContractsCount = contracts.Count,
                 ActiveContractsCount = contracts.Count(c => c.Status == ContractStatus.Active)
             };

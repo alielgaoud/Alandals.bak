@@ -42,6 +42,18 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
+        // 👈 جديد: دالة لجلب المصروفات التي تم تحميلها على مستأجر معين
+        public async Task<List<ExpenseResponseDto>> GetByTenantAsync(int tenantId)
+        {
+            return await _db.Expenses
+                .Include(e => e.Unit)
+                .Include(e => e.Tenant)
+                .Where(e => e.TenantId == tenantId && e.IsChargedToTenant && e.IsActive)
+                .OrderByDescending(e => e.ExpenseDate)
+                .Select(e => MapToDto(e))
+                .ToListAsync();
+        }
+
         public async Task<ExpenseResponseDto> CreateAsync(CreateExpenseDto dto)
         {
             if (dto.UnitId.HasValue)

@@ -53,14 +53,23 @@ namespace Andalos.API.Services
                 .OrderByDescending(p => p.PaymentDate)
                 .ToListAsync();
 
-            // 3. الحسابات المالية
+            // 3. الحسابات المالية (مصححة)
             decimal totalDue = 0;
+
+            // حساب الإيجارات
             foreach (var c in contracts.Where(c => c.Status == ContractStatus.Active))
             {
                 int monthsElapsed = (int)((today - c.StartDate).TotalDays / 30);
                 if (monthsElapsed < 1) monthsElapsed = 1;
                 totalDue += (monthsElapsed * c.RentAmount);
             }
+
+            // 👈 جديد: حساب المصروفات المحملة عليه وإضافتها للمديونية
+            decimal totalChargedExpenses = await _db.Expenses
+                .Where(e => e.TenantId == tenantId && e.IsChargedToTenant && e.IsActive)
+                .SumAsync(e => e.Amount);
+
+            totalDue += totalChargedExpenses;
 
             decimal totalPaid = payments.Sum(p => p.Amount);
 
@@ -72,7 +81,7 @@ namespace Andalos.API.Services
                 TotalUnitsRented = contracts.Select(c => c.UnitId).Distinct().Count(),
                 TotalRequiredRent = totalDue,
                 TotalPaidAmount = totalPaid,
-                RemainingBalance = Math.Max(0, totalDue - totalPaid),
+                RemainingBalance = Math.Max(0, totalDue - totalPaid), // الرصيد يعكس المصروفات الآن
                 ActiveContracts = contracts.Select(c => new ContractResponseDto
                 {
                     Id = c.Id,

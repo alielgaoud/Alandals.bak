@@ -9,5 +9,6 @@ namespace Andalos.API.Interfaces
         Task<ExpenseResponseDto> CreateAsync(CreateExpenseDto dto);
         Task<bool> DeleteAsync(int id);
         Task<decimal> GetTotalExpensesAsync(DateTime? fromDate, DateTime? toDate);
+        Task<List<ExpenseResponseDto>> GetByTenantAsync(int tenantId); // 👈 إضافة جديدة
     }
 }

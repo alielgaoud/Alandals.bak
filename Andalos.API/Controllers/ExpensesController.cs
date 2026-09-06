@@ -32,10 +32,17 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<List<ExpenseResponseDto>>.SuccessResponse(list));
         }
 
-        // في دالة Create داخل ExpensesController.cs استبدلها بهذا:
+        // 👈 جديد: استعراض المصروفات المحملة على مستأجر معين
+        [HttpGet("tenant/{tenantId}")]
+        public async Task<IActionResult> GetByTenant(int tenantId)
+        {
+            var list = await _service.GetByTenantAsync(tenantId);
+            return Ok(ApiResponseDto<List<ExpenseResponseDto>>.SuccessResponse(list));
+        }
+
         [HttpPost]
         [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
-        [Consumes("multipart/form-data")] // 👈 لتفعيل خيار اختيار الملف في Swagger
+        [Consumes("multipart/form-data")]
         public async Task<IActionResult> Create([FromForm] CreateExpenseDto dto)
         {
             try
@@ -66,7 +73,5 @@ namespace Andalos.API.Controllers
             var total = await _service.GetTotalExpensesAsync(from, to);
             return Ok(ApiResponseDto<decimal>.SuccessResponse(total));
         }
-
-
     }
 }
