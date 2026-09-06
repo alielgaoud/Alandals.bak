@@ -70,4 +70,24 @@ namespace Andalos.API.DTOs.Portal
         [MinLength(6)]
         public string Password { get; set; } = string.Empty;
     }
+    public class CreateTenantStaffDto
+    {
+        [Required]
+        [MaxLength(100)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        public string UserName { get; set; } = string.Empty; // بريد الموظف للدخول
+
+        [Required]
+        [MinLength(6)]
+        public string Password { get; set; } = string.Empty;
+
+        [MaxLength(20)]
+        public string? Phone { get; set; }
+
+        // قائمة الصلاحيات المرسلة من الفرونت اند (مثل: "maintenance", "visitors")
+        public List<string> Permissions { get; set; } = new();
+    }
 }

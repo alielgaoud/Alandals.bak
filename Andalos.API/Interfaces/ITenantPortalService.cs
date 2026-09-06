@@ -3,6 +3,7 @@ using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.DTOs.Portal;
 using Andalos.API.DTOs.Visitors;
+using Andalos.API.Models;
 
 namespace Andalos.API.Interfaces
 {
@@ -17,5 +18,8 @@ namespace Andalos.API.Interfaces
         Task<bool> CreateTenantUserAccountAsync(CreateTenantUserAccountDto dto);
         Task<List<MaintenanceResponseDto>> GetMyMaintenanceAsync(int tenantId);
         Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId);
+
+        Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto);
+        Task<List<User>> GetMyStaffAsync(int tenantId);
     }
 }

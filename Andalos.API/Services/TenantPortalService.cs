@@ -253,7 +253,44 @@ namespace Andalos.API.Services
                 })
                 .ToListAsync();
         }
+        // 🆕 إنشاء الحساب وحقنه بالرقم 6 (TenantStaff)
+        public async Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto)
+        {
+            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
+            if (tenant == null)
+                throw new KeyNotFoundException("المستأجر غير موجود");
 
+            var emailExists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.IsActive);
+            if (emailExists)
+                throw new InvalidOperationException("البريد الإلكتروني مستخدم لحساب آخر بالفعل");
+
+            // ندمج الهاتف والصلاحيات في حقل واحد مفصول بـ | لتفادي خطأ التكرار وبدون تعديل قاعدة البيانات
+            var combinedPhoneAndPermissions = (dto.Phone ?? tenant.Phone) + "|" + string.Join(",", dto.Permissions);
+
+            var user = new User
+            {
+                FullName = dto.FullName,
+                UserName = dto.UserName,
+                Phone = combinedPhoneAndPermissions, // 👈 تم التهيئة هنا مرة واحدة فقط بنجاح
+                PasswordHash = HashPassword(dto.Password),
+                Role = UserRole.TenantStaff, // قيمتها 6
+                TenantId = tenant.Id,
+                IsActive = true
+            };
+
+            _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        // 🆕 جلب موظفي المستأجر فقط
+        public async Task<List<User>> GetMyStaffAsync(int tenantId)
+        {
+            return await _db.Users
+                .Where(u => u.TenantId == tenantId && u.Role == UserRole.TenantStaff && u.IsActive)
+                .OrderByDescending(u => u.Id)
+                .ToListAsync();
+        }
         public async Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId)
         {
             var m = await _db.MaintenanceRequests
