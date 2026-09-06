@@ -39,6 +39,8 @@ namespace Andalos.API.Models
         public string? Notes { get; set; }
 
         // المرفقات والبنود الإضافية
+        // أضف هذه الخاصية في كلاس Contract
+        public ICollection<ContractFee> ContractFees { get; set; } = new List<ContractFee>();
         public ICollection<ContractItem> ContractItems { get; set; } = new List<ContractItem>();
         public ICollection<ContractDocument> ContractDocuments { get; set; } = new List<ContractDocument>();
     }

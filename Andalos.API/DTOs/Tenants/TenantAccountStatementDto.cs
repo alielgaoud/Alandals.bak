@@ -1,4 +1,7 @@
-﻿namespace Andalos.API.DTOs.Tenants
+﻿using Andalos.API.Enums;
+using System.ComponentModel.DataAnnotations;
+
+namespace Andalos.API.DTOs.Tenants
 {
     // ===== كشف حساب المستأجر الشامل =====
     public class TenantAccountStatementDto
@@ -99,5 +102,17 @@
         public string BalanceStatus { get; set; } = string.Empty; // "Creditor" | "Debtor" | "Settled"
         public DateTime? LastPaymentDate { get; set; }
         public int TransactionsCount { get; set; }
+    }
+    public class DepositAdvancePaymentDto
+    {
+        [Required(ErrorMessage = "مبلغ الإيداع مطلوب")]
+        [Range(0.01, 1000000, ErrorMessage = "يجب أن يكون المبلغ أكبر من صفر")]
+        public decimal Amount { get; set; }
+
+        [Required(ErrorMessage = "طريقة الدفع مطلوبة")]
+        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
+
+        [MaxLength(500)]
+        public string? Notes { get; set; }
     }
 }

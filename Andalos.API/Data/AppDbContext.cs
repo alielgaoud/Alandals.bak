@@ -26,7 +26,8 @@ namespace Andalos.API.Data
         public DbSet<VisitorBlacklist> VisitorBlacklists { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
         public DbSet<ComplaintReply> ComplaintReplies { get; set; }
-
+        public DbSet<ContractFee> ContractFees { get; set; }
+        public DbSet<BankTransferRequest> BankTransferRequests { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -44,6 +45,32 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
+
+            modelBuilder.Entity<ContractFee>(entity =>
+            {
+                entity.ToTable("ContractFees");
+                entity.Property(e => e.Value).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.ValueType).HasConversion<int>();
+                entity.Property(e => e.Frequency).HasConversion<int>();
+
+                entity.HasOne(f => f.Contract)
+                      .WithMany(c => c.ContractFees)
+                      .HasForeignKey(f => f.ContractId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<BankTransferRequest>(entity =>
+            {
+                entity.ToTable("BankTransferRequests");
+                entity.Property(e => e.RequestedAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.ApprovedAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Status).HasConversion<int>();
+
+                entity.HasOne(r => r.Tenant)
+                      .WithMany()
+                      .HasForeignKey(r => r.TenantId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
             // ===== أضف هذا داخل OnModelCreating =====
 

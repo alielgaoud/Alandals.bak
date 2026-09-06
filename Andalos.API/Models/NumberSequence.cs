@@ -1,20 +1,19 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Andalos.API.Common;
+using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.Models
 {
-    public class NumberSequence
+    public class NumberSequence : BaseEntity
     {
-        public int Id { get; set; }
 
         [Required]
         [MaxLength(100)]
         public string SequenceKey { get; set; } = string.Empty;
         // مثال: "Contract", "Receipt", "Maintenance", "Expense"
-
+        public int LastYear { get; set; }
         public int CurrentYear { get; set; }
 
         public int LastNumber { get; set; } = 0;
 
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

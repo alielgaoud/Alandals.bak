@@ -3,11 +3,15 @@ using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.DTOs.Portal;
+using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Interfaces;
+using Andalos.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+
+using TenantAccountStatementDto = Andalos.API.DTOs.Portal.TenantAccountStatementDto;
 
 namespace Andalos.API.Controllers
 {
@@ -17,10 +21,17 @@ namespace Andalos.API.Controllers
     public class TenantPortalController : ControllerBase
     {
         private readonly ITenantPortalService _portalService;
+        private readonly IWebHostEnvironment _env;               // 👈 تم إضافة البيئة
+        private readonly IBankTransferService _bankTransferService; // 👈 تم إضافة خدمة الحوالات
 
-        public TenantPortalController(ITenantPortalService portalService)
+        public TenantPortalController(
+            ITenantPortalService portalService,
+            IWebHostEnvironment env,
+            IBankTransferService bankTransferService)
         {
             _portalService = portalService;
+            _env = env;
+            _bankTransferService = bankTransferService;
         }
 
         // 🔒 دالة مساعدة لحماية الطلبات من هجمات التلاعب بـ IDs (IDOR)
@@ -167,6 +178,20 @@ namespace Andalos.API.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(ApiResponseDto<MaintenanceResponseDto>.FailResponse(ex.Message));
+            }
+        }
+        [HttpPost("{tenantId}/upload-receipt")]
+        public async Task<IActionResult> UploadReceipt(int tenantId, [FromForm] SubmitTransferRequestDto dto)
+        {
+            try
+            {
+                string webRootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var result = await _bankTransferService.SubmitRequestAsync(tenantId, dto, webRootPath);
+                return Ok(ApiResponseDto<TransferRequestResponseDto>.SuccessResponse(result, "تم رفع الواصل بنجاح، بانتظار مراجعة الإدارة."));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }
         }
     }

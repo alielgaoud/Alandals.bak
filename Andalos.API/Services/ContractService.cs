@@ -58,7 +58,7 @@ namespace Andalos.API.Services
             if (unit.Status != UnitStatus.Vacant)
                 throw new InvalidOperationException($"المحل المحدد غير شاغر حالياً (حالة المحل الحالية: {unit.Status})");
 
-            // 3. توليد رقم عقد تسلسلي تلقائي فريد (CTR-السنة-رقم_العقد)
+            // 3. توليد رقم عقد تسلسلي تلقائي فريد
             string contractNumber = await _numberGen.GenerateAsync("Contract");
 
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -80,7 +80,7 @@ namespace Andalos.API.Services
                     Notes = dto.Notes
                 };
 
-                // إضافة البنود الإضافية إن وُجدت
+                // أ) إضافة البنود الإضافية إن وُجدت
                 if (dto.ExtraItems != null && dto.ExtraItems.Any())
                 {
                     foreach (var item in dto.ExtraItems)
@@ -94,6 +94,22 @@ namespace Andalos.API.Services
                     }
                 }
 
+                // ب) 👈 الجديد: إضافة العمولات والرسوم الإضافية إن وُجدت
+                if (dto.ContractFees != null && dto.ContractFees.Any())
+                {
+                    foreach (var fee in dto.ContractFees)
+                    {
+                        contract.ContractFees.Add(new ContractFee
+                        {
+                            FeeName = fee.FeeName,
+                            ValueType = fee.ValueType,
+                            Frequency = fee.Frequency,
+                            Value = fee.Value,
+                            Notes = fee.Notes
+                        });
+                    }
+                }
+
                 _db.Contracts.Add(contract);
 
                 // 5. تعديل حالة المحل تلقائياً إلى (مؤجر)
@@ -103,12 +119,13 @@ namespace Andalos.API.Services
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // استرجاع الكيان كاملاً لغرض الـ DTO Mapping مع العلاقات
+                // 6. استرجاع الكيان كاملاً مع كافة العلاقات بما فيها الرسوم والعمولات الجديدة
                 var savedContract = await _db.Contracts
                     .Include(c => c.Tenant)
                     .Include(c => c.Unit)
                     .Include(c => c.ContractItems)
                     .Include(c => c.ContractDocuments)
+                    .Include(c => c.ContractFees) // 👈 جديد: تضمين جدول الرسوم
                     .FirstAsync(c => c.Id == contract.Id);
 
                 return MapToDto(savedContract);
@@ -193,39 +210,41 @@ namespace Andalos.API.Services
 
 
         // ===== دالة التحويل من Model لـ DTO =====
-        private static ContractResponseDto MapToDto(Contract c)
+        private ContractResponseDto MapToDto(Contract contract)
         {
+            int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
+            decimal totalContractValue = contract.RentAmount * durationMonths;
+
             return new ContractResponseDto
             {
-                Id = c.Id,
-                ContractNumber = c.ContractNumber,
-                TenantId = c.TenantId,
-                TenantName = c.Tenant?.FullName ?? string.Empty,
-                TenantPhone = c.Tenant?.Phone ?? string.Empty,
-                UnitId = c.UnitId,
-                UnitNumber = c.Unit?.UnitNumber ?? string.Empty,
-                UnitName = c.Unit?.UnitName ?? "", // سيبقى كما هو لأنه nullable الآن                StartDate = c.StartDate,
-                EndDate = c.EndDate,
-                RentAmount = c.RentAmount,
-                RentCycle = c.RentCycle.ToString(),
-                DepositAmount = c.DepositAmount,
-                Status = c.Status.ToString(),
-                AutoRenew = c.AutoRenew,
-                Notes = c.Notes,
-                CreatedAt = c.CreatedAt,
-                ExtraItems = c.ContractItems.Select(i => new ContractItemDto
+                Id = contract.Id,
+                ContractNumber = contract.ContractNumber,
+                TenantId = contract.TenantId,
+                TenantName = contract.Tenant?.FullName ?? "",
+                UnitId = contract.UnitId,
+                UnitNumber = contract.Unit?.UnitNumber ?? "",
+                UnitName = contract.Unit?.UnitName ?? "",
+                StartDate = contract.StartDate,
+                EndDate = contract.EndDate,
+                RentAmount = contract.RentAmount,
+                RentCycle = contract.RentCycle.ToString(),
+                DepositAmount = contract.DepositAmount,
+                Status = contract.Status.ToString(),
+                AutoRenew = contract.AutoRenew,
+                Notes = contract.Notes,
+
+                // 👈 جديد: تحويل قائمة العمولات مع حساب قيمتها بالدينار تلقائياً
+                ContractFees = contract.ContractFees.Select(f => new ContractFeeResponseDto
                 {
-                    Id = i.Id,
-                    ItemName = i.ItemName,
-                    Amount = i.Amount,
-                    Notes = i.Notes
-                }).ToList(),
-                Documents = c.ContractDocuments.Select(d => new ContractDocumentDto
-                {
-                    Id = d.Id,
-                    FileName = d.FileName,
-                    FilePath = d.FilePath,
-                    FileType = d.FileType
+                    Id = f.Id,
+                    FeeName = f.FeeName,
+                    ValueType = f.ValueType,
+                    ValueTypeLabel = f.ValueType == FeeValueType.Fixed ? "مبلغ ثابت" : "نسبة مئوية",
+                    Frequency = f.Frequency,
+                    FrequencyLabel = f.Frequency == FeeFrequency.OneTime ? "مرة واحدة" : "شهرياً",
+                    InputValue = f.Value,
+                    CalculatedAmount = f.CalculateActualAmount(contract.RentAmount, totalContractValue),
+                    Notes = f.Notes
                 }).ToList()
             };
         }

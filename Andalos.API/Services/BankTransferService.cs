@@ -1,0 +1,129 @@
+﻿using Andalos.API.Data;
+using Andalos.API.DTOs.Tenants;
+using Andalos.API.Enums;
+using Andalos.API.Interfaces;
+using Andalos.API.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Andalos.API.Services
+{
+    public interface IBankTransferService
+    {
+        Task<TransferRequestResponseDto> SubmitRequestAsync(int tenantId, SubmitTransferRequestDto dto, string uploadsFolder);
+        Task<List<TransferRequestResponseDto>> GetRequestsAsync(TransferRequestStatus? status = null);
+        Task<TransferRequestResponseDto> ReviewRequestAsync(int requestId, ReviewTransferRequestDto dto);
+    }
+
+    public class BankTransferService : IBankTransferService
+    {
+        private readonly AppDbContext _db;
+        private readonly ITenantAccountService _accountService; // 👈 لاستدعاء المحفظة
+
+        public BankTransferService(AppDbContext db, ITenantAccountService accountService)
+        {
+            _db = db;
+            _accountService = accountService;
+        }
+
+        // ===== 1. المستأجر يرفع الطلب =====
+        public async Task<TransferRequestResponseDto> SubmitRequestAsync(int tenantId, SubmitTransferRequestDto dto, string uploadsFolder)
+        {
+            var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive);
+            if (!tenantExists) throw new KeyNotFoundException("المستأجر غير موجود");
+
+            // حفظ صورة الواصل
+            string fileName = $"{Guid.NewGuid()}_{Path.GetFileName(dto.ReceiptFile.FileName)}";
+            string filePath = Path.Combine(uploadsFolder, "receipts", fileName);
+            Directory.CreateDirectory(Path.Combine(uploadsFolder, "receipts"));
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await dto.ReceiptFile.CopyToAsync(stream);
+            }
+
+            var request = new BankTransferRequest
+            {
+                TenantId = tenantId,
+                RequestedAmount = dto.RequestedAmount,
+                TransferDate = dto.TransferDate,
+                BankName = dto.BankName,
+                ReferenceNumber = dto.ReferenceNumber,
+                ReceiptFilePath = $"/uploads/receipts/{fileName}",
+                Status = TransferRequestStatus.Pending
+            };
+
+            _db.BankTransferRequests.Add(request);
+            await _db.SaveChangesAsync();
+
+            return MapToDto(request, "");
+        }
+
+        // ===== 2. الإدارة تستعرض الطلبات (يمكن الفلترة لمعرفة المعلق فقط) =====
+        public async Task<List<TransferRequestResponseDto>> GetRequestsAsync(TransferRequestStatus? status = null)
+        {
+            var query = _db.BankTransferRequests.Include(r => r.Tenant).Where(r => r.IsActive);
+            if (status.HasValue) query = query.Where(r => r.Status == status.Value);
+
+            var list = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+            return list.Select(r => MapToDto(r, r.Tenant?.FullName ?? "")).ToList();
+        }
+
+        // ===== 3. الإدارة توافق وتعدل المبلغ أو ترفض =====
+        public async Task<TransferRequestResponseDto> ReviewRequestAsync(int requestId, ReviewTransferRequestDto dto)
+        {
+            var request = await _db.BankTransferRequests.Include(r => r.Tenant)
+                                   .FirstOrDefaultAsync(r => r.Id == requestId && r.IsActive);
+
+            if (request == null) throw new KeyNotFoundException("الطلب غير موجود");
+            if (request.Status != TransferRequestStatus.Pending) throw new InvalidOperationException("تمت مراجعة هذا الطلب مسبقاً");
+
+            if (dto.IsApproved)
+            {
+                request.Status = TransferRequestStatus.Approved;
+                // إذا أدخلت الإدارة مبلغاً مصححاً، اعتمده، وإلا اعتمد مبلغ المستأجر
+                decimal finalAmount = dto.CorrectedAmount ?? request.RequestedAmount;
+                request.ApprovedAmount = finalAmount;
+                request.AdminNotes = dto.AdminNotes;
+
+                // 💡 سحر الربط: إيداع المبلغ تلقائياً في محفظة المستأجر 💡
+                string depositNotes = $"حوالة بنكية معتمدة (طلب رقم {request.Id}) {(request.BankName != null ? $"- بنك {request.BankName}" : "")}";
+
+                await _accountService.DepositAdvancePaymentAsync(
+                    request.TenantId,
+                    finalAmount,
+                    PaymentMethod.Transfer,
+                    depositNotes
+                );
+            }
+            else
+            {
+                request.Status = TransferRequestStatus.Rejected;
+                request.AdminNotes = dto.AdminNotes ?? "تم الرفض لعدم صحة البيانات المرفقة";
+            }
+
+            request.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return MapToDto(request, request.Tenant?.FullName ?? "");
+        }
+
+        private static TransferRequestResponseDto MapToDto(BankTransferRequest req, string tenantName)
+        {
+            return new TransferRequestResponseDto
+            {
+                Id = req.Id,
+                TenantId = req.TenantId,
+                TenantName = tenantName,
+                RequestedAmount = req.RequestedAmount,
+                ApprovedAmount = req.ApprovedAmount,
+                TransferDate = req.TransferDate,
+                BankName = req.BankName,
+                ReferenceNumber = req.ReferenceNumber,
+                ReceiptFilePath = req.ReceiptFilePath,
+                Status = req.Status.ToString(),
+                AdminNotes = req.AdminNotes,
+                CreatedAt = req.CreatedAt
+            };
+        }
+    }
+}
