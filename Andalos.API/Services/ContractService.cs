@@ -74,6 +74,9 @@ namespace Andalos.API.Services
                     RentCycle = dto.RentCycle,
                     DepositAmount = dto.DepositAmount,
                     Status = ContractStatus.Active,
+                    // أضف عند إنشاء العقد:
+                    ActivityType = dto.ActivityType,
+                    TradeName = dto.TradeName,
                     AutoRenew = dto.AutoRenew,
                     AnnualIncreasePercentage = dto.AnnualIncreasePercentage, // 👈 إصلاح: تم إضافتها للإنشاء
                     Notes = dto.Notes
@@ -237,6 +240,9 @@ namespace Andalos.API.Services
                     RentCycle = oldContract.RentCycle,
                     DepositAmount = oldContract.DepositAmount,
                     Status = ContractStatus.Active,
+                    // عند تجديد العقد، انسخ النشاط والاسم التجاري من العقد القديم تلقائياً:
+                    ActivityType = oldContract.ActivityType,
+                    TradeName = oldContract.TradeName,
                     AutoRenew = dto.AutoRenew,
                     AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
                     ParentContractId = oldContract.Id,
@@ -313,7 +319,9 @@ namespace Andalos.API.Services
                 TenantName = contract.Tenant?.FullName ?? "",
                 UnitId = contract.UnitId,
                 UnitNumber = contract.Unit?.UnitNumber ?? "",
-                UnitName = contract.Unit?.UnitName ?? "",
+                // أضف للـ DTO المرجع:
+                ActivityType = contract.ActivityType.ToString(),
+                TradeName = contract.TradeName,
                 StartDate = contract.StartDate,
                 EndDate = contract.EndDate,
                 RentAmount = contract.RentAmount,

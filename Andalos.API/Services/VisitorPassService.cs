@@ -111,8 +111,8 @@ namespace Andalos.API.Services
             }
 
             string destination = pass.Unit != null
-                ? $"محل: {pass.Unit.UnitName} (رقم: {pass.Unit.UnitNumber})"
-                : "إدارة المجمع";
+         ? $"محل رقم: {pass.Unit.UnitNumber}" // 👈 الاعتماد على رقم المحل
+         : "إدارة المجمع";
 
             // 2. فحص حالة التصريح
             if (pass.Status == PassStatus.Revoked)
@@ -205,8 +205,8 @@ namespace Andalos.API.Services
                     PassCode = e.VisitorPass != null ? e.VisitorPass.PassCode : "",
                     VisitorName = e.VisitorPass != null ? e.VisitorPass.VisitorName : "",
                     DestinationUnit = e.VisitorPass != null && e.VisitorPass.Unit != null
-                        ? e.VisitorPass.Unit.UnitName
-                        : "الإدارة",
+    ? $"محل رقم {e.VisitorPass.Unit.UnitNumber}" // 👈 الاعتماد على رقم المحل
+    : "الإدارة",
                     ScanTime = e.ScanTime,
                     GateName = e.GateName,
                     ScannedBy = e.ScannedBy,
@@ -267,7 +267,7 @@ namespace Andalos.API.Services
                 VisitorType = p.VisitorType.ToString(),
                 UnitId = p.UnitId,
                 UnitNumber = p.Unit?.UnitNumber,
-                UnitName = p.Unit?.UnitName,
+                UnitName = p.Unit?.UnitNumber,
                 ValidDate = p.ValidDate,
                 MaxEntries = p.MaxEntries,
                 UsedCount = p.UsedCount,

@@ -25,7 +25,11 @@ namespace Andalos.API.DTOs.Contracts
         public decimal? AnnualIncreasePercentage { get; set; } // 👈 إضافة هاته الخاصية
 
         public decimal DepositAmount { get; set; }
+        // داخل CreateContractDto أضف:
+        public ActivityType ActivityType { get; set; } = ActivityType.Other;
 
+        [MaxLength(100)]
+        public string? TradeName { get; set; } // الاسم التجاري للنشاط
         public bool AutoRenew { get; set; } = false;
         public List<CreateContractFeeDto> ContractFees { get; set; } = new();
         public string? Notes { get; set; }
@@ -76,7 +80,9 @@ namespace Andalos.API.DTOs.Contracts
         public int TenantId { get; set; }
         public string TenantName { get; set; } = string.Empty;
         public string TenantPhone { get; set; } = string.Empty;
-
+        // داخل ContractResponseDto أضف:
+        public string ActivityType { get; set; } = string.Empty;
+        public string? TradeName { get; set; }
         public int UnitId { get; set; }
         public string UnitNumber { get; set; } = string.Empty;
         public string UnitName { get; set; } = string.Empty;

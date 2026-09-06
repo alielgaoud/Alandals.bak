@@ -46,6 +46,12 @@ namespace Andalos.API.Models
         public int? ParentContractId { get; set; }
         public Contract? ParentContract { get; set; }
 
+        // أضف هاتين الخصائصين داخل كلاس Contract
+        public ActivityType ActivityType { get; set; } = ActivityType.Other; // 👈 نوع النشاط الخاص بهذا العقد
+
+        [MaxLength(100)]
+        public string? TradeName { get; set; } // 👈 الاسم التجاري للنشاط في العقد (مثل: صيدلية الشفاء)
+
         // المرفقات والبنود الإضافية
         // أضف هذه الخاصية في كلاس Contract
         public ICollection<ContractFee> ContractFees { get; set; } = new List<ContractFee>();

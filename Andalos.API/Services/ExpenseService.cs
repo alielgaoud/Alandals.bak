@@ -157,7 +157,7 @@ namespace Andalos.API.Services
                 ExpenseNumber = e.ExpenseNumber,
                 UnitId = e.UnitId,
                 UnitNumber = e.Unit?.UnitNumber,
-                UnitName = e.Unit?.UnitName,
+                UnitName = e.Unit?.UnitNumber, // 👈 إرجاع رقم المحل
                 TenantId = e.TenantId, // 👈 إرجاع البيانات للـ Frontend
                 TenantName = e.Tenant?.FullName, // 👈 اسم المستأجر
                 IsChargedToTenant = e.IsChargedToTenant,

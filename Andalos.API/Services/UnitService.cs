@@ -44,8 +44,6 @@ namespace Andalos.API.Services
             var unit = new Unit
             {
                 UnitNumber = dto.UnitNumber,
-                UnitName = null, // 👈 الاسم يتحدد لاحقاً مع المستأجر
-                ActivityType = dto.ActivityType, // 👈 نوع النشاط
                 Status = UnitStatus.Vacant,
                 Area = dto.Area,
                 Floor = dto.Floor,
@@ -68,8 +66,6 @@ namespace Andalos.API.Services
 
             if (unit == null) return null;
 
-            unit.UnitName = dto.UnitName; // 👈 يمكن تغييره عند تغيير المستأجر
-            unit.ActivityType = dto.ActivityType; // 👈 نوع النشاط
             unit.Status = dto.Status;
             unit.Area = dto.Area;
             unit.Floor = dto.Floor;
@@ -114,8 +110,6 @@ namespace Andalos.API.Services
             {
                 Id = u.Id,
                 UnitNumber = u.UnitNumber,
-                UnitName = u.UnitName,
-                ActivityType = u.ActivityType.ToString(), // 👈 نوع النشاط
                 Status = u.Status.ToString(),
                 Area = u.Area,
                 Floor = u.Floor,

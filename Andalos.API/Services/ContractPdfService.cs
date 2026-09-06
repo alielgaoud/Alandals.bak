@@ -1,5 +1,4 @@
-﻿
-using Andalos.API.Constants;
+﻿using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -243,8 +242,8 @@ namespace Andalos.API.Services
                             .Element(c =>
                                 InfoBox(
                                     c,
-                                    "اسم المحل",
-                                    contract.Unit?.UnitName ?? "-"
+                                    "الاسم التجاري / النشاط",
+                                    contract.TradeName ?? "-" // 👈 تم التصحيح هنا
                                 ));
                     });
 

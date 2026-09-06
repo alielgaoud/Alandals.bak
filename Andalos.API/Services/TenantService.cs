@@ -113,8 +113,6 @@ namespace Andalos.API.Services
             {
                 Id = u.Id,
                 UnitNumber = u.UnitNumber,
-                UnitName = u.UnitName,
-                ActivityType = u.ActivityType.ToString(), // 👈 تم التحديث هنا من UnitType إلى ActivityType
                 Status = u.Status.ToString(),
                 Area = u.Area,
                 Floor = u.Floor,
@@ -148,8 +146,7 @@ namespace Andalos.API.Services
                 TenantPhone = tenant.Phone,
                 UnitId = c.UnitId,
                 UnitNumber = c.Unit?.UnitNumber ?? "",
-                UnitName = c.Unit?.UnitName ?? "",
-                StartDate = c.StartDate,
+                UnitName = c.TradeName ?? c.Unit?.UnitNumber ?? "", // 👈 استبدال UnitName بـ TradeName                StartDate = c.StartDate,
                 EndDate = c.EndDate,
                 RentAmount = c.RentAmount,
                 RentCycle = c.RentCycle.ToString(),
@@ -218,8 +215,7 @@ namespace Andalos.API.Services
                 RequestNumber = m.RequestNumber,
                 UnitId = m.UnitId,
                 UnitNumber = m.Unit?.UnitNumber ?? "",
-                UnitName = m.Unit?.UnitName ?? "",
-                TenantId = m.TenantId,
+                UnitName = m.Unit?.UnitNumber ?? "", // 👈 الاعتماد على رقم المحل                TenantId = m.TenantId,
                 TenantName = tenant.FullName,
                 Type = m.Type.ToString(),
                 Priority = m.Priority.ToString(),
@@ -258,7 +254,7 @@ namespace Andalos.API.Services
                 VisitorType = p.VisitorType.ToString(),
                 UnitId = p.UnitId,
                 UnitNumber = p.Unit?.UnitNumber,
-                UnitName = p.Unit?.UnitName,
+                UnitName = p.Unit?.UnitNumber ?? "", // 👈 تم التصحيح باستخدام p بدلاً من m
                 ValidDate = p.ValidDate,
                 MaxEntries = p.MaxEntries,
                 UsedCount = p.UsedCount,

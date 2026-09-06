@@ -123,7 +123,7 @@ namespace Andalos.API.Services
                 RequestNumber = m.RequestNumber,
                 UnitId = m.UnitId,
                 UnitNumber = m.Unit?.UnitNumber ?? "",
-                UnitName = m.Unit?.UnitName ?? "",
+                UnitName = m.Unit?.UnitNumber ?? "",
                 TenantId = m.TenantId,
                 TenantName = m.Tenant?.FullName,
                 Type = m.Type.ToString(),

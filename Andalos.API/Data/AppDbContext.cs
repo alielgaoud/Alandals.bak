@@ -119,7 +119,6 @@ namespace Andalos.API.Data
             {
                 entity.ToTable("Units");
                 entity.HasIndex(e => e.UnitNumber).IsUnique();
-                entity.Property(e => e.ActivityType).HasConversion<int>(); // 👈 تم التغيير
                 entity.Property(e => e.Status).HasConversion<int>();
                 entity.Property(e => e.Area).HasColumnType("decimal(10,2)");
                 entity.Property(e => e.ElectricityMeterStart).HasColumnType("decimal(12,2)");
@@ -156,6 +155,7 @@ namespace Andalos.API.Data
                 entity.Property(e => e.DepositAmount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.RentCycle).HasConversion<int>();
                 entity.Property(e => e.Status).HasConversion<int>();
+                entity.Property(e => e.ActivityType).HasConversion<int>();
 
                 entity.HasOne(c => c.Tenant)
                       .WithMany()

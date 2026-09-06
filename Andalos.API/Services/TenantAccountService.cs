@@ -234,7 +234,7 @@ namespace Andalos.API.Services
                         TransactionType = "Debit",
                         Category = "Rent",
                         CategoryLabel = "إيجار شهري ورسوم",
-                        Description = $"إيجار شهر {currentMonth:MM/yyyy}{feesNote} — {contract.Unit?.UnitName ?? ""}",
+                        Description = $"إيجار شهر {currentMonth:MM/yyyy}{feesNote} — {contract.TradeName ?? contract.Unit?.UnitNumber ?? ""}", // 👈 تم تصحيح القراءة من العقد
                         Debit = totalMonthlyDebit,
                         Credit = 0,
                         ContractId = contract.Id,
@@ -328,7 +328,7 @@ namespace Andalos.API.Services
                     ContractId = c.Id,
                     ContractNumber = c.ContractNumber,
                     UnitNumber = c.Unit?.UnitNumber ?? "",
-                    UnitName = c.Unit?.UnitName ?? "",
+                    UnitName = c.TradeName ?? c.Unit?.UnitNumber ?? "", // 👈 أصبحت تأخذ الاسم التجاري من العقد
                     StartDate = c.StartDate,
                     EndDate = c.EndDate,
                     MonthlyRent = c.RentAmount,

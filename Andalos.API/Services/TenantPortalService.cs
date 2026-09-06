@@ -90,7 +90,7 @@ namespace Andalos.API.Services
                     TenantName = tenant.FullName,
                     UnitId = c.UnitId,
                     UnitNumber = c.Unit?.UnitNumber ?? "",
-                    UnitName = c.Unit?.UnitName ?? "",
+                    UnitName = c.TradeName ?? c.Unit?.UnitNumber ?? "",
                     StartDate = c.StartDate,
                     EndDate = c.EndDate,
                     RentAmount = c.RentAmount,
@@ -200,7 +200,7 @@ namespace Andalos.API.Services
                     VisitorType = p.VisitorType.ToString(),
                     UnitId = p.UnitId,
                     UnitNumber = p.Unit != null ? p.Unit.UnitNumber : "",
-                    UnitName = p.Unit != null ? p.Unit.UnitName : "",
+                    UnitName = p.Unit != null ? p.Unit.UnitNumber : "",
                     ValidDate = p.ValidDate,
                     MaxEntries = p.MaxEntries,
                     UsedCount = p.UsedCount,
@@ -240,27 +240,28 @@ namespace Andalos.API.Services
         public async Task<List<MaintenanceResponseDto>> GetMyMaintenanceAsync(int tenantId)
         {
             return await _db.MaintenanceRequests
-                .Include(m => m.Unit)
-                .Where(m => m.TenantId == tenantId && m.IsActive)
-                .OrderByDescending(m => m.RequestDate)
-                .Select(m => new MaintenanceResponseDto
-                {
-                    Id = m.Id,
-                    RequestNumber = m.RequestNumber,
-                    UnitId = m.UnitId,
-                    UnitNumber = m.Unit != null ? m.Unit.UnitNumber : "",
-                    UnitName = m.Unit != null ? m.Unit.UnitName : "",
-                    TenantId = m.TenantId,
-                    Type = m.Type.ToString(),
-                    Priority = m.Priority.ToString(),
-                    Status = m.Status.ToString(),
-                    Description = m.Description,
-                    Cost = m.Cost,
-                    RequestDate = m.RequestDate,
-                    CompletionDate = m.CompletionDate,
-                    Notes = m.Notes
-                })
-                .ToListAsync();
+      .Include(m => m.Unit)
+      .Where(m => m.TenantId == tenantId && m.IsActive)
+      .OrderByDescending(m => m.RequestDate)
+      .Select(m => new MaintenanceResponseDto
+      {
+          Id = m.Id,
+          RequestNumber = m.RequestNumber,
+          UnitId = m.UnitId,
+          UnitNumber = m.Unit != null ? m.Unit.UnitNumber : "",
+          UnitName = m.Unit != null ? m.Unit.UnitNumber : "", // 👈 تم الاستبدال بـ UnitNumber
+          TenantId = m.TenantId,
+          Type = m.Type.ToString(),
+          Priority = m.Priority.ToString(),
+          Status = m.Status.ToString(),
+          Description = m.Description,
+          Cost = m.Cost,
+          RequestDate = m.RequestDate,
+          CompletionDate = m.CompletionDate,
+          Notes = m.Notes
+      })
+      .ToListAsync();
+
         }
         // 🆕 إنشاء الحساب وحقنه بالرقم 6 (TenantStaff)
         public async Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto)
@@ -315,7 +316,7 @@ namespace Andalos.API.Services
                 RequestNumber = m.RequestNumber,
                 UnitId = m.UnitId,
                 UnitNumber = m.Unit?.UnitNumber ?? "",
-                UnitName = m.Unit?.UnitName ?? "",
+                UnitName = m.Unit?.UnitNumber ?? "", // 👈 تم الاستبدال بـ UnitNumber
                 TenantId = m.TenantId,
                 Type = m.Type.ToString(),
                 Priority = m.Priority.ToString(),

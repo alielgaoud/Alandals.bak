@@ -10,13 +10,6 @@ namespace Andalos.API.Models
         [MaxLength(20)]
         public string UnitNumber { get; set; } = string.Empty;
 
-        // 👈 تم جعله اختياري لأن الاسم يتغير مع المستأجر
-        [MaxLength(100)]
-        public string? UnitName { get; set; }
-
-        // 👈 تم تغييره من UnitType إلى ActivityType (نوع النشاط)
-        public ActivityType ActivityType { get; set; } = ActivityType.Other;
-
         public UnitStatus Status { get; set; } = UnitStatus.Vacant;
 
         public decimal Area { get; set; } = 0;
@@ -33,7 +26,6 @@ namespace Andalos.API.Models
         [MaxLength(500)]
         public string? Notes { get; set; }
 
-        // 👈 تم حذف WaterMeterStart نهائياً
         public decimal? ElectricityMeterStart { get; set; }
     }
 }

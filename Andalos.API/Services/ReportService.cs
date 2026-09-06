@@ -217,8 +217,8 @@ namespace Andalos.API.Services
                 {
                     UnitId = unit.Id,
                     UnitNumber = unit.UnitNumber,
-                    UnitName = unit.UnitName,
-                    ActivityType = unit.ActivityType.ToString(), // 👈 تم تصحيح الخطأ الثاني هنا بتغيير اسم الحقل المستقبل في الـ DTO إلى ActivityType
+                    UnitName = contract?.TradeName ?? unit.UnitNumber, // 👈 الاسم التجاري يقرأ من العقد الساري
+                    ActivityType = contract != null ? contract.ActivityType.ToString() : "لا يوجد نشاط", // 👈 نوع النشاط يقرأ من العقد الساري
                     Status = unit.Status.ToString(),
                     Area = unit.Area,
                     CurrentTenantName = contract?.Tenant?.FullName,
@@ -334,22 +334,22 @@ namespace Andalos.API.Services
 
             return await query
                 .OrderByDescending(e => e.ExpenseDate)
-                .Select(e => new ExpenseReportItemDto
-                {
-                    ExpenseId = e.Id,
-                    ExpenseNumber = e.ExpenseNumber,
-                    UnitNumber = e.Unit != null ? e.Unit.UnitNumber : null,
-                    UnitName = e.Unit != null ? e.Unit.UnitName : null,
-                    TenantName = e.Tenant != null ? e.Tenant.FullName : null,
-                    IsChargedToTenant = e.IsChargedToTenant,
-                    ExpenseType = e.ExpenseType.ToString(),
-                    Amount = e.Amount,
-                    ExpenseDate = e.ExpenseDate,
-                    PaidTo = e.PaidTo,
-                    Description = e.Description,
-                    InvoiceNumber = e.InvoiceNumber,
-                    AttachmentUrl = e.AttachmentUrl
-                })
+          .Select(e => new ExpenseReportItemDto
+          {
+              ExpenseId = e.Id,
+              ExpenseNumber = e.ExpenseNumber,
+              UnitNumber = e.Unit != null ? e.Unit.UnitNumber : null,
+              UnitName = e.Unit != null ? e.Unit.UnitNumber : null, // 👈 إرجاع رقم المحل بدلاً من الاسم
+              TenantName = e.Tenant != null ? e.Tenant.FullName : null,
+              IsChargedToTenant = e.IsChargedToTenant,
+              ExpenseType = e.ExpenseType.ToString(),
+              Amount = e.Amount,
+              ExpenseDate = e.ExpenseDate,
+              PaidTo = e.PaidTo,
+              Description = e.Description,
+              InvoiceNumber = e.InvoiceNumber,
+              AttachmentUrl = e.AttachmentUrl
+          })
                 .ToListAsync();
         }
     }
