@@ -21,17 +21,25 @@ namespace Andalos.API.Services
             _jwt = jwt;
         }
 
-        // 1. تسجيل دخول الموظفين والإدارة
+        // =====================================================
+        // 1. تسجيل دخول الموظفين والإدارة (اسم مستخدم / بريد / هاتف)
+        // =====================================================
         public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
         {
+            var input = dto.UserName.Trim();
+
+            // 👈 مطابقة مرنة: اسم المستخدم أو البريد أو رقم الهاتف
             var user = await _db.Users
-                .FirstOrDefaultAsync(u => u.UserName == dto.UserName && u.IsActive);
+                .FirstOrDefaultAsync(u => (u.UserName == input
+                                        || u.UserName.ToLower() == input.ToLower()
+                                        || u.Phone == input)
+                                       && u.IsActive);
 
             if (user == null)
-                throw new UnauthorizedAccessException("البريد أو كلمة المرور غير صحيحة");
+                throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
 
             // 🛑 منع المستأجرين من الدخول إلى لوحة تحكم الإدارة
-            if (user.Role == UserRole.Tenant)
+            if (user.Role == UserRole.Tenant || user.Role == UserRole.TenantStaff)
                 throw new UnauthorizedAccessException("غير مصرح لك بالدخول من هنا، يرجى استخدام بوابة المستأجرين");
 
             await CheckAndApplyLockoutAsync(user, dto.Password);
@@ -48,17 +56,25 @@ namespace Andalos.API.Services
             };
         }
 
-        // 2. تسجيل دخول المستأجرين (مؤمن ومحمي)
+        // =====================================================
+        // 2. تسجيل دخول المستأجرين (اسم مستخدم / بريد / هاتف)
+        // =====================================================
         public async Task<TenantAuthResponseDto> TenantLoginAsync(LoginDto dto)
         {
+            var input = dto.UserName.Trim();
+
+            // 👈 مطابقة مرنة: اسم المستخدم أو البريد أو رقم الهاتف
             var user = await _db.Users
-                .FirstOrDefaultAsync(u => u.UserName == dto.UserName && u.IsActive);
+                .FirstOrDefaultAsync(u => (u.UserName == input
+                                        || u.UserName.ToLower() == input.ToLower()
+                                        || u.Phone == input)
+                                       && u.IsActive);
 
             if (user == null)
-                throw new UnauthorizedAccessException("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+                throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
 
-            // 🛑 التحقق من الدور: يجب أن يكون مستأجراً حصراً ولديه TenantId مرتبطه بحسابه
-            if (user.Role != UserRole.Tenant || !user.TenantId.HasValue)
+            // 🛑 التحقق من الدور: يجب أن يكون مستأجراً أو موظف مستأجر ومرتبط بـ TenantId
+            if ((user.Role != UserRole.Tenant && user.Role != UserRole.TenantStaff) || !user.TenantId.HasValue)
                 throw new UnauthorizedAccessException("هذا الحساب ليس حساب مستأجر مسجل");
 
             // التحقق من حالة القفل والتخمين
@@ -72,13 +88,13 @@ namespace Andalos.API.Services
                 Token = token,
                 FullName = user.FullName,
                 UserName = user.UserName,
-                Role = "Tenant",
-                TenantId = user.TenantId.Value, // إرسال الـ ID للأنجولر
+                Role = user.Role.ToString(),
+                TenantId = user.TenantId.Value,
                 Expiration = DateTime.UtcNow.AddMinutes(60)
             };
         }
 
-        // تابع مساعد للتحقق من كلمة المرور ونظام القفل التلقائي لمنع الهجمات
+        // تابع مساعد للتحقق من كلمة المرور ونظام القفل التلقائي
         private async Task CheckAndApplyLockoutAsync(User user, string password)
         {
             if (user.IsLocked)
@@ -105,7 +121,7 @@ namespace Andalos.API.Services
                 }
 
                 await _db.SaveChangesAsync();
-                throw new UnauthorizedAccessException("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+                throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
             }
 
             // نجاح الدخول - تصفير العدادات
@@ -120,7 +136,7 @@ namespace Andalos.API.Services
         {
             var exists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName);
             if (exists)
-                throw new InvalidOperationException("هذا البريد مسجل مسبقاً");
+                throw new InvalidOperationException("هذا الحساب مسجل مسبقاً");
 
             var user = new User
             {

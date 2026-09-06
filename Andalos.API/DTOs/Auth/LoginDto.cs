@@ -5,12 +5,14 @@ namespace Andalos.API.DTOs.Auth
 {
     public class LoginDto
     {
-        [Required(ErrorMessage = "اسم المستخدم مطلوب")]
+        // 👈 تم تحديث الرسالة لتوضح امكانية ادخال اسم المستخدم أو البريد الإلكتروني
+        [Required(ErrorMessage = "اسم المستخدم أو البريد الإلكتروني مطلوب")]
         public string UserName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "كلمة المرور مطلوبة")]
         public string Password { get; set; } = string.Empty;
     }
+
     public class RegisterDto
     {
         [Required]
@@ -18,7 +20,6 @@ namespace Andalos.API.DTOs.Auth
         public string FullName { get; set; } = string.Empty;
 
         [Required]
-        [EmailAddress]
         public string UserName { get; set; } = string.Empty;
 
         [Required]
@@ -32,6 +33,7 @@ namespace Andalos.API.DTOs.Auth
 
         public UserRole Role { get; set; } = UserRole.Admin;
     }
+
     public class AuthResponseDto
     {
         public string Token { get; set; } = string.Empty;
@@ -40,4 +42,6 @@ namespace Andalos.API.DTOs.Auth
         public string Role { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
     }
+
+
 }
