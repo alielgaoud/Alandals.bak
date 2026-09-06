@@ -29,6 +29,11 @@ namespace Andalos.API.Data
         public DbSet<ComplaintReply> ComplaintReplies { get; set; }
         public DbSet<ContractFee> ContractFees { get; set; }
         public DbSet<BankTransferRequest> BankTransferRequests { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<PushSubscription> PushSubscriptions { get; set; }
+        public DbSet<NotificationPreference> NotificationPreferences { get; set; }
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -46,6 +51,66 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
+
+            // Notification
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.ToTable("Notifications");
+                entity.Property(e => e.Type).HasConversion<int>();
+                entity.Property(e => e.Priority).HasConversion<int>();
+                entity.Property(e => e.Channel).HasConversion<int>();
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.TenantId);
+                entity.HasIndex(e => e.IsRead);
+                entity.HasIndex(e => e.CreatedAt);
+
+                entity.HasOne(n => n.User)
+                      .WithMany()
+                      .HasForeignKey(n => n.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(n => n.Tenant)
+                      .WithMany()
+                      .HasForeignKey(n => n.TenantId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // PushSubscription
+            modelBuilder.Entity<PushSubscription>(entity =>
+            {
+                entity.ToTable("PushSubscriptions");
+                entity.HasIndex(e => e.Endpoint).IsUnique();
+
+                entity.HasOne(p => p.User)
+                      .WithMany()
+                      .HasForeignKey(p => p.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(p => p.Tenant)
+                      .WithMany()
+                      .HasForeignKey(p => p.TenantId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // NotificationPreference
+            modelBuilder.Entity<NotificationPreference>(entity =>
+            {
+                entity.ToTable("NotificationPreferences");
+                entity.Property(e => e.NotificationType).HasConversion<int>();
+
+                entity.HasIndex(e => new { e.UserId, e.TenantId, e.NotificationType }).IsUnique();
+
+                entity.HasOne(np => np.User)
+                      .WithMany()
+                      .HasForeignKey(np => np.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(np => np.Tenant)
+                      .WithMany()
+                      .HasForeignKey(np => np.TenantId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
             modelBuilder.Entity<ContractFee>(entity =>
             {

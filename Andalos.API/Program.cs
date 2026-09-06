@@ -1,6 +1,7 @@
 using Andalos.API.Authorization;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
+using Andalos.API.Hubs;
 using Andalos.API.Interfaces;
 using Andalos.API.Seed;
 using Andalos.API.Services;
@@ -47,16 +48,28 @@ builder.Services.AddScoped<IVisitorBlacklistService, VisitorBlacklistService>();
 builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<ComplaintReportPdfService>();
 builder.Services.AddScoped<IBankTransferService, BankTransferService>();
+// خدمات الـ Push والـ Scheduler
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddHostedService<SystemSchedulerService>(); // 👈 تسجيل المحرك الخلفي
+// 👈 جديد: خدمة الإشعارات
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// 👈 جديد: SignalR للإشعارات اللحظية
+builder.Services.AddSignalR();
+
+// صلاحيات متقدمة (جاهزة لكن غير مفعلة بالكامل أثناء التطوير)
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
-// 5. 👈 تفعيل الـ CORS للسماح لتطبيق Angular بالاتصال بالـ API بدون قيود
+
+// 5. CORS (محدث لدعم SignalR)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .SetIsOriginAllowed(_ => true) // يسمح لأي Origin أثناء التطوير
+              .AllowCredentials();           // 👈 ضروري لـ SignalR
     });
 });
 
@@ -99,13 +112,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// 👈 استخدام سياسة الـ CORS (يجب أن توضع قبل Authentication)
+// 👈 CORS قبل Authentication
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// 👈 تسجيل Hub الإشعارات
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
 
