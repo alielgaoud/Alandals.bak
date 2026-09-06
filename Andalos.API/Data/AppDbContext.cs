@@ -10,6 +10,7 @@ namespace Andalos.API.Data
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<UserPermission> UserPermissions { get; set; }
         public DbSet<Unit> Units { get; set; }
         public DbSet<Tenant> Tenants { get; set; }
         public DbSet<Contract> Contracts { get; set; }
@@ -123,6 +124,17 @@ namespace Andalos.API.Data
                 entity.Property(e => e.Area).HasColumnType("decimal(10,2)");
                 entity.Property(e => e.ElectricityMeterStart).HasColumnType("decimal(12,2)");
                 // 👈 تم حذف سطر WaterMeterStart
+            });
+
+            modelBuilder.Entity<UserPermission>(entity =>
+            {
+                entity.ToTable("UserPermissions");
+                entity.HasIndex(e => new { e.UserId, e.PermissionKey }).IsUnique(); // منع تكرار نفس الصلاحية للمستخدم
+
+                entity.HasOne(up => up.User)
+                      .WithMany(u => u.Permissions)
+                      .HasForeignKey(up => up.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Tenant

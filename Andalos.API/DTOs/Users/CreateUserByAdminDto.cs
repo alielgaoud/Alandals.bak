@@ -59,4 +59,18 @@ namespace Andalos.API.DTOs.Users
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
     }
+    public class AssignUserPermissionsDto
+    {
+        public int UserId { get; set; }
+        public List<string> Permissions { get; set; } = new();
+    }
+
+    public class UserPermissionsResponseDto
+    {
+        public int UserId { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public List<string> GrantedPermissions { get; set; } = new();
+    }
+
 }

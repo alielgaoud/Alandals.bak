@@ -10,7 +10,7 @@ namespace Andalos.API.Models
         [MaxLength(100)]
         public string FullName { get; set; } = string.Empty;
 
-        [Required] // 👈 تم التحديث ليكون اسم المستخدم هو الحقل الأساسي الفريد للدخول
+        [Required]
         [MaxLength(100)]
         public string UserName { get; set; } = string.Empty;
 
@@ -29,5 +29,8 @@ namespace Andalos.API.Models
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LastLoginAt { get; set; }
         public DateTime? LockoutEnd { get; set; }
+
+        // 👈 جديد: قائمة الصلاحيات التفصيلية الممنوحة للمستخدم
+        public ICollection<UserPermission> Permissions { get; set; } = new List<UserPermission>();
     }
 }

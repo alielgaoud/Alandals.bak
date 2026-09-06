@@ -1,9 +1,11 @@
+using Andalos.API.Authorization;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
-using Andalos.API.Services;
 using Andalos.API.Seed;
+using Andalos.API.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
@@ -45,7 +47,8 @@ builder.Services.AddScoped<IVisitorBlacklistService, VisitorBlacklistService>();
 builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<ComplaintReportPdfService>();
 builder.Services.AddScoped<IBankTransferService, BankTransferService>();
-
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 // 5. 👈 تفعيل الـ CORS للسماح لتطبيق Angular بالاتصال بالـ API بدون قيود
 builder.Services.AddCors(options =>
 {
