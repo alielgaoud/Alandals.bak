@@ -22,6 +22,7 @@ namespace Andalos.API.DTOs.Contracts
         public decimal RentAmount { get; set; }
 
         public RentCycle RentCycle { get; set; } = RentCycle.Monthly;
+        public decimal? AnnualIncreasePercentage { get; set; } // 👈 إضافة هاته الخاصية
 
         public decimal DepositAmount { get; set; }
 
@@ -31,6 +32,29 @@ namespace Andalos.API.DTOs.Contracts
 
         // بنود اختيارية إضافية يمكن تمريرها عند الإنشاء
         public List<CreateContractItemDto> ExtraItems { get; set; } = new();
+    }
+
+    // 👈 1. DTO تجديد العقد
+    public class RenewContractDto
+    {
+        [Required(ErrorMessage = "تاريخ بداية العقد الجديد مطلوب")]
+        public DateTime NewStartDate { get; set; }
+
+        [Required(ErrorMessage = "تاريخ نهاية العقد الجديد مطلوب")]
+        public DateTime NewEndDate { get; set; }
+
+        public IncreaseType IncreaseType { get; set; } = IncreaseType.Percentage;
+
+        [Range(0, 1000000, ErrorMessage = "قيمة الزيادة يجب أن تكون صفر أو أكثر")]
+        public decimal IncreaseValue { get; set; } = 0; // مثلاً 5 لـ 5% أو 100 لـ 100 د.ل
+
+        public bool AutoRenew { get; set; } = false;
+        public decimal? AnnualIncreasePercentage { get; set; }
+        public string? Notes { get; set; }
+
+        // خيار نسخ رسوم وعمولات العقد القديم للعقد الجديد تلقائياً
+        public bool CopyFeesFromPreviousContract { get; set; } = true;
+        public List<CreateContractFeeDto>? NewFees { get; set; }
     }
 
     public class CreateContractItemDto
@@ -65,7 +89,9 @@ namespace Andalos.API.DTOs.Contracts
         public string Status { get; set; } = string.Empty;
         public bool AutoRenew { get; set; }
         public string? Notes { get; set; }
-
+        public decimal? AnnualIncreasePercentage { get; set; }
+        public int? ParentContractId { get; set; }
+        public string? ParentContractNumber { get; set; } // رقم العقد السابق
         public List<ContractItemDto> ExtraItems { get; set; } = new();
         public List<ContractDocumentDto> Documents { get; set; } = new();
 

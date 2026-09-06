@@ -166,6 +166,12 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(c => c.UnitId)
                       .OnDelete(DeleteBehavior.Restrict);
+
+                // 👈 ربط العقد الجديد بالعقد السابق (Parent/Child Contract)
+                entity.HasOne(c => c.ParentContract)
+                      .WithMany()
+                      .HasForeignKey(c => c.ParentContractId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // ContractItem

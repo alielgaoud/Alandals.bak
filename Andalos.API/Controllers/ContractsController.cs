@@ -82,5 +82,23 @@ namespace Andalos.API.Controllers
 
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم إلغاء العقد وإخلاء المحل بنجاح"));
         }
+
+        [HttpPost("{id}/renew")]
+        public async Task<IActionResult> Renew(int id, [FromBody] RenewContractDto dto)
+        {
+            try
+            {
+                var result = await _contractService.RenewAsync(id, dto);
+                return Ok(ApiResponseDto<ContractResponseDto>.SuccessResponse(result, "تم تجديد العقد واحتساب الزيادة السنوية بنجاح"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponseDto<string>.FailResponse(ex.Message));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+            }
+        }
     }
 }

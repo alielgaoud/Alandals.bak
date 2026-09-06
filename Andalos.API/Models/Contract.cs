@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Andalos.API.Models
 {
@@ -37,6 +38,13 @@ namespace Andalos.API.Models
 
         [MaxLength(500)]
         public string? Notes { get; set; }
+        // 👈 نسبة الزيادة السنوية المحددة للعقد (%)
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? AnnualIncreasePercentage { get; set; }
+
+        // 👈 معرّف العقد السابق (لربط سلسلة التجديدات بنفس المحل)
+        public int? ParentContractId { get; set; }
+        public Contract? ParentContract { get; set; }
 
         // المرفقات والبنود الإضافية
         // أضف هذه الخاصية في كلاس Contract

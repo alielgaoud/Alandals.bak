@@ -10,5 +10,6 @@ namespace Andalos.API.Interfaces
         Task<ContractResponseDto> CreateAsync(CreateContractDto dto);
         Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus);
         Task<bool> DeleteAsync(int id);
+        Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto);
     }
 }
