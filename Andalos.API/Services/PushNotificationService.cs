@@ -1,4 +1,6 @@
-﻿using Andalos.API.Data;
+﻿using Andalos.API.Constants;
+using Andalos.API.Data;
+using Andalos.API.Interfaces;
 using Lib.Net.Http.WebPush;
 using Lib.Net.Http.WebPush.Authentication;
 using Microsoft.EntityFrameworkCore;
@@ -14,117 +16,127 @@ namespace Andalos.API.Services
     public class PushNotificationService : IPushNotificationService
     {
         private readonly AppDbContext _db;
-        private readonly PushServiceClient _pushClient;
+        private readonly ISettingService _settings;
         private readonly ILogger<PushNotificationService> _logger;
-        private readonly bool _isConfigured;
+        private readonly PushServiceClient _pushClient;
 
         public PushNotificationService(
             AppDbContext db,
-            IConfiguration config,
+            ISettingService settings,
             ILogger<PushNotificationService> logger)
         {
             _db = db;
+            _settings = settings;
             _logger = logger;
             _pushClient = new PushServiceClient();
-            _isConfigured = false;
-
-            var subject = config["VapidDetails:Subject"];
-            var publicKey = config["VapidDetails:PublicKey"];
-            var privateKey = config["VapidDetails:PrivateKey"];
-
-            // 👈 لا نرمي Exception عند مفاتيح غير صالحة (مهم أثناء التطوير)
-            if (string.IsNullOrWhiteSpace(subject) ||
-                string.IsNullOrWhiteSpace(publicKey) ||
-                string.IsNullOrWhiteSpace(privateKey) ||
-                privateKey.Contains("YOUR_PRIVATE_KEY", StringComparison.OrdinalIgnoreCase) ||
-                privateKey.Contains("generate_it_later", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning("⚠️ VAPID Keys غير مهيأة. إشعارات Web Push معطلة مؤقتاً (In-App/SignalR تعمل).");
-                return;
-            }
-
-            try
-            {
-                _pushClient.DefaultAuthentication = new VapidAuthentication(publicKey, privateKey)
-                {
-                    Subject = subject
-                };
-                _isConfigured = true;
-                _logger.LogInformation("✅ تم تهيئة Web Push (VAPID) بنجاح.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ فشل تهيئة VAPID Keys. سيتم تعطيل Web Push مؤقتاً.");
-                _isConfigured = false;
-            }
         }
 
         public async Task SendPushNotificationAsync(int? userId, int? tenantId, string title, string body, string? url)
         {
-            // إذا لم تُهيأ المفاتيح: نخرج بهدوء بدون تعطيل النظام
-            if (!_isConfigured)
+            try
             {
-                _logger.LogDebug("تم تجاهل Push Notification لأن VAPID غير مهيأ.");
-                return;
-            }
-
-            var query = _db.PushSubscriptions.Where(p => p.IsActive);
-
-            if (userId.HasValue)
-                query = query.Where(p => p.UserId == userId);
-            else if (tenantId.HasValue)
-                query = query.Where(p => p.TenantId == tenantId);
-            else
-                return;
-
-            var subscriptions = await query.ToListAsync();
-            if (!subscriptions.Any()) return;
-
-            var payload = JsonSerializer.Serialize(new
-            {
-                notification = new
+                // 1) الزر العام من الإعدادات: تفعيل/إيقاف Web Push على مستوى النظام
+                var globalPushEnabled = await _settings.GetValueAsync(SettingKeys.NotificationPushEnabled, false);
+                if (!globalPushEnabled)
                 {
-                    title,
-                    body,
-                    icon = "/assets/icons/icon-192x192.png",
-                    vibrate = new[] { 100, 50, 100 },
-                    data = new { url = url ?? "/" }
+                    _logger.LogDebug("Web Push متوقف من إعدادات النظام.");
+                    return;
                 }
-            });
 
-            foreach (var sub in subscriptions)
-            {
+                // 2) قراءة مفاتيح VAPID من Settings (تتحدث فوراً بعد الحفظ بسبب Cache)
+                var subject = await _settings.GetValueAsync(SettingKeys.NotificationVapidSubject)
+                              ?? "mailto:info@andalos.ly";
+                var publicKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
+                var privateKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPrivateKey);
+
+                if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
+                {
+                    _logger.LogWarning("مفاتيح VAPID غير مكتملة في الإعدادات. تم تجاهل Web Push.");
+                    return;
+                }
+
+                // 3) تهيئة المصادقة ديناميكياً عند كل إرسال
                 try
                 {
-                    var pushSubscription = new PushSubscription
+                    _pushClient.DefaultAuthentication = new VapidAuthentication(publicKey, privateKey)
                     {
-                        Endpoint = sub.Endpoint,
-                        Keys = new Dictionary<string, string>
-                        {
-                            { "p256dh", sub.P256dh },
-                            { "auth", sub.Auth }
-                        }
+                        Subject = subject
                     };
-
-                    var pushMessage = new PushMessage(payload);
-                    await _pushClient.RequestPushMessageDeliveryAsync(pushSubscription, pushMessage);
-
-                    sub.LastUsedAt = DateTime.UtcNow;
-                }
-                catch (PushServiceClientException ex)
-                    when (ex.StatusCode == System.Net.HttpStatusCode.Gone ||
-                          ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    // الاشتراك منتهٍ: نعطله
-                    sub.IsActive = false;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "فشل إرسال Push لاشتراك: {Endpoint}", sub.Endpoint);
+                    _logger.LogError(ex, "مفاتيح VAPID في الإعدادات غير صالحة.");
+                    return;
                 }
-            }
 
-            await _db.SaveChangesAsync();
+                // 4) جلب اشتراكات المستلم
+                var query = _db.PushSubscriptions.Where(p => p.IsActive);
+
+                if (userId.HasValue)
+                    query = query.Where(p => p.UserId == userId);
+                else if (tenantId.HasValue)
+                    query = query.Where(p => p.TenantId == tenantId);
+                else
+                    return;
+
+                var subscriptions = await query.ToListAsync();
+                if (!subscriptions.Any())
+                {
+                    _logger.LogDebug("لا توجد اشتراكات Push نشطة للمستلم.");
+                    return;
+                }
+
+                // 5) بناء Payload القياسي لـ Service Worker
+                var payload = JsonSerializer.Serialize(new
+                {
+                    notification = new
+                    {
+                        title,
+                        body,
+                        icon = "/assets/icons/icon-192x192.png",
+                        vibrate = new[] { 100, 50, 100 },
+                        data = new { url = url ?? "/" }
+                    }
+                });
+
+                // 6) الإرسال لكل جهاز/متصفح
+                foreach (var sub in subscriptions)
+                {
+                    try
+                    {
+                        var pushSubscription = new PushSubscription
+                        {
+                            Endpoint = sub.Endpoint,
+                            Keys = new Dictionary<string, string>
+                            {
+                                { "p256dh", sub.P256dh },
+                                { "auth", sub.Auth }
+                            }
+                        };
+
+                        await _pushClient.RequestPushMessageDeliveryAsync(pushSubscription, new PushMessage(payload));
+                        sub.LastUsedAt = DateTime.UtcNow;
+                    }
+                    catch (PushServiceClientException ex)
+                        when (ex.StatusCode == System.Net.HttpStatusCode.Gone ||
+                              ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        // الاشتراك منتهٍ أو محذوف من المتصفح
+                        sub.IsActive = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "فشل إرسال Push للاشتراك: {Endpoint}", sub.Endpoint);
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // لا نكسر مسار العمل الأساسي إذا فشل Push
+                _logger.LogError(ex, "خطأ غير متوقع أثناء إرسال Web Push.");
+            }
         }
     }
 }

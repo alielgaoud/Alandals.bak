@@ -72,7 +72,9 @@ namespace Andalos.API.Services
                 { "Contract", "إعدادات العقود" },
                 { "Unit", "إعدادات المحلات" },
                 { "Visitor", "إعدادات الزوار" },
-                { "System", "إعدادات النظام" }
+                { "System", "إعدادات النظام" },
+                { "Notifications", "إعدادات الإشعارات" } // 👈 هذا السطر الجديد
+
             };
 
             return settings

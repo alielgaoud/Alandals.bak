@@ -13,7 +13,6 @@ namespace Andalos.API.Services
         Task<TenantAccountStatementDto?> GetStatementAsync(int tenantId, DateTime? fromDate = null, DateTime? toDate = null);
         Task<List<TenantBalanceOverviewDto>> GetAllTenantsBalancesAsync();
 
-        // 👈 جديد: دوال المحفظة والتسويات
         Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes);
         Task ProcessMonthlyRentDuesAsync();
     }
@@ -23,7 +22,6 @@ namespace Andalos.API.Services
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGenerator;
 
-        // 👈 تم إضافة INumberGeneratorService لتوليد إيصالات الدفع الآلية
         public TenantAccountService(AppDbContext db, INumberGeneratorService numberGenerator)
         {
             _db = db;
@@ -31,7 +29,7 @@ namespace Andalos.API.Services
         }
 
         // =====================================================
-        // 1. إيداع دفعة مقدمة في حساب المستأجر (Wallet) - مصححة 100%
+        // 1. إيداع دفعة مقدمة في حساب المستأجر (Wallet)
         // =====================================================
         public async Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes)
         {
@@ -39,7 +37,6 @@ namespace Andalos.API.Services
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
 
-            // 👈 1. البحث عن العقد النشط للمستأجر، أو أي عقد سابق إن لم يوجد عقد نشط
             var activeContract = await _db.Contracts
                 .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Status == ContractStatus.Active && c.IsActive);
 
@@ -52,19 +49,17 @@ namespace Andalos.API.Services
             if (activeContract == null)
                 throw new InvalidOperationException("لا يوجد عقد مسجل للمستأجر لربط سند الإيداع به");
 
-            // 👈 2. زيادة رصيد المستأجر الدائن
             tenant.CreditBalance += amount;
 
-            // 👈 3. توليد رقم سند قبض فريد للإيداع
             string receiptNo = await _numberGenerator.GenerateReceiptNumberAsync();
 
             var payment = new Payment
             {
                 TenantId = tenantId,
-                ContractId = activeContract.Id, // 👈 نوع int محدد ومضمون بدلاً من int?
+                ContractId = activeContract.Id,
                 Amount = amount,
                 PaymentDate = DateTime.Now,
-                PaymentType = PaymentType.AdvancePayment, // دفعة مقدمة
+                PaymentType = PaymentType.AdvancePayment,
                 PaymentMethod = method,
                 ReceiptNumber = receiptNo,
                 Notes = string.IsNullOrWhiteSpace(notes) ? "إيداع دفعة مقدمة في رصيد المستأجر" : notes,
@@ -78,7 +73,7 @@ namespace Andalos.API.Services
         }
 
         // =====================================================
-        // 2. المعالجة الشهرية: الخصم التلقائي مع تحصين ضد التكرار
+        // 2. المعالجة الشهرية: الخصم التلقائي
         // =====================================================
         public async Task ProcessMonthlyRentDuesAsync()
         {
@@ -94,7 +89,6 @@ namespace Andalos.API.Services
 
             foreach (var contract in activeContracts)
             {
-                // 👈 منع تكرار الخصم إذا كان إيجار هذا الشهر قد خُصم مسبقاً لهذا العقد
                 bool alreadyProcessedThisMonth = await _db.Payments.AnyAsync(p =>
                     p.ContractId == contract.Id &&
                     p.PaymentType == PaymentType.Rent &&
@@ -108,7 +102,6 @@ namespace Andalos.API.Services
                 int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
                 decimal totalContractValue = contract.RentAmount * durationMonths;
 
-                // حساب إجمالي الرسوم الشهرية للعقد
                 decimal monthlyFeesTotal = contract.ContractFees
                     .Where(f => f.Frequency == FeeFrequency.Monthly)
                     .Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
@@ -160,7 +153,7 @@ namespace Andalos.API.Services
         }
 
         // =====================================================
-        // 3. كشف حساب شامل لمستأجر واحد (مُحدث بالكامل بالرسوم والعمولات)
+        // 3. كشف حساب شامل لمستأجر واحد (مُصحح مع فلتر التاريخ)
         // =====================================================
         public async Task<TenantAccountStatementDto?> GetStatementAsync(int tenantId, DateTime? fromDate = null, DateTime? toDate = null)
         {
@@ -169,9 +162,10 @@ namespace Andalos.API.Services
 
             var today = DateTime.Today;
             fromDate ??= new DateTime(today.Year - 2, 1, 1);
-            toDate ??= today;
 
-            // 👈 تم إضافة Include(c => c.ContractFees) لتحميل رسوم وعمولات العقد
+            // 👈 إصلاح جوهري: ضبط تاريخ النهاية ليشمل كامل اليوم الحالي حتى الساعة 23:59:59
+            var actualToDate = (toDate ?? today).Date.AddDays(1).AddTicks(-1);
+
             var contracts = await _db.Contracts
                 .Include(c => c.Unit)
                 .Include(c => c.ContractFees)
@@ -181,23 +175,23 @@ namespace Andalos.API.Services
             var payments = await _db.Payments
                 .Include(p => p.Contract).ThenInclude(c => c!.Unit)
                 .Where(p => p.TenantId == tenantId && p.IsActive
-                    && p.PaymentDate >= fromDate && p.PaymentDate <= toDate)
+                    && p.PaymentDate >= fromDate && p.PaymentDate <= actualToDate) // 👈 تم الاستبدال لـ actualToDate
                 .ToListAsync();
 
             var transactions = new List<AccountTransactionDto>();
 
             // --- 1. المستحقات (Debit) ---
-            foreach (var contract in contracts.Where(c => c.Status == ContractStatus.Active || c.Status == ContractStatus.Expired))
+            foreach (var contract in contracts.Where(c => c.Status == ContractStatus.Active || c.Status == ContractStatus.Expired || c.Status == ContractStatus.Renewed))
             {
                 var contractStart = contract.StartDate < fromDate.Value ? fromDate.Value : contract.StartDate;
-                var contractEnd = contract.EndDate > toDate.Value ? toDate.Value : contract.EndDate;
+                var contractEnd = contract.EndDate > actualToDate ? actualToDate : contract.EndDate;
                 if (contractEnd > today) contractEnd = today;
 
                 int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
                 decimal totalContractValue = contract.RentAmount * durationMonths;
 
                 // أ) قيد التأمين / العربون عند بداية العقد
-                if (contract.DepositAmount > 0 && contract.StartDate >= fromDate && contract.StartDate <= toDate)
+                if (contract.DepositAmount > 0 && contract.StartDate >= fromDate && contract.StartDate <= actualToDate)
                 {
                     transactions.Add(new AccountTransactionDto
                     {
@@ -216,11 +210,11 @@ namespace Andalos.API.Services
                     });
                 }
 
-                // ب) الرسوم والعمولات التي تُدفع مَرّة واحدة (عند بداية العقد)
+                // ب) الرسوم والعمولات التي تُدفع مَرّة واحدة
                 var oneTimeFees = contract.ContractFees.Where(f => f.Frequency == FeeFrequency.OneTime);
                 foreach (var fee in oneTimeFees)
                 {
-                    if (contract.StartDate >= fromDate && contract.StartDate <= toDate)
+                    if (contract.StartDate >= fromDate && contract.StartDate <= actualToDate)
                     {
                         decimal feeAmount = fee.CalculateActualAmount(contract.RentAmount, totalContractValue);
                         transactions.Add(new AccountTransactionDto
@@ -260,7 +254,7 @@ namespace Andalos.API.Services
                         TransactionType = "Debit",
                         Category = "Rent",
                         CategoryLabel = "إيجار شهري ورسوم",
-                        Description = $"إيجار شهر {currentMonth:MM/yyyy}{feesNote} — {contract.TradeName ?? contract.Unit?.UnitNumber ?? ""}", // 👈 تم تصحيح القراءة من العقد
+                        Description = $"إيجار شهر {currentMonth:MM/yyyy}{feesNote} — {contract.TradeName ?? contract.Unit?.UnitNumber ?? ""}",
                         Debit = totalMonthlyDebit,
                         Credit = 0,
                         ContractId = contract.Id,
@@ -277,7 +271,7 @@ namespace Andalos.API.Services
             var chargedExpenses = await _db.Expenses
                 .Include(e => e.Unit)
                 .Where(e => e.TenantId == tenantId && e.IsChargedToTenant && e.IsActive
-                         && e.ExpenseDate >= fromDate && e.ExpenseDate <= toDate)
+                         && e.ExpenseDate >= fromDate && e.ExpenseDate <= actualToDate)
                 .ToListAsync();
 
             foreach (var exp in chargedExpenses)
@@ -302,7 +296,6 @@ namespace Andalos.API.Services
             // --- 3. المدفوعات (Credit) ---
             foreach (var payment in payments)
             {
-                // الدفعات المخصومة من الرصيد لا نجمعها كأموال جديدة (Credit = 0) لكي لا تتضاعف
                 decimal actualCredit = payment.PaymentMethod == PaymentMethod.FromBalance ? 0 : payment.Amount;
 
                 transactions.Add(new AccountTransactionDto
@@ -354,7 +347,7 @@ namespace Andalos.API.Services
                     ContractId = c.Id,
                     ContractNumber = c.ContractNumber,
                     UnitNumber = c.Unit?.UnitNumber ?? "",
-                    UnitName = c.TradeName ?? c.Unit?.UnitNumber ?? "", // 👈 أصبحت تأخذ الاسم التجاري من العقد
+                    UnitName = c.TradeName ?? c.Unit?.UnitNumber ?? "",
                     StartDate = c.StartDate,
                     EndDate = c.EndDate,
                     MonthlyRent = c.RentAmount,
@@ -387,7 +380,7 @@ namespace Andalos.API.Services
                     NetBalance = g.Sum(x => x.Debit) - g.Sum(x => x.Credit)
                 }).OrderBy(m => m.Year).ThenBy(m => m.Month).ToList();
 
-            var totalDeposits = payments.Where(p => p.PaymentType == PaymentType.Deposit).Sum(p => p.Amount);
+            var totalDeposits = payments.Where(p => p.PaymentType == PaymentType.Deposit || p.PaymentType == PaymentType.AdvancePayment).Sum(p => p.Amount);
             var totalRent = payments.Where(p => p.PaymentType == PaymentType.Rent).Sum(p => p.Amount);
             var totalFees = payments.Where(p => p.PaymentType == PaymentType.Fees).Sum(p => p.Amount);
             var totalUtilities = payments.Where(p => p.PaymentType == PaymentType.Electricity || p.PaymentType == PaymentType.Water).Sum(p => p.Amount);
@@ -449,7 +442,6 @@ namespace Andalos.API.Services
 
                 totalDebit += totalChargedExpenses;
 
-                // تجاهل دفعات "الخصم من الرصيد" لتجنب مضاعفة الرصيد الدائن
                 decimal totalCredit = payments.Where(p => p.PaymentMethod != PaymentMethod.FromBalance).Sum(p => p.Amount);
 
                 decimal balance = totalDebit - totalCredit;

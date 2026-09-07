@@ -76,6 +76,12 @@
         public const string ContractShowHijriDate = "Contract.ShowHijriDate";
         public const string RefundNumberFormat = "Numbering.RefundFormat";
         public const string RefundNumberPrefix = "Numbering.RefundPrefix";
+        // ===== الإشعارات (الجديدة) =====
+        public const string NotificationInAppEnabled = "Notifications.InAppEnabled";   // تفعيل جرس الإشعارات الداخلي
+        public const string NotificationPushEnabled = "Notifications.PushEnabled";     // تفعيل إشعارات الجوال المتصفح
+        public const string NotificationVapidSubject = "Notifications.VapidSubject";   // بريد المرسل للـ VAPID
+        public const string NotificationVapidPublicKey = "Notifications.VapidPublicKey"; // المفتاح العام
+        public const string NotificationVapidPrivateKey = "Notifications.VapidPrivateKey"; // المفتاح الخاص
 
     }
 }

@@ -1,5 +1,4 @@
-﻿
-using Andalos.API.Data;
+﻿using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
