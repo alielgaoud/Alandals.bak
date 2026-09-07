@@ -15,13 +15,12 @@ namespace Andalos.API.Services
             _db = db;
         }
 
-        // ===== 👈 الدالة العامة لتلبية طلبات الخدمات القديمة (Contract, Expense, Refund...) =====
         public Task<string> GenerateAsync(string sequenceKey)
         {
             return sequenceKey.ToLower() switch
             {
                 "contract" => GenerateContractNumberAsync(),
-                "receipt" => GenerateReceiptNumberAsync(),
+                "receipt" or "payment" => GenerateReceiptNumberAsync(),
                 "maintenance" => GenerateMaintenanceNumberAsync(),
                 "expense" => GenerateExpenseNumberAsync(),
                 "passcode" or "pass" => GeneratePassCodeAsync(),
@@ -50,13 +49,11 @@ namespace Andalos.API.Services
 
         public async Task<string> GenerateNumberAsync(string sequenceKey, string formatSettingKey, string prefixSettingKey)
         {
-            // 1. قراءة صيغة الترقيم والبادئة من جدول الإعدادات
             var format = await GetSettingValueAsync(formatSettingKey) ?? $"{sequenceKey.ToUpper()}-{{YYYY}}-{{SEQ:5}}";
             var prefix = await GetSettingValueAsync(prefixSettingKey) ?? sequenceKey.ToUpper();
 
             int currentYear = DateTime.Now.Year;
 
-            // 2. البحث عن التسلسل الحالي في قاعدة البيانات
             var sequence = await _db.NumberSequences
                 .FirstOrDefaultAsync(s => s.SequenceKey == sequenceKey);
 
@@ -73,7 +70,6 @@ namespace Andalos.API.Services
                 _db.NumberSequences.Add(sequence);
             }
 
-            // إعادة ضبط العداد عند بداية كل سنة جديدة
             if (sequence.CurrentYear != currentYear)
             {
                 sequence.LastYear = sequence.CurrentYear;
@@ -81,13 +77,38 @@ namespace Andalos.API.Services
                 sequence.LastNumber = 0;
             }
 
-            sequence.LastNumber += 1;
-            sequence.UpdatedAt = DateTime.UtcNow;
+            string generatedNumber;
+            bool exists;
+
+            // 👈 حلقة ذكية لضمان تخطي أي رقم موجود سابقاً في قاعدة البيانات
+            do
+            {
+                sequence.LastNumber += 1;
+                sequence.UpdatedAt = DateTime.UtcNow;
+                generatedNumber = BuildNumber(format, prefix, sequence.LastNumber, currentYear);
+
+                exists = await CheckIfNumberExistsAsync(sequenceKey, generatedNumber);
+            }
+            while (exists);
 
             await _db.SaveChangesAsync();
 
-            // 3. تركيب وتنسيق الرقم النهائي
-            return BuildNumber(format, prefix, sequence.LastNumber, currentYear);
+            return generatedNumber;
+        }
+
+        // 👈 دالة تحقق تمنع تكرار الأرقام في كل جداول المنظومة
+        private async Task<bool> CheckIfNumberExistsAsync(string sequenceKey, string number)
+        {
+            return sequenceKey.ToLower() switch
+            {
+                "receipt" or "payment" => await _db.Payments.AnyAsync(p => p.ReceiptNumber == number),
+                "contract" => await _db.Contracts.AnyAsync(c => c.ContractNumber == number),
+                "expense" => await _db.Expenses.AnyAsync(e => e.ExpenseNumber == number),
+                "maintenance" => await _db.MaintenanceRequests.AnyAsync(m => m.RequestNumber == number),
+                "refund" => await _db.Refunds.AnyAsync(r => r.RefundNumber == number),
+                "passcode" or "pass" => await _db.VisitorPasses.AnyAsync(v => v.PassCode == number),
+                _ => false
+            };
         }
 
         private async Task<string?> GetSettingValueAsync(string key)

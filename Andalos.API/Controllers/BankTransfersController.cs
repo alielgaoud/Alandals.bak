@@ -34,11 +34,17 @@ namespace Andalos.API.Controllers
             try
             {
                 var result = await _bankTransferService.ReviewRequestAsync(id, dto);
-                return Ok(ApiResponseDto<TransferRequestResponseDto>.SuccessResponse(result, "تمت مراجعة الطلب وتحديث الحسابات."));
+                return Ok(ApiResponseDto<TransferRequestResponseDto>.SuccessResponse(result, "تمت مراجعة الطلب وتحديث الحسابات والمحفظة بنجاح."));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponseDto<string>.FailResponse(ex.Message));
             }
             catch (Exception ex)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                // 👈 إظهار تفاصيل الخطأ الداخلي الدقيقة إن وُجدت
+                string errorDetails = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return BadRequest(ApiResponseDto<string>.FailResponse($"حدث خطأ أثناء اعتماد الحوالة: {errorDetails}"));
             }
         }
     }

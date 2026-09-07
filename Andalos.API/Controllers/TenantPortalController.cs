@@ -182,20 +182,26 @@ namespace Andalos.API.Controllers
             }
         }
         [HttpPost("{tenantId}/upload-receipt")]
-        [Consumes("multipart/form-data")] // 👈 1. ضروري جداً ليتعرف Swagger على رفع الملفات
+        [Consumes("multipart/form-data")]
+        [DisableRequestSizeLimit] // 👈 لمنع Kestrel من قطع الاتصال أثناء رفع الملف
         public async Task<IActionResult> UploadReceipt(int tenantId, [FromForm] SubmitTransferRequestDto dto)
         {
             try
             {
-                // 👈 2. التحقق من رفع ملف حقيقي
                 if (dto.ReceiptFile == null || dto.ReceiptFile.Length == 0)
                     return BadRequest(ApiResponseDto<string>.FailResponse("صورة واصل الدفع مطلوبة"));
 
-                // 👈 3. التأكد من المسار الصحيح للمجلد
+                // 👈 معالجة ذكية: إذا كان WebRootPath نل، نستخدم مجلد wwwroot الفعلي في الجذر
                 string webRootPath = _env.WebRootPath;
                 if (string.IsNullOrEmpty(webRootPath))
                 {
                     webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                }
+
+                // إنشاء مجلد wwwroot إن لم يكن موجوداً
+                if (!Directory.Exists(webRootPath))
+                {
+                    Directory.CreateDirectory(webRootPath);
                 }
 
                 var result = await _bankTransferService.SubmitRequestAsync(tenantId, dto, webRootPath);
@@ -203,7 +209,8 @@ namespace Andalos.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                // 👈 إرجاع JSON واضح في حال حدوث أي خطأ بدلاً من قطع الاتصال
+                return BadRequest(ApiResponseDto<string>.FailResponse($"خطأ أثناء رفع الملف: {ex.Message}"));
             }
         }
 

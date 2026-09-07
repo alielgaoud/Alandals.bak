@@ -31,28 +31,43 @@ namespace Andalos.API.Services
         }
 
         // =====================================================
-        // 1. إيداع دفعة مقدمة في حساب المستأجر (Wallet)
+        // 1. إيداع دفعة مقدمة في حساب المستأجر (Wallet) - مصححة 100%
         // =====================================================
         public async Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes)
         {
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
-            if (tenant == null) throw new KeyNotFoundException("المستأجر غير موجود");
+            if (tenant == null)
+                throw new KeyNotFoundException("المستأجر غير موجود");
 
-            // زيادة رصيد المستأجر الدائن
+            // 👈 1. البحث عن العقد النشط للمستأجر، أو أي عقد سابق إن لم يوجد عقد نشط
+            var activeContract = await _db.Contracts
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Status == ContractStatus.Active && c.IsActive);
+
+            if (activeContract == null)
+            {
+                activeContract = await _db.Contracts
+                    .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.IsActive);
+            }
+
+            if (activeContract == null)
+                throw new InvalidOperationException("لا يوجد عقد مسجل للمستأجر لربط سند الإيداع به");
+
+            // 👈 2. زيادة رصيد المستأجر الدائن
             tenant.CreditBalance += amount;
 
-            // توليد رقم سند قبض للإيداع
+            // 👈 3. توليد رقم سند قبض فريد للإيداع
             string receiptNo = await _numberGenerator.GenerateReceiptNumberAsync();
 
             var payment = new Payment
             {
                 TenantId = tenantId,
+                ContractId = activeContract.Id, // 👈 نوع int محدد ومضمون بدلاً من int?
                 Amount = amount,
                 PaymentDate = DateTime.Now,
                 PaymentType = PaymentType.AdvancePayment, // دفعة مقدمة
                 PaymentMethod = method,
                 ReceiptNumber = receiptNo,
-                Notes = notes ?? "إيداع دفعة مقدمة في رصيد المستأجر",
+                Notes = string.IsNullOrWhiteSpace(notes) ? "إيداع دفعة مقدمة في رصيد المستأجر" : notes,
                 IsActive = true
             };
 
@@ -63,20 +78,32 @@ namespace Andalos.API.Services
         }
 
         // =====================================================
-        // 2. المعالجة الشهرية: تحديث الخصم الشهري التلقائي ليشمل الرسوم الشهرية المترتبة
+        // 2. المعالجة الشهرية: الخصم التلقائي مع تحصين ضد التكرار
         // =====================================================
         public async Task ProcessMonthlyRentDuesAsync()
         {
             var today = DateTime.Today;
+            var startOfMonth = new DateTime(today.Year, today.Month, 1);
+            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
 
             var activeContracts = await _db.Contracts
                 .Include(c => c.Tenant)
-                .Include(c => c.ContractFees) // 👈 تحميل العمولات
+                .Include(c => c.ContractFees)
                 .Where(c => c.IsActive && c.Status == ContractStatus.Active && c.Tenant!.CreditBalance > 0)
                 .ToListAsync();
 
             foreach (var contract in activeContracts)
             {
+                // 👈 منع تكرار الخصم إذا كان إيجار هذا الشهر قد خُصم مسبقاً لهذا العقد
+                bool alreadyProcessedThisMonth = await _db.Payments.AnyAsync(p =>
+                    p.ContractId == contract.Id &&
+                    p.PaymentType == PaymentType.Rent &&
+                    p.PaymentDate >= startOfMonth &&
+                    p.PaymentDate <= endOfMonth &&
+                    p.IsActive);
+
+                if (alreadyProcessedThisMonth) continue;
+
                 var tenant = contract.Tenant;
                 int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
                 decimal totalContractValue = contract.RentAmount * durationMonths;
@@ -86,7 +113,6 @@ namespace Andalos.API.Services
                     .Where(f => f.Frequency == FeeFrequency.Monthly)
                     .Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
 
-                // الاستحقاق الشهري الكلي = الإيجار + الرسوم الشهرية
                 decimal totalMonthlyDue = contract.RentAmount + monthlyFeesTotal;
 
                 if (tenant!.CreditBalance >= totalMonthlyDue)

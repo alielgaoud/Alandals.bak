@@ -28,10 +28,11 @@ namespace Andalos.API.Services
         // ===== 1. المستأجر يرفع الطلب =====
         public async Task<TransferRequestResponseDto> SubmitRequestAsync(int tenantId, SubmitTransferRequestDto dto, string uploadsFolder)
         {
-            var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive);
-            if (!tenantExists) throw new KeyNotFoundException("المستأجر غير موجود");
+            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
+            if (tenant == null)
+                throw new KeyNotFoundException("المستأجر غير موجود أو غير نشط");
 
-            // 👈 إنشاء مجلد الحفظ بأمان على القرص الصلب إن لم يكن موجوداً
+            // 👈 إنشاء مسار wwwroot/uploads/receipts بالكامل بشكل أمن على القرص
             string receiptsDirectory = Path.Combine(uploadsFolder, "uploads", "receipts");
             if (!Directory.Exists(receiptsDirectory))
             {
@@ -39,10 +40,13 @@ namespace Andalos.API.Services
             }
 
             string fileExtension = Path.GetExtension(dto.ReceiptFile.FileName);
-            string fileName = $"{Guid.NewGuid()}{fileExtension}";
-            string filePath = Path.Combine(receiptsDirectory, fileName);
+            if (string.IsNullOrEmpty(fileExtension)) fileExtension = ".jpg";
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            string fileName = $"{Guid.NewGuid()}{fileExtension}";
+            string fullPath = Path.Combine(receiptsDirectory, fileName);
+
+            // كتابة الملف بأمان
+            using (var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 await dto.ReceiptFile.CopyToAsync(stream);
             }
@@ -55,14 +59,14 @@ namespace Andalos.API.Services
                 BankName = dto.BankName,
                 ReferenceNumber = dto.ReferenceNumber,
                 ReceiptFilePath = $"/uploads/receipts/{fileName}",
-                Status = TransferRequestStatus.Pending
+                Status = TransferRequestStatus.Pending,
+                CreatedAt = DateTime.UtcNow
             };
 
             _db.BankTransferRequests.Add(request);
             await _db.SaveChangesAsync();
 
-            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
-            return MapToDto(request, tenant?.FullName ?? "");
+            return MapToDto(request, tenant.FullName);
         }
 
         // ===== 2. الإدارة تستعرض الطلبات (يمكن الفلترة لمعرفة المعلق فقط) =====
