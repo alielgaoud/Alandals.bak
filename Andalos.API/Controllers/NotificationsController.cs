@@ -96,6 +96,22 @@ namespace Andalos.API.Controllers
             var result = await _service.UpdatePreferencesAsync(userId, tenantId, dto);
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث تفضيلات الإشعارات بنجاح"));
         }
+        
+        // 👈 دالة تجريبية لإرسال إشعار فوراً واختباره
+        [HttpPost("test-send")]
+        public async Task<IActionResult> TestSend([FromBody] CreateNotificationDto dto)
+        {
+            var (userId, tenantId) = GetCurrentUserContext();
+
+            // إسناد المستخدم الحالي إذا لم يحدد مستقبل
+            if (!dto.UserId.HasValue && !dto.TenantId.HasValue)
+            {
+                dto.UserId = userId;
+            }
+
+            var result = await _service.CreateNotificationAsync(dto);
+            return Ok(ApiResponseDto<NotificationResponseDto>.SuccessResponse(result, "تم إرسال الإشعار بنجاح عبر النظام والـ SignalR"));
+        }
 
         // =====================================================
         // دوال مساعدة
