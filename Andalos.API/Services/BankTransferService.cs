@@ -31,10 +31,16 @@ namespace Andalos.API.Services
             var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive);
             if (!tenantExists) throw new KeyNotFoundException("المستأجر غير موجود");
 
-            // حفظ صورة الواصل
-            string fileName = $"{Guid.NewGuid()}_{Path.GetFileName(dto.ReceiptFile.FileName)}";
-            string filePath = Path.Combine(uploadsFolder, "receipts", fileName);
-            Directory.CreateDirectory(Path.Combine(uploadsFolder, "receipts"));
+            // 👈 إنشاء مجلد الحفظ بأمان على القرص الصلب إن لم يكن موجوداً
+            string receiptsDirectory = Path.Combine(uploadsFolder, "uploads", "receipts");
+            if (!Directory.Exists(receiptsDirectory))
+            {
+                Directory.CreateDirectory(receiptsDirectory);
+            }
+
+            string fileExtension = Path.GetExtension(dto.ReceiptFile.FileName);
+            string fileName = $"{Guid.NewGuid()}{fileExtension}";
+            string filePath = Path.Combine(receiptsDirectory, fileName);
 
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
@@ -55,7 +61,8 @@ namespace Andalos.API.Services
             _db.BankTransferRequests.Add(request);
             await _db.SaveChangesAsync();
 
-            return MapToDto(request, "");
+            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
+            return MapToDto(request, tenant?.FullName ?? "");
         }
 
         // ===== 2. الإدارة تستعرض الطلبات (يمكن الفلترة لمعرفة المعلق فقط) =====

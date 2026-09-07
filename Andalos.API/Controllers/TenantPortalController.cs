@@ -182,11 +182,22 @@ namespace Andalos.API.Controllers
             }
         }
         [HttpPost("{tenantId}/upload-receipt")]
+        [Consumes("multipart/form-data")] // 👈 1. ضروري جداً ليتعرف Swagger على رفع الملفات
         public async Task<IActionResult> UploadReceipt(int tenantId, [FromForm] SubmitTransferRequestDto dto)
         {
             try
             {
-                string webRootPath = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                // 👈 2. التحقق من رفع ملف حقيقي
+                if (dto.ReceiptFile == null || dto.ReceiptFile.Length == 0)
+                    return BadRequest(ApiResponseDto<string>.FailResponse("صورة واصل الدفع مطلوبة"));
+
+                // 👈 3. التأكد من المسار الصحيح للمجلد
+                string webRootPath = _env.WebRootPath;
+                if (string.IsNullOrEmpty(webRootPath))
+                {
+                    webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                }
+
                 var result = await _bankTransferService.SubmitRequestAsync(tenantId, dto, webRootPath);
                 return Ok(ApiResponseDto<TransferRequestResponseDto>.SuccessResponse(result, "تم رفع الواصل بنجاح، بانتظار مراجعة الإدارة."));
             }

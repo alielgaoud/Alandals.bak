@@ -20,17 +20,20 @@ namespace Andalos.API.Services
 
         public async Task<List<ContractResponseDto>> GetAllAsync()
         {
-            return await _db.Contracts
+            // 1. جلب الكيانات من قاعدة البيانات أولاً إلى الذاكرة
+            var contracts = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
                 .Include(c => c.ContractItems)
                 .Include(c => c.ContractDocuments)
-                .Include(c => c.ContractFees)   // 👈 إصلاح: تم إضافة جلب الرسوم
-                .Include(c => c.ParentContract) // 👈 إصلاح: تم إضافة جلب العقد الأب
+                .Include(c => c.ContractFees)
+                .Include(c => c.ParentContract)
                 .Where(c => c.IsActive)
                 .OrderByDescending(c => c.CreatedAt)
-                .Select(c => MapToDto(c))
-                .ToListAsync();
+                .ToListAsync(); // 👈 جلب البيانات من SQL أولاً
+
+            // 2. تحويل الكيانات إلى DTOs في الذاكرة (In-Memory Mapping)
+            return contracts.Select(c => MapToDto(c)).ToList();
         }
 
         public async Task<ContractResponseDto?> GetByIdAsync(int id)
@@ -306,7 +309,7 @@ namespace Andalos.API.Services
         }
 
         // ===== دالة التحويل من Model لـ DTO =====
-        private ContractResponseDto MapToDto(Contract contract)
+        private static ContractResponseDto MapToDto(Contract contract)
         {
             int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
             decimal totalContractValue = contract.RentAmount * durationMonths;
@@ -317,11 +320,10 @@ namespace Andalos.API.Services
                 ContractNumber = contract.ContractNumber,
                 TenantId = contract.TenantId,
                 TenantName = contract.Tenant?.FullName ?? "",
+                TenantPhone = contract.Tenant?.Phone ?? "",
                 UnitId = contract.UnitId,
                 UnitNumber = contract.Unit?.UnitNumber ?? "",
-                // أضف للـ DTO المرجع:
-                ActivityType = contract.ActivityType.ToString(),
-                TradeName = contract.TradeName,
+                UnitName = contract.TradeName ?? contract.Unit?.UnitNumber ?? "",
                 StartDate = contract.StartDate,
                 EndDate = contract.EndDate,
                 RentAmount = contract.RentAmount,
@@ -334,7 +336,6 @@ namespace Andalos.API.Services
                 ParentContractId = contract.ParentContractId,
                 ParentContractNumber = contract.ParentContract?.ContractNumber,
 
-                // 👈 إصلاح: تم إضافة تحويل المستندات والبنود الإضافية
                 ExtraItems = contract.ContractItems?.Select(i => new ContractItemDto
                 {
                     Id = i.Id,
