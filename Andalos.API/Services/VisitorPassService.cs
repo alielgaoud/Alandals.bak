@@ -27,7 +27,7 @@ namespace Andalos.API.Services
             }
 
             // توليد رمز فريد ومميز للباركود
-            string passCode = GenerateSecurePassCode();
+            string passCode = await GenerateUniquePassCodeAsync();
 
             var pass = new VisitorPass
             {
@@ -248,11 +248,26 @@ namespace Andalos.API.Services
             };
         }
 
-        private static string GenerateSecurePassCode()
+    
+
+        private async Task<string> GenerateUniquePassCodeAsync()
         {
-            // كود فريد قصير وسهل المسح عبر كاميرا الباركود (مثال: PASS-9A8B7C6D)
-            string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(4));
-            return $"PASS-{randomHex}";
+            string passCode;
+            bool exists;
+            string datePrefix = DateTime.Now.ToString("yyyyMMdd");
+
+            do
+            {
+                // توليد 6 بايت عشوائية تشفيرية = 12 حرف هكس
+                string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
+                passCode = $"PASS-{datePrefix}-{randomHex}"; // مثال: PASS-20260914-A8F93C21E7B4
+
+                // فحص قاعدة البيانات للتأكد 100% من عدم التكرار
+                exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
+            }
+            while (exists); // إذا وُجد يتكرر فوراً حتى يضمن كوداً فريداً تماماً
+
+            return passCode;
         }
 
         private static VisitorPassResponseDto MapToDto(VisitorPass p)
