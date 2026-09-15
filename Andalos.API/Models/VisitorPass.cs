@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Andalos.API.Models
 {
@@ -41,6 +42,22 @@ namespace Andalos.API.Models
         [MaxLength(300)]
         public string? Notes { get; set; }
 
+        // 👈 حقول المحفظة المالية والعهد (الجديدة)
+        public bool IsPaidPass { get; set; } = false; // هل هو تصريح مدفوع بـ 50 دينار؟
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal InitialBalance { get; set; } = 0; // الرصيد الابتدائي
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal RemainingBalance { get; set; } = 0; // الرصيد المتبقي
+
+        public WalletStatus WalletStatus { get; set; } = WalletStatus.Active;
+
+        public int? IssuedByUserId { get; set; } // الحارس الذي استلم الكاش
+        public User? IssuedByUser { get; set; }
+
+        // 👈 العلاقات (بدون تكرار)
         public ICollection<EntryLog> EntryLogs { get; set; } = new List<EntryLog>();
+        public ICollection<PassTransaction> Transactions { get; set; } = new List<PassTransaction>();
     }
 }

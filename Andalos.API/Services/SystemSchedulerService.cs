@@ -1,7 +1,8 @@
-﻿using Andalos.API.Enums;
+﻿using Andalos.API.Constants;
+using Andalos.API.Data;
+using Andalos.API.Enums;
 using Andalos.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Andalos.API.Data;
 
 namespace Andalos.API.Services
 {
@@ -9,6 +10,10 @@ namespace Andalos.API.Services
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<SystemSchedulerService> _logger;
+
+        // متغيرات تمنع تكرار تنفيذ المهمة أكثر من مرة في نفس اليوم/الشهر
+        private int? _lastExpiredCheckDay;
+        private int? _lastMonthlyDueCheckMonth;
 
         public SystemSchedulerService(IServiceProvider serviceProvider, ILogger<SystemSchedulerService> logger)
         {
@@ -24,24 +29,45 @@ namespace Andalos.API.Services
             {
                 try
                 {
-                    // نُشغل المهام اليومية مرة واحدة كل 24 ساعة (أو كل ساعة حسب ما تفضل)
-                    // للتبسيط: سنفحص كل ساعة، لكن سننفذ المهام إذا كانت الساعة بين 1 و 2 ليلاً
                     var now = DateTime.Now;
 
-                    if (now.Hour == 1) // يعمل الواحدة ليلاً
+                    using (var scope = _serviceProvider.CreateScope())
                     {
-                        using var scope = _serviceProvider.CreateScope();
+                        var settings = scope.ServiceProvider.GetRequiredService<ISettingService>();
 
-                        // 1. الخصم الآلي للإيجارات بداية كل شهر
-                        if (now.Day == 1)
+                        // 👈 1. قراءة "ساعة تصفير محفظة الزوار" ديناميكياً من الإعدادات (الافتراضي: 3 فجراً)
+                        int walletExpirationHour = await settings.GetValueAsync<int>(SettingKeys.VisitorWalletExpirationHour, 3);
+
+                        if (now.Hour == walletExpirationHour && _lastExpiredCheckDay != now.Day)
                         {
-                            _logger.LogInformation("💰 بدء عملية الخصم الشهري الآلي للإيجارات...");
-                            var accountService = scope.ServiceProvider.GetRequiredService<ITenantAccountService>();
-                            await accountService.ProcessMonthlyRentDuesAsync();
+                            _logger.LogInformation($"⏰ جاري فحص وتصفير أرصدة محفظة الزوار منتهية الصلاحية (الساعة المحددة بالإعدادات: {walletExpirationHour}:00)...");
+
+                            var walletService = scope.ServiceProvider.GetRequiredService<IVisitorWalletService>();
+                            decimal totalExpiredProfit = await walletService.ExpireUnusedBalancesAsync();
+
+                            if (totalExpiredProfit > 0)
+                            {
+                                _logger.LogInformation($"💰 تم تصفير أرصدة الزوار المنتهية وتحويل ({totalExpiredProfit} د.ل) كربح صافي للإدارة.");
+                            }
+
+                            _lastExpiredCheckDay = now.Day; // ضمان عدم التكرار في نفس اليوم
                         }
 
-                        // 2. فحص العقود التي ستنتهي قريباً (بعد 30 يوم)
-                        await CheckExpiringContractsAsync(scope);
+                        // 👈 2. الخصم الشهري الآلي للإيجارات (عند الساعة 1 ليلاً يوم 1 في الشهر)
+                        if (now.Hour == 1)
+                        {
+                            if (now.Day == 1 && _lastMonthlyDueCheckMonth != now.Month)
+                            {
+                                _logger.LogInformation("💰 بدء عملية الخصم الشهري الآلي للإيجارات...");
+                                var accountService = scope.ServiceProvider.GetRequiredService<ITenantAccountService>();
+                                await accountService.ProcessMonthlyRentDuesAsync();
+
+                                _lastMonthlyDueCheckMonth = now.Month;
+                            }
+
+                            // 👈 3. فحص العقود التي ستنتهي قريباً (بعد 30 يوم)
+                            await CheckExpiringContractsAsync(scope);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -49,8 +75,8 @@ namespace Andalos.API.Services
                     _logger.LogError(ex, "❌ حدث خطأ في محرك المهام الخلفية");
                 }
 
-                // انتظار ساعة قبل الفحص التالي
-                await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+                // انتظار 30 دقيقة قبل الفحص التالي
+                await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
             }
         }
 

@@ -106,6 +106,7 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("Visitor", SettingKeys.VisitorEntryStart, "09:00", "Time", "بداية الدخول", "", 2),
                 New("Visitor", SettingKeys.VisitorEntryEnd, "23:00", "Time", "نهاية الدخول", "", 3),
                 New("Visitor", SettingKeys.VisitorFamilyOnly, "True", "Boolean", "عائلات فقط", "", 4),
+                New("Visitor", SettingKeys.VisitorWalletExpirationHour, "3", "Number", "ساعة تصفير محفظة الزوار", "الساعة (من 0 إلى 23) التي ينتهي فيها رصيد التصاريح اليومي وتحويل المتبقي للإدارة", 5),
 
                 // ===== النظام =====
                 New("System", SettingKeys.SystemLanguage, "ar", "Dropdown", "اللغة", "ar / en", 1),

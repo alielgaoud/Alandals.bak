@@ -83,5 +83,8 @@
         public const string NotificationVapidPublicKey = "Notifications.VapidPublicKey"; // المفتاح العام
         public const string NotificationVapidPrivateKey = "Notifications.VapidPrivateKey"; // المفتاح الخاص
 
+        // في Constants/SettingKeys.cs
+        public const string VisitorWalletExpirationHour = "Visitor.WalletExpirationHour"; // 👈 ساعة تصفير محفظة الزوار
+
     }
 }
