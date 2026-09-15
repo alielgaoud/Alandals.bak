@@ -10,30 +10,19 @@ namespace Andalos.API.Helpers
     /// </summary>
     public static class PdfMasterTemplate
     {
-// =========================================================
-// نظام الألوان الموحد
-// التصميم الرسمي: Black & White فقط
-// =========================================================
-
-public const string Black = "#000000";
+        // =========================================================
+        // نظام الألوان الموحد
+        // التصميم الرسمي: Black & White فقط
+        // =========================================================
+        public const string Black = "#000000";
         public const string White = "#FFFFFF";
-
 
         // =========================================================
         // Compatibility Aliases
         // =========================================================
-        //
-        // هذه الأسماء موجودة في بعض خدمات PDF القديمة.
-        // تم الإبقاء عليها حتى لا نضطر لتعديل كل Service.
-        // جميعها مربوطة بنظام الأبيض والأسود الجديد.
-        //
-
         public const string Gray = Black;
-
         public const string DarkGray = Black;
-
         public const string BorderGray = Black;
-
         public const string LightGray = White;
 
         // =========================================================
@@ -43,7 +32,6 @@ public const string Black = "#000000";
         public static string CompanyPhone = "0925288883";
         public static string CompanyEmail = "info@andalos.ly";
         public static string CompanyAddress = "Tripoli, Libya";
-
 
         // =========================================================
         // بناء الصفحة الموحدة
@@ -57,13 +45,9 @@ public const string Black = "#000000";
             container.Page(page =>
             {
                 // -------------------------------------------------
-                // حجم الصفحة
+                // حجم الصفحة والهوامش
                 // -------------------------------------------------
                 page.Size(PageSizes.A4);
-
-                // -------------------------------------------------
-                // الهوامش
-                // -------------------------------------------------
                 page.MarginHorizontal(45);
                 page.MarginVertical(32);
 
@@ -101,7 +85,6 @@ public const string Black = "#000000";
             });
         }
 
-
         // =========================================================
         // Header
         // =========================================================
@@ -112,9 +95,6 @@ public const string Black = "#000000";
         {
             container.Column(column =>
             {
-                // -------------------------------------------------
-                // الجزء العلوي
-                // -------------------------------------------------
                 column.Item()
                     .MinHeight(72)
                     .Row(row =>
@@ -125,7 +105,6 @@ public const string Black = "#000000";
                         row.RelativeItem()
                             .Column(company =>
                             {
-                                // شعار بسيط Mono
                                 company.Item()
                                     .Row(logoRow =>
                                     {
@@ -165,27 +144,34 @@ public const string Black = "#000000";
                             });
 
                         // =================================================
-                        // بيانات المستند - الجهة اليمنى
+                        // بيانات المستند - الجهة اليمنى (معدلة)
                         // =================================================
-                        row.ConstantItem(190)
+                        row.ConstantItem(220)
                             .AlignRight()
                             .Column(document =>
                             {
-                                document.Item()
-                                    .AlignRight()
-                                    .Text(title)
-                                    .FontFamily("Arial")
-                                    .FontSize(17)
-                                    .Bold()
-                                    .FontColor(Black);
+                                if (!string.IsNullOrWhiteSpace(title))
+                                {
+                                    document.Item()
+                                        .AlignRight()
+                                        .Text(title)
+                                        .FontFamily("Arial")
+                                        .FontSize(16)
+                                        .Bold()
+                                        .FontColor(Black);
+                                }
 
-                                document.Item()
-                                    .PaddingTop(7)
-                                    .AlignRight()
-                                    .Text($"رقم المستند: {number}")
-                                    .FontFamily("Arial")
-                                    .FontSize(9)
-                                    .FontColor(Black);
+                                // 👈 يظهر فقط إذا كان رقم المستند غير فارغ
+                                if (!string.IsNullOrWhiteSpace(number))
+                                {
+                                    document.Item()
+                                        .PaddingTop(4)
+                                        .AlignRight()
+                                        .Text($"رقم المستند: {number}")
+                                        .FontFamily("Arial")
+                                        .FontSize(9)
+                                        .FontColor(Black);
+                                }
                             });
                     });
 
@@ -199,24 +185,17 @@ public const string Black = "#000000";
             });
         }
 
-
         // =========================================================
-        // Footer
+        // Footer (تم إزالة المربعات السوداء)
         // =========================================================
         private static void BuildFooter(IContainer container)
         {
             container.Column(column =>
             {
-                // -------------------------------------------------
-                // الخط العلوي
-                // -------------------------------------------------
                 column.Item()
                     .LineHorizontal(0.8f)
                     .LineColor(Black);
 
-                // -------------------------------------------------
-                // بيانات الـ Footer
-                // -------------------------------------------------
                 column.Item()
                     .PaddingTop(7)
                     .MinHeight(22)
@@ -289,29 +268,9 @@ public const string Black = "#000000";
                                     .Bold()
                                     .FontColor(Black);
                             });
-
-                        // =================================================
-                        // العلامة البصرية - خطان أسودان
-                        // =================================================
-                        row.ConstantItem(24)
-                            .AlignRight()
-                            .Row(mark =>
-                            {
-                                mark.ConstantItem(8)
-                                    .Height(16)
-                                    .Background(Black);
-
-                                mark.ConstantItem(5)
-                                    .Width(4);
-
-                                mark.ConstantItem(8)
-                                    .Height(16)
-                                    .Background(Black);
-                            });
                     });
             });
         }
-
 
         // =========================================================
         // جدول موحد
@@ -326,31 +285,20 @@ public const string Black = "#000000";
             {
                 int colCount = headers.Length;
 
-                // -------------------------------------------------
-                // تعريف الأعمدة
-                // -------------------------------------------------
                 table.ColumnsDefinition(columns =>
                 {
-                    if (columnWidths != null &&
-                        columnWidths.Length == colCount)
+                    if (columnWidths != null && columnWidths.Length == colCount)
                     {
                         for (int i = 0; i < colCount; i++)
-                        {
                             columns.ConstantColumn(columnWidths[i]);
-                        }
                     }
                     else
                     {
                         for (int i = 0; i < colCount; i++)
-                        {
                             columns.RelativeColumn();
-                        }
                     }
                 });
 
-                // -------------------------------------------------
-                // Header
-                // -------------------------------------------------
                 foreach (var header in headers)
                 {
                     table.Cell()
@@ -362,9 +310,6 @@ public const string Black = "#000000";
                         .FontColor(White);
                 }
 
-                // -------------------------------------------------
-                // Rows
-                // -------------------------------------------------
                 foreach (var row in rows)
                 {
                     foreach (var cell in row)
@@ -380,10 +325,6 @@ public const string Black = "#000000";
             });
         }
 
-
-        // =========================================================
-        // تنسيق Header Cell
-        // =========================================================
         private static IContainer HeaderCell(IContainer container)
         {
             return container
@@ -396,10 +337,6 @@ public const string Black = "#000000";
                 .AlignMiddle();
         }
 
-
-        // =========================================================
-        // تنسيق Data Cell
-        // =========================================================
         private static IContainer DataCell(IContainer container)
         {
             return container
@@ -411,10 +348,6 @@ public const string Black = "#000000";
                 .AlignMiddle();
         }
 
-
-        // =========================================================
-        // عنوان قسم داخل المستند
-        // =========================================================
         public static void SectionTitle(
             IContainer container,
             string title)
@@ -431,10 +364,6 @@ public const string Black = "#000000";
                 .FontColor(Black);
         }
 
-
-        // =========================================================
-        // بطاقة معلومات
-        // =========================================================
         public static void InfoBox(
             IContainer container,
             string title,
