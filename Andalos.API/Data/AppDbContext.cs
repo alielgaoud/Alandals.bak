@@ -32,6 +32,9 @@ namespace Andalos.API.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<PushSubscription> PushSubscriptions { get; set; }
         public DbSet<NotificationPreference> NotificationPreferences { get; set; }
+        public DbSet<PassTransaction> PassTransactions { get; set; }
+        public DbSet<TenantSettlement> TenantSettlements { get; set; }
+        public DbSet<GatekeeperShift> GatekeeperShifts { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -345,17 +348,70 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.SetNull);
             });
             // 👈 VisitorPass
+            // 👈 VisitorPass Configuration
             modelBuilder.Entity<VisitorPass>(entity =>
             {
                 entity.ToTable("VisitorPasses");
                 entity.HasIndex(e => e.PassCode).IsUnique();
                 entity.Property(e => e.VisitorType).HasConversion<int>();
                 entity.Property(e => e.Status).HasConversion<int>();
+                entity.Property(e => e.WalletStatus).HasConversion<int>();
 
                 entity.HasOne(p => p.Unit)
                       .WithMany()
                       .HasForeignKey(p => p.UnitId)
                       .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(p => p.IssuedByUser)
+                      .WithMany()
+                      .HasForeignKey(p => p.IssuedByUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PassTransaction>(entity =>
+            {
+                entity.ToTable("PassTransactions");
+
+                entity.HasOne(t => t.VisitorPass)
+                      .WithMany(p => p.Transactions)
+                      .HasForeignKey(t => t.VisitorPassId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(t => t.Tenant)
+                      .WithMany()
+                      .HasForeignKey(t => t.TenantId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(t => t.Settlement)
+                      .WithMany(s => s.Transactions)
+                      .HasForeignKey(t => t.SettlementId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<TenantSettlement>(entity =>
+            {
+                entity.ToTable("TenantSettlements");
+                entity.Property(e => e.SettlementMethod).HasConversion<int>();
+
+                entity.HasOne(s => s.Tenant)
+                      .WithMany()
+                      .HasForeignKey(s => s.TenantId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(s => s.ProcessedByUser)
+                      .WithMany()
+                      .HasForeignKey(s => s.ProcessedByUserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<GatekeeperShift>(entity =>
+            {
+                entity.ToTable("GatekeeperShifts");
+
+                entity.HasOne(s => s.User)
+                      .WithMany()
+                      .HasForeignKey(s => s.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // 👈 EntryLog

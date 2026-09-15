@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+﻿using Andalos.API.Constants;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Notifications;
 using Andalos.API.Enums;
 using Andalos.API.Hubs;
@@ -14,14 +15,18 @@ namespace Andalos.API.Services
         private readonly AppDbContext _db;
         private readonly IHubContext<NotificationHub> _hub;
         private readonly IPushNotificationService _pushService; // 👈 1. إضافة حقل خدمة الـ Push
+        private readonly ISettingService _settings; // 👈 استدعاء الإعدادات
+
 
         // 👈 2. تحديث الـ Constructor لحقن IPushNotificationService
         public NotificationService(
             AppDbContext db,
+            ISettingService settings,
             IHubContext<NotificationHub> hub,
             IPushNotificationService pushService)
         {
             _db = db;
+            _settings = settings;
             _hub = hub;
             _pushService = pushService;
         }
@@ -31,6 +36,9 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task<NotificationResponseDto> CreateNotificationAsync(CreateNotificationDto dto)
         {
+            // 👈 1. هل الإشعارات الداخلية مفعلة من إعدادات النظام ككل؟
+            var globalInAppEnabled = await _settings.GetValueAsync(SettingKeys.NotificationInAppEnabled, true);
+            if (!globalInAppEnabled) return new NotificationResponseDto { Title = "الإشعارات موقوفة من الإدارة" };
             // التحقق من تفضيلات المستخدم
             bool isEnabled = await IsNotificationEnabledAsync(dto.UserId, dto.TenantId, dto.Type, NotificationChannel.InApp);
             if (!isEnabled)

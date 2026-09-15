@@ -1,5 +1,8 @@
-﻿using Andalos.API.Data;
+﻿using Andalos.API.Constants;
+using Andalos.API.Data;
+using Andalos.API.Interfaces;
 using Lib.Net.Http.WebPush;
+using Lib.Net.Http.WebPush.Authentication;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
@@ -13,79 +16,127 @@ namespace Andalos.API.Services
     public class PushNotificationService : IPushNotificationService
     {
         private readonly AppDbContext _db;
+        private readonly ISettingService _settings;
+        private readonly ILogger<PushNotificationService> _logger;
         private readonly PushServiceClient _pushClient;
 
-        public PushNotificationService(AppDbContext db, IConfiguration config)
+        public PushNotificationService(
+            AppDbContext db,
+            ISettingService settings,
+            ILogger<PushNotificationService> logger)
         {
             _db = db;
+            _settings = settings;
+            _logger = logger;
             _pushClient = new PushServiceClient();
-
-            var subject = config["VapidDetails:Subject"];
-            var publicKey = config["VapidDetails:PublicKey"];
-            var privateKey = config["VapidDetails:PrivateKey"];
-
-            if (!string.IsNullOrEmpty(subject) && !string.IsNullOrEmpty(publicKey) && !string.IsNullOrEmpty(privateKey))
-            {
-                _pushClient.DefaultAuthentication = new Lib.Net.Http.WebPush.Authentication.VapidAuthentication(publicKey, privateKey)
-                {
-                    Subject = subject
-                };
-            }
         }
 
         public async Task SendPushNotificationAsync(int? userId, int? tenantId, string title, string body, string? url)
         {
-            var query = _db.PushSubscriptions.Where(p => p.IsActive);
-
-            if (userId.HasValue) query = query.Where(p => p.UserId == userId);
-            else if (tenantId.HasValue) query = query.Where(p => p.TenantId == tenantId);
-            else return;
-
-            var subscriptions = await query.ToListAsync();
-            if (!subscriptions.Any()) return;
-
-            // بناء الهيكل القياسي الذي سيفهمه Service Worker في Angular
-            var payload = JsonSerializer.Serialize(new
+            try
             {
-                notification = new
+                // 1) الزر العام من الإعدادات: تفعيل/إيقاف Web Push على مستوى النظام
+                var globalPushEnabled = await _settings.GetValueAsync(SettingKeys.NotificationPushEnabled, false);
+                if (!globalPushEnabled)
                 {
-                    title = title,
-                    body = body,
-                    icon = "/assets/icons/icon-192x192.png", // أيقونة تطبيقك
-                    vibrate = new[] { 100, 50, 100 },
-                    data = new { url = url ?? "/" }
+                    _logger.LogDebug("Web Push متوقف من إعدادات النظام.");
+                    return;
                 }
-            });
 
-            foreach (var sub in subscriptions)
-            {
+                // 2) قراءة مفاتيح VAPID من Settings (تتحدث فوراً بعد الحفظ بسبب Cache)
+                var subject = await _settings.GetValueAsync(SettingKeys.NotificationVapidSubject)
+                              ?? "mailto:info@andalos.ly";
+                var publicKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
+                var privateKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPrivateKey);
+
+                if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
+                {
+                    _logger.LogWarning("مفاتيح VAPID غير مكتملة في الإعدادات. تم تجاهل Web Push.");
+                    return;
+                }
+
+                // 3) تهيئة المصادقة ديناميكياً عند كل إرسال
                 try
                 {
-                    var pushSubscription = new PushSubscription
+                    _pushClient.DefaultAuthentication = new VapidAuthentication(publicKey, privateKey)
                     {
-                        Endpoint = sub.Endpoint,
-                        Keys = new Dictionary<string, string>
-                        {
-                            { "p256dh", sub.P256dh },
-                            { "auth", sub.Auth }
-                        }
+                        Subject = subject
                     };
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "مفاتيح VAPID في الإعدادات غير صالحة.");
+                    return;
+                }
 
-                    var pushMessage = new PushMessage(payload);
-                    await _pushClient.RequestPushMessageDeliveryAsync(pushSubscription, pushMessage);
-                }
-                catch (PushServiceClientException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Gone || ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                // 4) جلب اشتراكات المستلم
+                var query = _db.PushSubscriptions.Where(p => p.IsActive);
+
+                if (userId.HasValue)
+                    query = query.Where(p => p.UserId == userId);
+                else if (tenantId.HasValue)
+                    query = query.Where(p => p.TenantId == tenantId);
+                else
+                    return;
+
+                var subscriptions = await query.ToListAsync();
+                if (!subscriptions.Any())
                 {
-                    // المتصفح ألغى الاشتراك أو حذفه، نقوم بتنظيف قاعدة البيانات
-                    sub.IsActive = false;
+                    _logger.LogDebug("لا توجد اشتراكات Push نشطة للمستلم.");
+                    return;
                 }
-                catch (Exception)
+
+                // 5) بناء Payload القياسي لـ Service Worker
+                var payload = JsonSerializer.Serialize(new
                 {
-                    // تجاهل الأخطاء الأخرى للاستمرار في إرسال الباقي
+                    notification = new
+                    {
+                        title,
+                        body,
+                        icon = "/assets/icons/icon-192x192.png",
+                        vibrate = new[] { 100, 50, 100 },
+                        data = new { url = url ?? "/" }
+                    }
+                });
+
+                // 6) الإرسال لكل جهاز/متصفح
+                foreach (var sub in subscriptions)
+                {
+                    try
+                    {
+                        var pushSubscription = new PushSubscription
+                        {
+                            Endpoint = sub.Endpoint,
+                            Keys = new Dictionary<string, string>
+                            {
+                                { "p256dh", sub.P256dh },
+                                { "auth", sub.Auth }
+                            }
+                        };
+
+                        await _pushClient.RequestPushMessageDeliveryAsync(pushSubscription, new PushMessage(payload));
+                        sub.LastUsedAt = DateTime.UtcNow;
+                    }
+                    catch (PushServiceClientException ex)
+                        when (ex.StatusCode == System.Net.HttpStatusCode.Gone ||
+                              ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        // الاشتراك منتهٍ أو محذوف من المتصفح
+                        sub.IsActive = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "فشل إرسال Push للاشتراك: {Endpoint}", sub.Endpoint);
+                    }
                 }
+
+                await _db.SaveChangesAsync();
             }
-
-            await _db.SaveChangesAsync();
+            catch (Exception ex)
+            {
+                // لا نكسر مسار العمل الأساسي إذا فشل Push
+                _logger.LogError(ex, "خطأ غير متوقع أثناء إرسال Web Push.");
+            }
         }
     }
 }

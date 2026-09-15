@@ -106,6 +106,7 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("Visitor", SettingKeys.VisitorEntryStart, "09:00", "Time", "بداية الدخول", "", 2),
                 New("Visitor", SettingKeys.VisitorEntryEnd, "23:00", "Time", "نهاية الدخول", "", 3),
                 New("Visitor", SettingKeys.VisitorFamilyOnly, "True", "Boolean", "عائلات فقط", "", 4),
+                New("Visitor", SettingKeys.VisitorWalletExpirationHour, "3", "Number", "ساعة تصفير محفظة الزوار", "الساعة (من 0 إلى 23) التي ينتهي فيها رصيد التصاريح اليومي وتحويل المتبقي للإدارة", 5),
 
                 // ===== النظام =====
                 New("System", SettingKeys.SystemLanguage, "ar", "Dropdown", "اللغة", "ar / en", 1),
@@ -113,6 +114,13 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("System", SettingKeys.SystemDateFormat, "DD/MM/YYYY", "Dropdown", "صيغة التاريخ", "", 3),
                 New("System", SettingKeys.SystemSessionTimeout, "30", "Number", "مهلة الجلسة", "بالدقائق", 4),
                 New("System", SettingKeys.SystemMaintenanceMode, "False", "Boolean", "وضع الصيانة", "إغلاق النظام للصيانة", 5),
+
+                // ===== الإشعارات =====
+               New("Notifications", SettingKeys.NotificationInAppEnabled, "True", "Boolean", "تفعيل الإشعارات الداخلية", "تفعيل جرس التنبيهات داخل النظام", 1),
+               New("Notifications", SettingKeys.NotificationPushEnabled, "False", "Boolean", "تفعيل إشعارات الجوال (Web Push)", "تفعيل وصول الإشعارات حتى لو كان النظام مغلقاً", 2),
+               New("Notifications", SettingKeys.NotificationVapidSubject, "mailto:info@andalos.ly", "String", "بريد مرسل الإشعارات (VAPID)", "يستخدم للتعريف بسيرفر الإشعارات", 3),
+               New("Notifications", SettingKeys.NotificationVapidPublicKey, "", "String", "المفتاح العام للإشعارات", "VAPID Public Key", 4),
+               New("Notifications", SettingKeys.NotificationVapidPrivateKey, "", "String", "المفتاح الخاص للإشعارات", "VAPID Private Key", 5),
             };
 
             db.Settings.AddRange(settings);

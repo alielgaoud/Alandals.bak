@@ -63,11 +63,11 @@ namespace Andalos.API.Services
                     throw new KeyNotFoundException("المحل المحدد غير موجود");
             }
 
-            // التحقق من وجود المستأجر في حال تم تحديده
+            Tenant? tenant = null;
             if (dto.TenantId.HasValue)
             {
-                var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == dto.TenantId.Value && t.IsActive);
-                if (!tenantExists)
+                tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == dto.TenantId.Value && t.IsActive);
+                if (tenant == null)
                     throw new KeyNotFoundException("المستأجر المحدد غير موجود");
             }
 
@@ -83,8 +83,8 @@ namespace Andalos.API.Services
             {
                 ExpenseNumber = expenseNumber,
                 UnitId = dto.UnitId,
-                TenantId = dto.TenantId, // 👈 حفظ المستأجر
-                IsChargedToTenant = dto.IsChargedToTenant, // 👈 حفظ حالة التحميل المالي
+                TenantId = dto.TenantId,
+                IsChargedToTenant = dto.IsChargedToTenant,
                 ExpenseType = dto.ExpenseType,
                 Amount = dto.Amount,
                 ExpenseDate = dto.ExpenseDate,
@@ -95,15 +95,51 @@ namespace Andalos.API.Services
             };
 
             _db.Expenses.Add(expense);
+
+            // 💡 👈 السحر المحاسبي: إذا كان المصروف محصلاً/محملاً على المستأجر ويمتلك رصيداً في المحفظة
+            if (dto.IsChargedToTenant && tenant != null && tenant.CreditBalance > 0)
+            {
+                decimal amountToDeduct = Math.Min(tenant.CreditBalance, dto.Amount);
+
+                // 1. خصم المبلغ من محفظة المستأجر
+                tenant.CreditBalance -= amountToDeduct;
+
+                // 2. إصدار سند تسديد آلي مخصوم من الرصيد لتوثيق الحركة في كشف الحساب
+                string receiptNo = await _numberGen.GenerateAsync("Receipt");
+
+                // البحث عن العقد النشط للمستأجر
+                var activeContract = await _db.Contracts
+                    .FirstOrDefaultAsync(c => c.TenantId == tenant.Id && c.Status == ContractStatus.Active && c.IsActive);
+
+                if (activeContract != null)
+                {
+                    var settlementPayment = new Payment
+                    {
+                        TenantId = tenant.Id,
+                        ContractId = activeContract.Id,
+                        Amount = amountToDeduct,
+                        PaymentDate = dto.ExpenseDate,
+                        PaymentType = PaymentType.Maintenance, // أو Fees حسب نوع المصروف
+                        PaymentMethod = PaymentMethod.FromBalance, // خصم من الرصيد
+                        ReceiptNumber = receiptNo,
+                        Notes = $"خصم تلقائي لمصروف محمّل برقم ({expenseNumber}): {dto.Description}",
+                        IsActive = true
+                    };
+
+                    _db.Payments.Add(settlementPayment);
+                }
+            }
+
             await _db.SaveChangesAsync();
 
             var saved = await _db.Expenses
                 .Include(e => e.Unit)
-                .Include(e => e.Tenant) // 👈 تضمين المستأجر
+                .Include(e => e.Tenant)
                 .FirstAsync(e => e.Id == expense.Id);
 
             return MapToDto(saved);
         }
+
 
         public async Task<bool> DeleteAsync(int id)
         {

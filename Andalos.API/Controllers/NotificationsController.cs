@@ -3,7 +3,9 @@ using Andalos.API.DTOs.Notifications;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 namespace Andalos.API.Controllers
 {
@@ -95,6 +97,52 @@ namespace Andalos.API.Controllers
             var (userId, tenantId) = GetCurrentUserContext();
             var result = await _service.UpdatePreferencesAsync(userId, tenantId, dto);
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث تفضيلات الإشعارات بنجاح"));
+        }
+        
+        // 👈 دالة تجريبية لإرسال إشعار فوراً واختباره
+        [HttpPost("test-send")]
+        public async Task<IActionResult> TestSend([FromBody] CreateNotificationDto dto)
+        {
+            var (userId, tenantId) = GetCurrentUserContext();
+
+            // إسناد المستخدم الحالي إذا لم يحدد مستقبل
+            if (!dto.UserId.HasValue && !dto.TenantId.HasValue)
+            {
+                dto.UserId = userId;
+            }
+
+            var result = await _service.CreateNotificationAsync(dto);
+            return Ok(ApiResponseDto<NotificationResponseDto>.SuccessResponse(result, "تم إرسال الإشعار بنجاح عبر النظام والـ SignalR"));
+        }
+
+        // 👈 دالة توليد مفاتيح VAPID مجانية ومطابقة للمواصفات
+        [HttpGet("generate-vapid-keys")]
+        [AllowAnonymous]
+        public IActionResult GenerateVapidKeys()
+        {
+            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var parameters = ecdsa.ExportExplicitParameters(true);
+
+            // Q.X and Q.Y for Public Key (Uncompressed format: 0x04 + X + Y)
+            var x = parameters.Q.X!;
+            var y = parameters.Q.Y!;
+            var publicKeyBytes = new byte[1 + x.Length + y.Length];
+            publicKeyBytes[0] = 0x04;
+            Buffer.BlockCopy(x, 0, publicKeyBytes, 1, x.Length);
+            Buffer.BlockCopy(y, 0, publicKeyBytes, 1 + x.Length, y.Length);
+
+            // D for Private Key (32 bytes)
+            var privateKeyBytes = parameters.D!;
+
+            var publicKey = WebEncoders.Base64UrlEncode(publicKeyBytes);
+            var privateKey = WebEncoders.Base64UrlEncode(privateKeyBytes);
+
+            return Ok(new
+            {
+                subject = "mailto:info@andalos.ly",
+                publicKey = publicKey,
+                privateKey = privateKey
+            });
         }
 
         // =====================================================

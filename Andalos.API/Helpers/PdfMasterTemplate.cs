@@ -4,17 +4,37 @@ using QuestPDF.Infrastructure;
 
 namespace Andalos.API.Helpers
 {
+    /// <summary>
+    /// القالب الرئيسي الموحد لجميع مستندات منظومة الأندلس.
+    /// التصميم: Minimal / Professional / Black & White
+    /// </summary>
     public static class PdfMasterTemplate
     {
+// =========================================================
+// نظام الألوان الموحد
+// التصميم الرسمي: Black & White فقط
+// =========================================================
+
+public const string Black = "#000000";
+        public const string White = "#FFFFFF";
+
+
         // =========================================================
-        // الألوان - أبيض وأسود فقط
+        // Compatibility Aliases
         // =========================================================
-        public static readonly string Black = "#111111";
-        public static readonly string DarkGray = "#333333";
-        public static readonly string Gray = "#666666";
-        public static readonly string LightGray = "#F5F5F5";
-        public static readonly string BorderGray = "#D9D9D9";
-        public static readonly string White = "#FFFFFF";
+        //
+        // هذه الأسماء موجودة في بعض خدمات PDF القديمة.
+        // تم الإبقاء عليها حتى لا نضطر لتعديل كل Service.
+        // جميعها مربوطة بنظام الأبيض والأسود الجديد.
+        //
+
+        public const string Gray = Black;
+
+        public const string DarkGray = Black;
+
+        public const string BorderGray = Black;
+
+        public const string LightGray = White;
 
         // =========================================================
         // بيانات الشركة
@@ -23,6 +43,7 @@ namespace Andalos.API.Helpers
         public static string CompanyPhone = "0925288883";
         public static string CompanyEmail = "info@andalos.ly";
         public static string CompanyAddress = "Tripoli, Libya";
+
 
         // =========================================================
         // بناء الصفحة الموحدة
@@ -35,37 +56,51 @@ namespace Andalos.API.Helpers
         {
             container.Page(page =>
             {
+                // -------------------------------------------------
+                // حجم الصفحة
+                // -------------------------------------------------
                 page.Size(PageSizes.A4);
 
-                // هوامش متوازنة
+                // -------------------------------------------------
+                // الهوامش
+                // -------------------------------------------------
                 page.MarginHorizontal(45);
-                page.MarginVertical(35);
+                page.MarginVertical(32);
 
+                // -------------------------------------------------
                 // الخط الافتراضي
+                // -------------------------------------------------
                 page.DefaultTextStyle(x => x
                     .FontFamily("Arial")
                     .FontSize(10)
-                    .FontColor(DarkGray)
+                    .FontColor(Black)
                     .DirectionFromRightToLeft());
 
+                // -------------------------------------------------
                 // Header
+                // -------------------------------------------------
                 page.Header()
                     .Element(c => BuildHeader(
                         c,
                         documentTitle,
                         documentNumber));
 
+                // -------------------------------------------------
                 // Content
+                // -------------------------------------------------
                 page.Content()
-                    .PaddingTop(15)
+                    .PaddingTop(18)
                     .Element(contentBuilder);
 
+                // -------------------------------------------------
                 // Footer
+                // -------------------------------------------------
                 page.Footer()
-                    .PaddingTop(10)
+                    .PaddingTop(12)
                     .Element(BuildFooter);
             });
         }
+
 
         // =========================================================
         // Header
@@ -75,106 +110,208 @@ namespace Andalos.API.Helpers
             string title,
             string number)
         {
-            container.Column(col =>
+            container.Column(column =>
             {
-                // السطر الرئيسي
-                col.Item().Row(row =>
-                {
-                    // بيانات الشركة
-                    row.RelativeItem().Column(company =>
+                // -------------------------------------------------
+                // الجزء العلوي
+                // -------------------------------------------------
+                column.Item()
+                    .MinHeight(72)
+                    .Row(row =>
                     {
-                        company.Item()
-                            .Text(CompanyName)
-                            .FontSize(17)
-                            .Bold()
-                            .FontColor(Black);
+                        // =================================================
+                        // بيانات الشركة - الجهة اليسرى
+                        // =================================================
+                        row.RelativeItem()
+                            .Column(company =>
+                            {
+                                // شعار بسيط Mono
+                                company.Item()
+                                    .Row(logoRow =>
+                                    {
+                                        logoRow.ConstantItem(38)
+                                            .AlignMiddle()
+                                            .Text("A")
+                                            .FontFamily("Arial")
+                                            .FontSize(32)
+                                            .Bold()
+                                            .FontColor(Black);
 
-                        company.Item()
-                            .PaddingTop(4)
-                            .Text($"{CompanyPhone}  •  {CompanyEmail}")
-                            .FontSize(8)
-                            .FontColor(Gray);
+                                        logoRow.RelativeItem()
+                                            .PaddingLeft(8)
+                                            .Column(info =>
+                                            {
+                                                info.Item()
+                                                    .Text(CompanyName)
+                                                    .FontFamily("Arial")
+                                                    .FontSize(17)
+                                                    .Bold()
+                                                    .FontColor(Black);
 
-                        company.Item()
-                            .Text(CompanyAddress)
-                            .FontSize(8)
-                            .FontColor(Gray);
+                                                info.Item()
+                                                    .PaddingTop(5)
+                                                    .Text($"{CompanyPhone}   •   {CompanyEmail}")
+                                                    .FontFamily("Arial")
+                                                    .FontSize(8)
+                                                    .FontColor(Black);
+
+                                                info.Item()
+                                                    .Text(CompanyAddress)
+                                                    .FontFamily("Arial")
+                                                    .FontSize(8)
+                                                    .FontColor(Black);
+                                            });
+                                    });
+                            });
+
+                        // =================================================
+                        // بيانات المستند - الجهة اليمنى
+                        // =================================================
+                        row.ConstantItem(190)
+                            .AlignRight()
+                            .Column(document =>
+                            {
+                                document.Item()
+                                    .AlignRight()
+                                    .Text(title)
+                                    .FontFamily("Arial")
+                                    .FontSize(17)
+                                    .Bold()
+                                    .FontColor(Black);
+
+                                document.Item()
+                                    .PaddingTop(7)
+                                    .AlignRight()
+                                    .Text($"رقم المستند: {number}")
+                                    .FontFamily("Arial")
+                                    .FontSize(9)
+                                    .FontColor(Black);
+                            });
                     });
 
-                    // معلومات المستند
-                    row.ConstantItem(170)
-                        .AlignRight()
-                        .Column(document =>
-                        {
-                            document.Item()
-                                .AlignRight()
-                                .Text(title)
-                                .FontSize(16)
-                                .Bold()
-                                .FontColor(Black);
-
-                            document.Item()
-                                .PaddingTop(5)
-                                .AlignRight()
-                                .Text(number)
-                                .FontSize(9)
-                                .FontColor(Gray);
-                        });
-                });
-
-                // خط بسيط تحت الهيدر
-                col.Item()
-                    .PaddingTop(12)
-                    .LineHorizontal(1)
+                // -------------------------------------------------
+                // الخط الرئيسي أسفل الـ Header
+                // -------------------------------------------------
+                column.Item()
+                    .PaddingTop(10)
+                    .LineHorizontal(1.2f)
                     .LineColor(Black);
             });
         }
+
 
         // =========================================================
         // Footer
         // =========================================================
         private static void BuildFooter(IContainer container)
         {
-            container.Column(col =>
+            container.Column(column =>
             {
-                col.Item()
-                    .LineHorizontal(0.7f)
-                    .LineColor(BorderGray);
+                // -------------------------------------------------
+                // الخط العلوي
+                // -------------------------------------------------
+                column.Item()
+                    .LineHorizontal(0.8f)
+                    .LineColor(Black);
 
-                col.Item()
-                    .PaddingTop(6)
+                // -------------------------------------------------
+                // بيانات الـ Footer
+                // -------------------------------------------------
+                column.Item()
+                    .PaddingTop(7)
+                    .MinHeight(22)
                     .Row(row =>
                     {
+                        // =================================================
+                        // بيانات التواصل
+                        // =================================================
                         row.RelativeItem()
-                            .Text("منظومة الأندلس الذكية لإدارة المجمعات الاستثمارية")
-                            .FontSize(7)
-                            .FontColor(Gray);
+                            .AlignLeft()
+                            .Row(contact =>
+                            {
+                                contact.AutoItem()
+                                    .Text(CompanyPhone)
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .FontColor(Black);
 
-                        row.RelativeItem()
+                                contact.ConstantItem(16)
+                                    .AlignCenter()
+                                    .Text("│")
+                                    .FontSize(7)
+                                    .FontColor(Black);
+
+                                contact.AutoItem()
+                                    .Text(CompanyEmail)
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .FontColor(Black);
+
+                                contact.ConstantItem(16)
+                                    .AlignCenter()
+                                    .Text("│")
+                                    .FontSize(7)
+                                    .FontColor(Black);
+
+                                contact.AutoItem()
+                                    .Text(CompanyAddress)
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .FontColor(Black);
+                            });
+
+                        // =================================================
+                        // رقم الصفحة
+                        // =================================================
+                        row.ConstantItem(100)
                             .AlignRight()
                             .Text(text =>
                             {
-                                text.Span("صفحة ")
-                                    .FontSize(7)
-                                    .FontColor(Gray);
+                                text.Span("الصفحة ")
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .FontColor(Black);
 
                                 text.CurrentPageNumber()
-                                    .FontSize(7)
-                                    .FontColor(Black)
-                                    .Bold();
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .Bold()
+                                    .FontColor(Black);
 
-                                text.Span(" / ")
-                                    .FontSize(7)
-                                    .FontColor(Gray);
+                                text.Span(" من ")
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .FontColor(Black);
 
                                 text.TotalPages()
-                                    .FontSize(7)
-                                    .FontColor(Black)
-                                    .Bold();
+                                    .FontFamily("Arial")
+                                    .FontSize(7.5f)
+                                    .Bold()
+                                    .FontColor(Black);
+                            });
+
+                        // =================================================
+                        // العلامة البصرية - خطان أسودان
+                        // =================================================
+                        row.ConstantItem(24)
+                            .AlignRight()
+                            .Row(mark =>
+                            {
+                                mark.ConstantItem(8)
+                                    .Height(16)
+                                    .Background(Black);
+
+                                mark.ConstantItem(5)
+                                    .Width(4);
+
+                                mark.ConstantItem(8)
+                                    .Height(16)
+                                    .Background(Black);
                             });
                     });
             });
         }
+
 
         // =========================================================
         // جدول موحد
@@ -219,6 +356,7 @@ namespace Andalos.API.Helpers
                     table.Cell()
                         .Element(HeaderCell)
                         .Text(header)
+                        .FontFamily("Arial")
                         .FontSize(9)
                         .Bold()
                         .FontColor(White);
@@ -227,26 +365,21 @@ namespace Andalos.API.Helpers
                 // -------------------------------------------------
                 // Rows
                 // -------------------------------------------------
-                bool isEven = false;
-
                 foreach (var row in rows)
                 {
                     foreach (var cell in row)
                     {
                         table.Cell()
-                            .Element(c =>
-                                DataCell(
-                                    c,
-                                    isEven))
+                            .Element(DataCell)
                             .Text(cell)
+                            .FontFamily("Arial")
                             .FontSize(8.5f)
-                            .FontColor(DarkGray);
+                            .FontColor(Black);
                     }
-
-                    isEven = !isEven;
                 }
             });
         }
+
 
         // =========================================================
         // تنسيق Header Cell
@@ -255,29 +388,29 @@ namespace Andalos.API.Helpers
         {
             return container
                 .Background(Black)
-                .Border(0.5f)
+                .Border(0.6f)
                 .BorderColor(Black)
                 .PaddingVertical(7)
-                .PaddingHorizontal(6)
+                .PaddingHorizontal(7)
                 .AlignCenter()
                 .AlignMiddle();
         }
 
+
         // =========================================================
         // تنسيق Data Cell
         // =========================================================
-        private static IContainer DataCell(
-            IContainer container,
-            bool isEven)
+        private static IContainer DataCell(IContainer container)
         {
             return container
-                .Background(isEven ? LightGray : White)
+                .Background(White)
                 .BorderBottom(0.5f)
-                .BorderColor(BorderGray)
-                .PaddingVertical(6)
-                .PaddingHorizontal(6)
+                .BorderColor(Black)
+                .PaddingVertical(7)
+                .PaddingHorizontal(7)
                 .AlignMiddle();
         }
+
 
         // =========================================================
         // عنوان قسم داخل المستند
@@ -287,18 +420,20 @@ namespace Andalos.API.Helpers
             string title)
         {
             container
-                .PaddingTop(12)
+                .PaddingTop(14)
                 .PaddingBottom(7)
-                .BorderBottom(1)
+                .BorderBottom(1f)
                 .BorderColor(Black)
                 .Text(title)
+                .FontFamily("Arial")
                 .FontSize(12)
                 .Bold()
                 .FontColor(Black);
         }
 
+
         // =========================================================
-        // بطاقة معلومات بسيطة
+        // بطاقة معلومات
         // =========================================================
         public static void InfoBox(
             IContainer container,
@@ -307,18 +442,21 @@ namespace Andalos.API.Helpers
         {
             container
                 .Border(0.7f)
-                .BorderColor(BorderGray)
+                .BorderColor(Black)
                 .Padding(10)
+                .Background(White)
                 .Column(column =>
                 {
                     column.Item()
                         .Text(title)
+                        .FontFamily("Arial")
                         .FontSize(8)
-                        .FontColor(Gray);
+                        .FontColor(Black);
 
                     column.Item()
-                        .PaddingTop(3)
+                        .PaddingTop(4)
                         .Text(value)
+                        .FontFamily("Arial")
                         .FontSize(10)
                         .Bold()
                         .FontColor(Black);

@@ -53,6 +53,7 @@ builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddHostedService<SystemSchedulerService>(); // 👈 تسجيل المحرك الخلفي
 // 👈 جديد: خدمة الإشعارات
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
 
 // 👈 جديد: SignalR للإشعارات اللحظية
 builder.Services.AddSignalR();
