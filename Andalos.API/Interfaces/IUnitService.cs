@@ -10,5 +10,6 @@ namespace Andalos.API.Interfaces
         Task<UnitResponseDto?> UpdateAsync(int id, UpdateUnitDto dto);
         Task<bool> DeleteAsync(int id);
         Task<int> GetCountByStatusAsync(string status);
+        Task<UnitHistoryDto?> GetUnitHistoryAsync(int unitId);
     }
 }

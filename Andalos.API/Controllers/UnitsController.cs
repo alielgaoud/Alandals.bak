@@ -85,5 +85,16 @@ namespace Andalos.API.Controllers
             var count = await _unitService.GetCountByStatusAsync(status);
             return Ok(ApiResponseDto<int>.SuccessResponse(count));
         }
+
+        // GET: api/units/5/history (سجل المحل التاريخي والمالي الكامل)
+        [HttpGet("{id}/history")]
+        public async Task<IActionResult> GetUnitHistory(int id)
+        {
+            var history = await _unitService.GetUnitHistoryAsync(id);
+            if (history == null)
+                return NotFound(ApiResponseDto<UnitHistoryDto>.FailResponse("المحل غير موجود"));
+
+            return Ok(ApiResponseDto<UnitHistoryDto>.SuccessResponse(history));
+        }
     }
 }
