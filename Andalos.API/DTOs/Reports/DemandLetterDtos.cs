@@ -82,5 +82,13 @@ namespace Andalos.API.DTOs.Reports
         public string TotalAmountInWords { get; set; } = string.Empty;
 
         public string? ExtraNote { get; set; }
+    } 
+
+    // 👈 الـ DTO الجديد الخاص بتوليد المطالبة وإرسالها للمستأجر عبر النظام كإشعار
+    public class SendDemandLetterDto : GenerateDemandLetterDto
+    {
+        public bool SendNotification { get; set; } = true;
+        public string? NotificationTitle { get; set; }
+        public string? NotificationMessage { get; set; }
     }
 }
