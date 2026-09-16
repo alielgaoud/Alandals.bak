@@ -146,5 +146,15 @@ namespace Andalos.API.Services
                 CreatedAt = u.CreatedAt
             };
         }
+
+        // 👈 جلب كل المستخدمين المرتبطين بمستأجر معين للإدارة
+        public async Task<List<UserResponseDto>> GetUsersByTenantIdAsync(int tenantId)
+        {
+            return await _db.Users
+                .Where(u => u.TenantId == tenantId && u.IsActive)
+                .OrderBy(u => u.FullName)
+                .Select(u => MapToDto(u))
+                .ToListAsync();
+        }
     }
 }

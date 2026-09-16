@@ -3,6 +3,7 @@ using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.DTOs.Portal;
+using Andalos.API.DTOs.Users;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -293,14 +294,6 @@ namespace Andalos.API.Services
             return true;
         }
 
-        // 🆕 جلب موظفي المستأجر فقط
-        public async Task<List<User>> GetMyStaffAsync(int tenantId)
-        {
-            return await _db.Users
-                .Where(u => u.TenantId == tenantId && u.Role == UserRole.TenantStaff && u.IsActive)
-                .OrderByDescending(u => u.Id)
-                .ToListAsync();
-        }
         public async Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId)
         {
             var m = await _db.MaintenanceRequests
@@ -333,6 +326,37 @@ namespace Andalos.API.Services
             using var sha256 = SHA256.Create();
             var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
             return Convert.ToBase64String(bytes);
+        }
+
+        // 👈 جلب موظفي المستأجر وتفكيك الهاتف والصلاحيات بأمان
+        public async Task<List<TenantStaffResponseDto>> GetMyStaffAsync(int tenantId)
+        {
+            var users = await _db.Users
+                .Where(u => u.TenantId == tenantId && u.Role == UserRole.TenantStaff && u.IsActive)
+                .OrderByDescending(u => u.Id)
+                .ToListAsync();
+
+            return users.Select(u =>
+            {
+                // فك تشفير حقل الهاتف والصلاحيات المفصول بـ |
+                var parts = (u.Phone ?? "").Split('|');
+                var phone = parts.Length > 0 ? parts[0] : "";
+                var permissions = parts.Length > 1
+                    ? parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+                    : new List<string>();
+
+                return new TenantStaffResponseDto
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    UserName = u.UserName,
+                    Phone = phone,
+                    Permissions = permissions,
+                    Role = u.Role.ToString(),
+                    IsActive = u.IsActive,
+                    CreatedAt = u.CreatedAt
+                };
+            }).ToList();
         }
     }
 }
