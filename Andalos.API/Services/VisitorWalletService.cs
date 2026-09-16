@@ -32,7 +32,7 @@ namespace Andalos.API.Services
                 ? dto.Amount
                 : await _settings.GetValueAsync<decimal>(SettingKeys.VisitorDefaultValidity, 50);
 
-            string passCode = $"PASS-{Convert.ToHexString(RandomNumberGenerator.GetBytes(4))}";
+            string passCode = await GenerateUniquePaidPassCodeAsync();
 
             var pass = new VisitorPass
             {
@@ -364,6 +364,24 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
             return totalForfeited; // إرجاع إجمالي المبالغ المتبقية التي أصبحت أرباحاً صافية للإدارة
+        }
+
+        private async Task<string> GenerateUniquePaidPassCodeAsync()
+        {
+            string passCode;
+            bool exists;
+            string datePrefix = DateTime.Now.ToString("yyyyMMdd");
+
+            do
+            {
+                string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
+                passCode = $"PASS-{datePrefix}-{randomHex}";
+
+                exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
+            }
+            while (exists);
+
+            return passCode;
         }
     }
 }

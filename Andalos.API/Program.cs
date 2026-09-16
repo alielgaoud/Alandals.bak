@@ -54,6 +54,7 @@ builder.Services.AddHostedService<SystemSchedulerService>(); // 👈 تسجيل 
 // 👈 جديد: خدمة الإشعارات
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
+builder.Services.AddScoped<DemandLetterPdfService>();
 
 // 👈 جديد: SignalR للإشعارات اللحظية
 builder.Services.AddSignalR();
