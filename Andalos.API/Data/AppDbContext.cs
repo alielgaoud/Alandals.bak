@@ -563,16 +563,22 @@ namespace Andalos.API.Data
 
         public AuditLog ToAudit()
         {
+            // خيار لعدم تشفير الحروف العربية في الـ JSON
+            var jsonOptions = new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All)
+            };
+
             var audit = new AuditLog
             {
                 UserId = UserId,
                 AuditType = AuditType.ToString(),
                 TableName = TableName,
                 CreatedAt = DateTime.UtcNow,
-                PrimaryKey = JsonSerializer.Serialize(KeyValues),
-                OldValues = OldValues.Count == 0 ? null : JsonSerializer.Serialize(OldValues),
-                NewValues = NewValues.Count == 0 ? null : JsonSerializer.Serialize(NewValues),
-                AffectedColumns = ChangedColumns.Count == 0 ? null : JsonSerializer.Serialize(ChangedColumns)
+                PrimaryKey = JsonSerializer.Serialize(KeyValues, jsonOptions),
+                OldValues = OldValues.Count == 0 ? null : JsonSerializer.Serialize(OldValues, jsonOptions),
+                NewValues = NewValues.Count == 0 ? null : JsonSerializer.Serialize(NewValues, jsonOptions),
+                AffectedColumns = ChangedColumns.Count == 0 ? null : JsonSerializer.Serialize(ChangedColumns, jsonOptions)
             };
             return audit;
         }
