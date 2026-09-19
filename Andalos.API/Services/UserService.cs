@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+﻿using Andalos.API.Constants;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -15,6 +16,12 @@ namespace Andalos.API.Services
         public UserService(AppDbContext db)
         {
             _db = db;
+        }
+
+        // 👈 دالة مساعدة لفحص ما إذا كان المستخدم هو الحساب الافتراضي المحمي
+        private static bool IsProtectedSystemUser(User user)
+        {
+            return user.UserName.Equals(SystemConstants.SuperAdminUserName, StringComparison.OrdinalIgnoreCase);
         }
 
         public async Task<List<UserResponseDto>> GetAllAsync()
@@ -34,7 +41,6 @@ namespace Andalos.API.Services
 
         public async Task<UserResponseDto> CreateUserAsync(CreateUserByAdminDto dto)
         {
-            // 👈 التحديث للتحقق من عدم تكرار اسم المستخدم
             var exists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.IsActive);
             if (exists)
                 throw new InvalidOperationException("اسم المستخدم مسجل مسبقاً لمستخدم آخر");
@@ -42,7 +48,7 @@ namespace Andalos.API.Services
             var user = new User
             {
                 FullName = dto.FullName,
-                UserName = dto.UserName, // 👈 تم التحديث
+                UserName = dto.UserName,
                 Phone = dto.Phone,
                 PasswordHash = HashPassword(dto.Password),
                 Role = dto.Role,
@@ -55,18 +61,21 @@ namespace Andalos.API.Services
             return MapToDto(user);
         }
 
+        // 👈 1. منع تعديل الحساب الافتراضي
         public async Task<UserResponseDto?> UpdateUserAsync(int id, UpdateUserDto dto)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
             if (user == null) return null;
 
-            // 👈 التحديث للتحقق من عدم تكرار اسم المستخدم الجديد
+            if (IsProtectedSystemUser(user))
+                throw new InvalidOperationException("❌ غير مسموح: حساب مدير النظام الرئيسي محمي ولا يمكن تعديله أبداً.");
+
             var userNameConflict = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.Id != id && u.IsActive);
             if (userNameConflict)
                 throw new InvalidOperationException("اسم المستخدم الجديد مسجل مسبقاً لمستخدم آخر");
 
             user.FullName = dto.FullName;
-            user.UserName = dto.UserName; // 👈 تم التحديث
+            user.UserName = dto.UserName;
             user.Phone = dto.Phone;
             user.Role = dto.Role;
             user.IsActive = dto.IsActive;
@@ -76,10 +85,14 @@ namespace Andalos.API.Services
             return MapToDto(user);
         }
 
+        // 👈 2. منع تغيير كلمة مرور الحساب الافتراضي
         public async Task<bool> ResetPasswordAsync(int id, string newPassword)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
             if (user == null) return false;
+
+            if (IsProtectedSystemUser(user))
+                throw new InvalidOperationException("❌ غير مسموح: لا يمكن تغيير كلمة مرور حساب مدير النظام الرئيسي الافتراضي.");
 
             user.PasswordHash = HashPassword(newPassword);
             user.FailedLoginAttempts = 0;
@@ -91,10 +104,14 @@ namespace Andalos.API.Services
             return true;
         }
 
+        // 👈 3. منع قفل الحساب الافتراضي
         public async Task<bool> ToggleLockAccountAsync(int id, bool lockAccount)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
             if (user == null) return false;
+
+            if (IsProtectedSystemUser(user))
+                throw new InvalidOperationException("❌ غير مسموح: لا يمكن قفل حساب مدير النظام الرئيسي الافتراضي.");
 
             user.IsLocked = lockAccount;
             if (!lockAccount)
@@ -112,15 +129,28 @@ namespace Andalos.API.Services
             return true;
         }
 
+        // 👈 4. منع حذف الحساب الافتراضي
         public async Task<bool> DeleteUserAsync(int id)
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
             if (user == null) return false;
 
+            if (IsProtectedSystemUser(user))
+                throw new InvalidOperationException("❌ غير مسموح: لا يمكن حذف حساب مدير النظام الرئيسي الافتراضي.");
+
             user.IsActive = false;
             user.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<List<UserResponseDto>> GetUsersByTenantIdAsync(int tenantId)
+        {
+            return await _db.Users
+                .Where(u => u.TenantId == tenantId && u.IsActive)
+                .OrderBy(u => u.FullName)
+                .Select(u => MapToDto(u))
+                .ToListAsync();
         }
 
         private static string HashPassword(string password)
@@ -136,7 +166,7 @@ namespace Andalos.API.Services
             {
                 Id = u.Id,
                 FullName = u.FullName,
-                UserName = u.UserName, // 👈 تم التحديث
+                UserName = u.UserName,
                 Phone = u.Phone,
                 Role = u.Role.ToString(),
                 IsLocked = u.IsLocked,
@@ -145,16 +175,6 @@ namespace Andalos.API.Services
                 IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt
             };
-        }
-
-        // 👈 جلب كل المستخدمين المرتبطين بمستأجر معين للإدارة
-        public async Task<List<UserResponseDto>> GetUsersByTenantIdAsync(int tenantId)
-        {
-            return await _db.Users
-                .Where(u => u.TenantId == tenantId && u.IsActive)
-                .OrderBy(u => u.FullName)
-                .Select(u => MapToDto(u))
-                .ToListAsync();
         }
     }
 }

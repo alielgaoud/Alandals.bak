@@ -48,10 +48,10 @@ builder.Services.AddScoped<IVisitorBlacklistService, VisitorBlacklistService>();
 builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<ComplaintReportPdfService>();
 builder.Services.AddScoped<IBankTransferService, BankTransferService>();
-// خدمات الـ Push والـ Scheduler
+
+// خدمات الـ Push والـ Scheduler والـ Wallet والـ Demand Letters
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddHostedService<SystemSchedulerService>(); // 👈 تسجيل المحرك الخلفي
-// 👈 جديد: خدمة الإشعارات
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
 builder.Services.AddScoped<DemandLetterPdfService>();
@@ -91,18 +91,19 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 app.UseStaticFiles();
 
-// تشغيل Seeder الإعدادات عند الإقلاع
+// 👈 تشغيل Seeder الإعدادات والحساب الافتراضي المحمي عند الإقلاع
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await SettingsSeeder.SeedAsync(db);
+        await UserSeeder.SeedAsync(db); // 👈 تشغيل زارع مدير النظام الافتراضي المحمي
     }
     catch (Exception ex)
     {
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "حدث خطأ أثناء تشغيل Seeder الإعدادات.");
+        logger.LogError(ex, "حدث خطأ أثناء تشغيل Seeder الإعدادات أو المستخدمين.");
     }
 }
 
