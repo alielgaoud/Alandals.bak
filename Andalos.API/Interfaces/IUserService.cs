@@ -1,4 +1,5 @@
-﻿using Andalos.API.DTOs.Users;
+﻿using Andalos.API.DTOs.System;
+using Andalos.API.DTOs.Users;
 
 namespace Andalos.API.Interfaces
 {
@@ -14,5 +15,7 @@ namespace Andalos.API.Interfaces
         Task<List<UserResponseDto>> GetUsersByTenantIdAsync(int tenantId);
         Task<UserPermissionsResponseDto?> GetUserPermissionsAsync(int userId);
         Task<bool> AssignPermissionsAsync(AssignUserPermissionsDto dto);
+        // 👈 جديد: جلب سجل التدقيق والمراقبة (Audit Logs)
+        Task<List<AuditLogDto>> GetAuditLogsAsync(DateTime? fromDate, DateTime? toDate, string? tableName, int? userId);
     }
 }

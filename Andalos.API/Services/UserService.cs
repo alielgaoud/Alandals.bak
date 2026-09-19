@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
+using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -91,6 +92,34 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<List<AuditLogDto>> GetAuditLogsAsync(DateTime? fromDate, DateTime? toDate, string? tableName, int? userId)
+        {
+            var query = _db.AuditLogs.Include(a => a.User).AsQueryable();
+
+            if (fromDate.HasValue) query = query.Where(a => a.CreatedAt >= fromDate.Value.Date);
+            if (toDate.HasValue) query = query.Where(a => a.CreatedAt <= toDate.Value.Date.AddDays(1).AddTicks(-1));
+            if (!string.IsNullOrEmpty(tableName)) query = query.Where(a => a.TableName == tableName);
+            if (userId.HasValue) query = query.Where(a => a.UserId == userId.Value);
+
+            return await query
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(200) // جلب آخر 200 حركة كحد أقصى لحماية الأداء
+                .Select(a => new AuditLogDto
+                {
+                    Id = a.Id,
+                    UserId = a.UserId,
+                    UserName = a.User != null ? a.User.FullName : "نظام آلي",
+                    AuditType = a.AuditType,
+                    TableName = a.TableName,
+                    PrimaryKey = a.PrimaryKey,
+                    OldValues = a.OldValues,
+                    NewValues = a.NewValues,
+                    AffectedColumns = a.AffectedColumns,
+                    CreatedAt = a.CreatedAt
+                })
+                .ToListAsync();
         }
 
         public async Task<UserResponseDto> CreateUserAsync(CreateUserByAdminDto dto)

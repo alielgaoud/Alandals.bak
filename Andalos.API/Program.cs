@@ -55,6 +55,8 @@ builder.Services.AddHostedService<SystemSchedulerService>(); // 👈 تسجيل 
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
 builder.Services.AddScoped<DemandLetterPdfService>();
+// 👈 تسجيل HttpContextAccessor لكي يقرأ الداتابيز من هو المستخدم الحالي
+builder.Services.AddHttpContextAccessor();
 
 // 👈 جديد: SignalR للإشعارات اللحظية
 builder.Services.AddSignalR();
