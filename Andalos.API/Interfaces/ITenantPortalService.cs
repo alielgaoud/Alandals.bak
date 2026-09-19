@@ -2,8 +2,8 @@
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.DTOs.Portal;
+using Andalos.API.DTOs.Users;
 using Andalos.API.DTOs.Visitors;
-using Andalos.API.Models;
 
 namespace Andalos.API.Interfaces
 {
@@ -19,7 +19,8 @@ namespace Andalos.API.Interfaces
         Task<List<MaintenanceResponseDto>> GetMyMaintenanceAsync(int tenantId);
         Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId);
 
+        // 👈 موظفي المستأجر (تم التوحيد والاعتماد على DTO المنسق والآمن)
+        Task<List<TenantStaffResponseDto>> GetMyStaffAsync(int tenantId);
         Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto);
-        Task<List<User>> GetMyStaffAsync(int tenantId);
     }
 }

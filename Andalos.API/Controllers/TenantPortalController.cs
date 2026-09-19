@@ -4,14 +4,14 @@ using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.DTOs.Portal;
 using Andalos.API.DTOs.Tenants;
+using Andalos.API.DTOs.Users;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Interfaces;
-using Andalos.API.Services;
 using Andalos.API.Models;
+using Andalos.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-
 using TenantAccountStatementDto = Andalos.API.DTOs.Portal.TenantAccountStatementDto;
 
 namespace Andalos.API.Controllers
@@ -231,15 +231,16 @@ namespace Andalos.API.Controllers
             }
         }
 
-        // 🆕 ب) عرض كافة الموظفين التابعين للمستأجر الحالي
-        [HttpGet("staff/{tenantId}")]
+        // GET: api/TenantPortal/1/staff (عرض كافة الموظفين التابعين للمستأجر مع صلاحياتهم)
+        [HttpGet("{tenantId}/staff")]
         public async Task<IActionResult> GetMyStaff(int tenantId)
         {
+            // تحقق اختياري من صلاحية المستخدم الحالي إذا كانت الدالة متوفرة لديك
             if (!ValidateCurrentUserTenant(tenantId))
-                return StatusCode(403, ApiResponseDto<List<User>>.FailResponse("غير مصرح لك بعرض هذه البيانات"));
+                return StatusCode(403, ApiResponseDto<List<TenantStaffResponseDto>>.FailResponse("غير مصرح لك بعرض هذه البيانات"));
 
             var staff = await _portalService.GetMyStaffAsync(tenantId);
-            return Ok(ApiResponseDto<List<User>>.SuccessResponse(staff));
+            return Ok(ApiResponseDto<List<TenantStaffResponseDto>>.SuccessResponse(staff));
         }
     }
 }

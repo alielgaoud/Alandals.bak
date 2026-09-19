@@ -104,5 +104,13 @@ namespace Andalos.API.Controllers
 
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم حذف المستخدم بنجاح"));
         }
+
+        // GET: api/Users/tenant/1 (جلب كافة مستخدمين وموظفين المستأجر للإدارة)
+        [HttpGet("tenant/{tenantId}")]
+        public async Task<IActionResult> GetUsersByTenant(int tenantId)
+        {
+            var users = await _userService.GetUsersByTenantIdAsync(tenantId);
+            return Ok(ApiResponseDto<List<UserResponseDto>>.SuccessResponse(users));
+        }
     }
 }

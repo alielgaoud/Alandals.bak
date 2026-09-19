@@ -11,5 +11,6 @@ namespace Andalos.API.Interfaces
         Task<bool> ResetPasswordAsync(int id, string newPassword);
         Task<bool> ToggleLockAccountAsync(int id, bool lockAccount);
         Task<bool> DeleteUserAsync(int id);
+        Task<List<UserResponseDto>> GetUsersByTenantIdAsync(int tenantId);
     }
 }
