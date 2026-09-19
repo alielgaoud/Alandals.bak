@@ -39,6 +39,60 @@ namespace Andalos.API.Services
             return user == null ? null : MapToDto(user);
         }
 
+        // 👈 جلب الصلاحيات الممنوحة لمستخدم معين
+        public async Task<UserPermissionsResponseDto?> GetUserPermissionsAsync(int userId)
+        {
+            var user = await _db.Users
+                .Include(u => u.Permissions)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+            if (user == null) return null;
+
+            return new UserPermissionsResponseDto
+            {
+                UserId = user.Id,
+                UserName = user.UserName,
+                FullName = user.FullName,
+                GrantedPermissions = user.Permissions.Select(p => p.PermissionKey).ToList()
+            };
+        }
+
+        // 👈 تحديث الصلاحيات الممنوحة للمستخدم (حذف القديم وإضافة الجديد)
+        public async Task<bool> AssignPermissionsAsync(AssignUserPermissionsDto dto)
+        {
+            var user = await _db.Users
+                .Include(u => u.Permissions)
+                .FirstOrDefaultAsync(u => u.Id == dto.UserId && u.IsActive);
+
+            if (user == null) return false;
+
+            // منع المساس بصلاحيات مدير النظام الافتراضي المحمي
+            if (IsProtectedSystemUser(user))
+                throw new InvalidOperationException("❌ غير مسموح: مدير النظام الرئيسي يمتلك كافة الصلاحيات ضمناً ولا يمكن تعديلها.");
+
+            // حذف الصلاحيات القديمة
+            _db.UserPermissions.RemoveRange(user.Permissions);
+
+            // التحقق من أن الصلاحيات المدخلة صحيحة وموجودة فعلياً في النظام
+            var validPermissions = Permissions.GetAllPermissions();
+
+            // إضافة الصلاحيات الجديدة
+            foreach (var permission in dto.Permissions)
+            {
+                if (validPermissions.Contains(permission))
+                {
+                    _db.UserPermissions.Add(new UserPermission
+                    {
+                        UserId = dto.UserId,
+                        PermissionKey = permission
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<UserResponseDto> CreateUserAsync(CreateUserByAdminDto dto)
         {
             var exists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName && u.IsActive);

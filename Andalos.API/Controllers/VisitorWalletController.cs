@@ -120,6 +120,92 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم استلام عُهدة الحارس بنجاح وتبرئة ذمته"));
         }
 
+        /// <summary>
+        /// تقرير المبالغ المستلمة في البوابة (تفصيلي + ملخص ورديات)
+        /// فلاتر: gatekeeperUserId, fromDate, toDate, isHandedOver
+        /// </summary>
+        [HttpGet("admin/gate-cash-report")]
+        [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+        public async Task<IActionResult> GetGateCashReport(
+            [FromQuery] int? gatekeeperUserId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] bool? isHandedOver)
+        {
+            var report = await _walletService.GetGateCashReportAsync(
+                gatekeeperUserId,
+                fromDate,
+                toDate,
+                isHandedOver);
+
+            return Ok(ApiResponseDto<GateCashReportSummaryDto>.SuccessResponse(report));
+        }
+
+        /// <summary>
+        /// نسخة مختصرة: فقط تفاصيل الإيصالات المستلمة في البوابة
+        /// </summary>
+        [HttpGet("admin/gate-cash-receipts")]
+        [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+        public async Task<IActionResult> GetGateCashReceipts(
+            [FromQuery] int? gatekeeperUserId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate)
+        {
+            var report = await _walletService.GetGateCashReportAsync(
+                gatekeeperUserId,
+                fromDate,
+                toDate,
+                null);
+
+            return Ok(ApiResponseDto<object>.SuccessResponse(new
+            {
+                totalCount = report.TotalReceiptsCount,
+                totalCashCollected = report.TotalCashCollected,
+                receipts = report.Receipts
+            }));
+        }
+
+        /// <summary>
+        /// تقرير ورديات الحراس فقط
+        /// </summary>
+        [HttpGet("admin/gate-shifts-report")]
+        [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+        public async Task<IActionResult> GetGateShiftsReport(
+            [FromQuery] int? gatekeeperUserId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] bool? isHandedOver)
+        {
+            var report = await _walletService.GetGateCashReportAsync(
+                gatekeeperUserId,
+                fromDate,
+                toDate,
+                isHandedOver);
+
+            return Ok(ApiResponseDto<object>.SuccessResponse(new
+            {
+                totalShifts = report.TotalShiftsCount,
+                openShifts = report.OpenShiftsCount,
+                totalCashCollected = report.Shifts.Sum(s => s.TotalCashCollected),
+                handedOverCash = report.TotalHandedOverCash,
+                pendingHandoverCash = report.TotalPendingHandoverCash,
+                shifts = report.Shifts
+            }));
+        }
+
+        // GET: api/VisitorWallet/admin/tenant-history/1 (استعراض سجل محفظة مستأجر معين للإدارة)
+        [HttpGet("admin/tenant-history/{tenantId}")]
+        [Authorize(Roles = "SuperAdmin,Admin,Accountant")]
+        public async Task<IActionResult> GetTenantWalletHistoryForAdmin(
+            int tenantId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] bool? isSettled)
+        {
+            var history = await _walletService.GetTenantWalletHistoryAsync(tenantId, fromDate, toDate, isSettled);
+            return Ok(ApiResponseDto<TenantWalletFullHistoryDto>.SuccessResponse(history));
+        }
+
         private int GetCurrentUserId()
         {
             return int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : 1;
