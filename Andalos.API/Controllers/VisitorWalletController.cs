@@ -62,7 +62,7 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<PassPurchaseResultDto>.SuccessResponse(result, result.Message));
         }
 
-        // 3. المحل: استعراض مبيعاتي المعلقة
+        // 3. المحل: استعراض مبيعاتي المعلقة بانتظار التسديد من الإدارة
         [HttpGet("shop/my-unsettled-balance")]
         public async Task<IActionResult> GetMyUnsettledBalance()
         {

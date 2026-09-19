@@ -1,5 +1,6 @@
 ﻿using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Tenants;
+using Andalos.API.DTOs.Visitors;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Andalos.API.Services;
@@ -52,6 +53,16 @@ namespace Andalos.API.Controllers
             {
                 return NotFound(ApiResponseDto<string>.FailResponse(ex.Message));
             }
+        }
+
+        [HttpGet("wallet-deductions")]
+        public async Task<IActionResult> GetWalletDeductions(
+            [FromQuery] int? tenantId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate)
+        {
+            var list = await _accountService.GetTenantWalletDeductionsAsync(tenantId, fromDate, toDate);
+            return Ok(ApiResponseDto<List<TenantWalletDeductionDetailDto>>.SuccessResponse(list));
         }
 
         // 4. 👈 جديد: تشغيل الخصم والتسوية الشهرية الآلية

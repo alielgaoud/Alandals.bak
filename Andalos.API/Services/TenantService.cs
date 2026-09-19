@@ -50,7 +50,8 @@ namespace Andalos.API.Services
                 NationalId = dto.NationalId,
                 Phone = dto.Phone,
                 ContactPerson = dto.ContactPerson,
-                Notes = dto.Notes
+                Notes = dto.Notes,
+                MaxAllowedEntriesPerPass = dto.MaxAllowedEntriesPerPass > 0 ? dto.MaxAllowedEntriesPerPass : 1 // 👈 إسناد القيمة
             };
 
             _db.Tenants.Add(tenant);
@@ -73,6 +74,8 @@ namespace Andalos.API.Services
             tenant.ContactPerson = dto.ContactPerson;
             tenant.Notes = dto.Notes;
             tenant.UpdatedAt = DateTime.UtcNow;
+            tenant.MaxAllowedEntriesPerPass = dto.MaxAllowedEntriesPerPass > 0 ? dto.MaxAllowedEntriesPerPass : 1; // 👈 تحديث القيمة
+
 
             await _db.SaveChangesAsync();
             return MapToDto(tenant);
@@ -320,6 +323,7 @@ namespace Andalos.API.Services
                 Phone = t.Phone,
                 ContactPerson = t.ContactPerson,
                 Notes = t.Notes,
+                MaxAllowedEntriesPerPass = t.MaxAllowedEntriesPerPass,
                 CreatedAt = t.CreatedAt
             };
         }

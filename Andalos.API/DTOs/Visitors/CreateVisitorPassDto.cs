@@ -173,5 +173,36 @@ namespace Andalos.API.DTOs.Visitors
         public decimal TotalCashCollected { get; set; } // إجمالي الكاش في الصندوق
         public bool IsHandedOver { get; set; }
         public DateTime? HandedOverAt { get; set; }
+    } // 👈 1. تقرير حركات خصم كروت الزوار بالـ QR من المحل
+    public class PassTransactionDetailDto
+    {
+        public int TransactionId { get; set; }
+        public string PassCode { get; set; } = string.Empty;
+        public string VisitorName { get; set; } = string.Empty;
+        public string VisitorPhone { get; set; } = string.Empty;
+        public int? TenantId { get; set; }
+        public string TenantName { get; set; } = string.Empty;
+        public int? UnitId { get; set; }
+        public string UnitNumber { get; set; } = string.Empty;
+        public decimal Amount { get; set; } // المبلغ المخصوم من التصريح
+        public DateTime TransactionDate { get; set; } // التاريخ والوقت
+        public bool IsSettled { get; set; } // هل قامت الإدارة بتسديده للمحل؟
+        public int? SettlementId { get; set; }
+        public DateTime? SettlementDate { get; set; }
+    }
+
+    // 👈 2. تقرير الخصم الآلي من محفظة المستأجر
+    public class TenantWalletDeductionDetailDto
+    {
+        public int PaymentId { get; set; }
+        public string ReceiptNumber { get; set; } = string.Empty;
+        public int TenantId { get; set; }
+        public string TenantName { get; set; } = string.Empty;
+        public string UnitNumber { get; set; } = string.Empty;
+        public string PaymentType { get; set; } = string.Empty;
+        public string PaymentTypeLabel { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public DateTime DeductionDate { get; set; }
+        public string Notes { get; set; } = string.Empty;
     }
 }

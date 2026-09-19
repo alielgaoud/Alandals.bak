@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Tenants;
+using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -15,6 +16,7 @@ namespace Andalos.API.Services
 
         Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes);
         Task ProcessMonthlyRentDuesAsync();
+        Task<List<TenantWalletDeductionDetailDto>> GetTenantWalletDeductionsAsync(int? tenantId, DateTime? fromDate, DateTime? toDate);
     }
 
     public class TenantAccountService : ITenantAccountService
@@ -150,6 +152,47 @@ namespace Andalos.API.Services
             }
 
             await _db.SaveChangesAsync();
+        }
+
+        // =====================================================
+        // تقرير حركات الخصم الآلي من محفظة المستأجر مع الفلاتر
+        // =====================================================
+        public async Task<List<TenantWalletDeductionDetailDto>> GetTenantWalletDeductionsAsync(int? tenantId, DateTime? fromDate, DateTime? toDate)
+        {
+            var query = _db.Payments
+                .Include(p => p.Contract).ThenInclude(c => c!.Tenant) // 👈 الجلب عن طريق العقد
+                .Include(p => p.Contract).ThenInclude(c => c!.Unit)
+                .Where(p => p.IsActive && p.PaymentMethod == PaymentMethod.FromBalance);
+
+            if (tenantId.HasValue)
+                query = query.Where(p => p.TenantId == tenantId.Value);
+
+            if (fromDate.HasValue)
+                query = query.Where(p => p.PaymentDate >= fromDate.Value.Date);
+
+            if (toDate.HasValue)
+            {
+                var actualToDate = toDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(p => p.PaymentDate <= actualToDate);
+            }
+
+            var list = await query
+                .OrderByDescending(p => p.PaymentDate)
+                .ToListAsync();
+
+            return list.Select(p => new TenantWalletDeductionDetailDto
+            {
+                PaymentId = p.Id,
+                ReceiptNumber = p.ReceiptNumber,
+                TenantId = p.TenantId,
+                TenantName = p.Contract?.Tenant?.FullName ?? "", // 👈 تصحيح قراءة اسم المستأجر من العقد
+                UnitNumber = p.Contract?.Unit?.UnitNumber ?? "",
+                PaymentType = p.PaymentType.ToString(),
+                PaymentTypeLabel = GetPaymentTypeLabel(p.PaymentType),
+                Amount = p.Amount,
+                DeductionDate = p.PaymentDate,
+                Notes = p.Notes ?? ""
+            }).ToList();
         }
 
         // =====================================================
