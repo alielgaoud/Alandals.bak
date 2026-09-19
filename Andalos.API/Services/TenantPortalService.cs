@@ -157,7 +157,7 @@ namespace Andalos.API.Services
 
         public async Task<VisitorPassResponseDto> CreateVisitorPassAsync(int tenantId, TenantCreatePassDto dto, string createdBy)
         {
-            // التحقق من أن هذا المحل يخص هذا المستأجر
+            // 1. التحقق من العقد والمحل
             var isMyUnit = await _db.Contracts.AnyAsync(c =>
                 c.TenantId == tenantId &&
                 c.UnitId == dto.UnitId &&
@@ -166,6 +166,16 @@ namespace Andalos.API.Services
 
             if (!isMyUnit)
                 throw new UnauthorizedAccessException("لا يمكنك إنشاء تصريح زائر لمحل ليس تحت إيجارك");
+
+            // 👈 2. التحقق من سقف عدد مرات الدخول المسموح للمستأجر من الإدارة
+            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
+            if (tenant == null)
+                throw new KeyNotFoundException("بيانات المستأجر غير موجودة");
+
+            if (dto.MaxEntries > tenant.MaxAllowedEntriesPerPass)
+            {
+                throw new InvalidOperationException($"❌ غير مسموح. الحد الأقصى لعدد مرات الدخول المسموح لك به من الإدارة هو ({tenant.MaxAllowedEntriesPerPass}) مرات فقط للتصريح الواحد.");
+            }
 
             return await _passService.CreatePassAsync(new CreateVisitorPassDto
             {

@@ -16,6 +16,9 @@ namespace Andalos.API.DTOs.Tenants
         [MaxLength(20)]
         public string Phone { get; set; } = string.Empty;
 
+        public int MaxAllowedEntriesPerPass { get; set; } = 1;
+
+
         public string? ContactPerson { get; set; }
 
         public string? Notes { get; set; }
@@ -34,6 +37,8 @@ namespace Andalos.API.DTOs.Tenants
         [MaxLength(20)]
         public string Phone { get; set; } = string.Empty;
 
+        public int MaxAllowedEntriesPerPass { get; set; } = 1;
+
         public string? ContactPerson { get; set; }
 
         public string? Notes { get; set; }
@@ -45,6 +50,8 @@ namespace Andalos.API.DTOs.Tenants
         public string NationalId { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string? ContactPerson { get; set; }
+        public int MaxAllowedEntriesPerPass { get; set; }
+
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
     }  

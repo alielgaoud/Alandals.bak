@@ -20,6 +20,7 @@ namespace Andalos.API.Models
 
         [MaxLength(100)]
         public string? ContactPerson { get; set; }
+        public int MaxAllowedEntriesPerPass { get; set; } = 1; // الحد الأقصى المسموح به لهذا المستأجر (الافتراضي: 1)
 
         [MaxLength(500)]
         public string? Notes { get; set; }
