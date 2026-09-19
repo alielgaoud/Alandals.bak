@@ -383,5 +383,67 @@ namespace Andalos.API.Services
 
             return passCode;
         }
+
+        // =====================================================
+        // تقرير حركات خصم الـ QR التفصيلي مع الفلاتر
+        // =====================================================
+        public async Task<List<PassTransactionDetailDto>> GetPassTransactionsReportAsync(
+            int? tenantId,
+            int? unitId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            bool? isSettled)
+        {
+            var query = _db.PassTransactions
+                .Include(t => t.VisitorPass)
+                .Include(t => t.Tenant)
+                .Include(t => t.Unit)
+                .Include(t => t.Settlement)
+                .Where(t => t.IsActive);
+
+            // فلترة بالمستأجر
+            if (tenantId.HasValue)
+                query = query.Where(t => t.TenantId == tenantId.Value);
+
+            // فلترة بالمحل
+            if (unitId.HasValue)
+                query = query.Where(t => t.UnitId == unitId.Value);
+
+            // فلترة من تاريخ
+            if (fromDate.HasValue)
+                query = query.Where(t => t.TransactionDate >= fromDate.Value.Date);
+
+            // فلترة إلى تاريخ (يشمل كامل اليوم حتى 23:59:59)
+            if (toDate.HasValue)
+            {
+                var actualToDate = toDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(t => t.TransactionDate <= actualToDate);
+            }
+
+            // فلترة بحالة التسوية
+            if (isSettled.HasValue)
+                query = query.Where(t => t.IsSettled == isSettled.Value);
+
+            var list = await query
+                .OrderByDescending(t => t.TransactionDate)
+                .ToListAsync();
+
+            return list.Select(t => new PassTransactionDetailDto
+            {
+                TransactionId = t.Id,
+                PassCode = t.VisitorPass?.PassCode ?? "",
+                VisitorName = t.VisitorPass?.VisitorName ?? "",
+                VisitorPhone = t.VisitorPass?.VisitorPhone ?? "",
+                TenantId = t.TenantId,
+                TenantName = t.Tenant?.FullName ?? "",
+                UnitId = t.UnitId,
+                UnitNumber = t.Unit?.UnitNumber ?? "",
+                Amount = t.Amount,
+                TransactionDate = t.TransactionDate,
+                IsSettled = t.IsSettled,
+                SettlementId = t.SettlementId,
+                SettlementDate = t.Settlement?.SettlementDate
+            }).ToList();
+        }
     }
 }

@@ -25,5 +25,6 @@ namespace Andalos.API.Interfaces
 
         // 7. Scheduler: تصفير الأرصدة المنتهية بنهاية اليوم وتحويل المتبقي للإدارة
         Task<decimal> ExpireUnusedBalancesAsync();
+        Task<List<PassTransactionDetailDto>> GetPassTransactionsReportAsync(int? tenantId, int? unitId, DateTime? fromDate, DateTime? toDate, bool? isSettled);
     }
 }

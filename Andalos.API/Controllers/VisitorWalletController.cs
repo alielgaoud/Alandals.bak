@@ -51,6 +51,18 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<PassPurchaseResultDto>.SuccessResponse(result, result.Message));
         }
 
+        [HttpGet("transactions-report")]
+        public async Task<IActionResult> GetTransactionsReport(
+            [FromQuery] int? tenantId,
+            [FromQuery] int? unitId,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate,
+            [FromQuery] bool? isSettled)
+        {
+            var list = await _walletService.GetPassTransactionsReportAsync(tenantId, unitId, fromDate, toDate, isSettled);
+            return Ok(ApiResponseDto<List<PassTransactionDetailDto>>.SuccessResponse(list));
+        }
+
         // 3. المحل: استعراض مبيعاتي المعلقة بانتظار التسديد من الإدارة
         [HttpGet("shop/my-unsettled-balance")]
         public async Task<IActionResult> GetMyUnsettledBalance()
