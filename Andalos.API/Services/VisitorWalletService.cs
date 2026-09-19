@@ -233,7 +233,8 @@ namespace Andalos.API.Services
         public async Task<SettlementResponseDto> SettleShopBalanceAsync(ProcessSettlementDto dto, int adminUserId)
         {
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == dto.TenantId && t.IsActive);
-            if (tenant == null) throw new KeyNotFoundException("المستأجر غير موجود");
+            if (tenant == null)
+                throw new KeyNotFoundException("المستأجر غير موجود");
 
             var unsettledTransactions = await _db.PassTransactions
                 .Where(t => t.TenantId == dto.TenantId && !t.IsSettled && t.IsActive)
@@ -265,14 +266,16 @@ namespace Andalos.API.Services
                 trans.UpdatedAt = DateTime.UtcNow;
             }
 
-            // 💡 إذا كان خيار التسوية هو "خصم من الإيجار (RentDeduction)": ننزل المبلغ كدفعة دائنة في محفظة المحل!
+            // 💡 👈 التصحيح المحاسبي الجوهري:
+            // عند التسوية بـ RentDeduction نمرر PaymentMethod.Transfer (أو Cash)
+            // لكي تُحتسب كـ Credit دائن حقيقي يُخفض مديونية المستأجر في كشف الحساب ويُضاف لمحفظته!
             if (dto.SettlementMethod == SettlementMethod.RentDeduction)
             {
                 await _tenantAccountService.DepositAdvancePaymentAsync(
                     dto.TenantId,
                     totalAmount,
-                    PaymentMethod.FromBalance,
-                    $"تسوية مبيعات زوار الـ QR رقم ({settlement.Id}) - إضافة لرصيد الإيجار"
+                    PaymentMethod.Transfer, // 👈 تم التعديل من FromBalance إلى Transfer
+                    $"تسوية مبيعات زوار الـ QR (سند تسوية رقم {settlement.Id}) - إضافة لرصيد الإيجار"
                 );
             }
 
