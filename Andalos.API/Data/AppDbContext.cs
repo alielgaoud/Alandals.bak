@@ -1,14 +1,23 @@
-﻿using Andalos.API.Models;
+﻿using Andalos.API.Enums;
+using Andalos.API.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace Andalos.API.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor httpContextAccessor) : base(options)
         {
+            _httpContextAccessor = httpContextAccessor;
         }
 
+        // ===== 1. الجداول (DbSets) =====
         public DbSet<User> Users { get; set; }
         public DbSet<UserPermission> UserPermissions { get; set; }
         public DbSet<Unit> Units { get; set; }
@@ -19,10 +28,10 @@ namespace Andalos.API.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<MaintenanceRequest> MaintenanceRequests { get; set; }
         public DbSet<Expense> Expenses { get; set; }
-        public DbSet<VisitorPass> VisitorPasses { get; set; } // 👈 جديد
-        public DbSet<EntryLog> EntryLogs { get; set; }         // 👈 جديد
-        public DbSet<Setting> Settings { get; set; }           // 👈 جديد
-        public DbSet<NumberSequence> NumberSequences { get; set; } // 👈 جديد
+        public DbSet<VisitorPass> VisitorPasses { get; set; }
+        public DbSet<EntryLog> EntryLogs { get; set; }
+        public DbSet<Setting> Settings { get; set; }
+        public DbSet<NumberSequence> NumberSequences { get; set; }
         public DbSet<Refund> Refunds { get; set; }
         public DbSet<VisitorBlacklist> VisitorBlacklists { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
@@ -35,8 +44,9 @@ namespace Andalos.API.Data
         public DbSet<PassTransaction> PassTransactions { get; set; }
         public DbSet<TenantSettlement> TenantSettlements { get; set; }
         public DbSet<GatekeeperShift> GatekeeperShifts { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; } // 👈 جدول سجل التدقيق والمراقبة
 
-
+        // ===== 2. التكوينات والعلاقات (OnModelCreating) =====
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -45,7 +55,7 @@ namespace Andalos.API.Data
             modelBuilder.Entity<User>(entity =>
             {
                 entity.ToTable("Users");
-                entity.HasIndex(e => e.UserName).IsUnique(); // 👈 الفهرس الفريد أصبح لاسم المستخدم لمنع التكرار
+                entity.HasIndex(e => e.UserName).IsUnique();
                 entity.Property(e => e.Role).HasConversion<int>();
 
                 entity.HasOne(u => u.Tenant)
@@ -54,6 +64,17 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
+            // UserPermission
+            modelBuilder.Entity<UserPermission>(entity =>
+            {
+                entity.ToTable("UserPermissions");
+                entity.HasIndex(e => new { e.UserId, e.PermissionKey }).IsUnique();
+
+                entity.HasOne(up => up.User)
+                      .WithMany(u => u.Permissions)
+                      .HasForeignKey(up => up.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
 
             // Notification
             modelBuilder.Entity<Notification>(entity =>
@@ -115,6 +136,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // ContractFee
             modelBuilder.Entity<ContractFee>(entity =>
             {
                 entity.ToTable("ContractFees");
@@ -128,6 +150,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
+            // BankTransferRequest
             modelBuilder.Entity<BankTransferRequest>(entity =>
             {
                 entity.ToTable("BankTransferRequests");
@@ -140,8 +163,6 @@ namespace Andalos.API.Data
                       .HasForeignKey(r => r.TenantId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
-
-            // ===== أضف هذا داخل OnModelCreating =====
 
             // Complaint
             modelBuilder.Entity<Complaint>(entity =>
@@ -176,6 +197,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // VisitorBlacklist
             modelBuilder.Entity<VisitorBlacklist>(entity =>
             {
                 entity.ToTable("VisitorBlacklists");
@@ -191,18 +213,6 @@ namespace Andalos.API.Data
                 entity.Property(e => e.Status).HasConversion<int>();
                 entity.Property(e => e.Area).HasColumnType("decimal(10,2)");
                 entity.Property(e => e.ElectricityMeterStart).HasColumnType("decimal(12,2)");
-                // 👈 تم حذف سطر WaterMeterStart
-            });
-
-            modelBuilder.Entity<UserPermission>(entity =>
-            {
-                entity.ToTable("UserPermissions");
-                entity.HasIndex(e => new { e.UserId, e.PermissionKey }).IsUnique(); // منع تكرار نفس الصلاحية للمستخدم
-
-                entity.HasOne(up => up.User)
-                      .WithMany(u => u.Permissions)
-                      .HasForeignKey(up => up.UserId)
-                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Tenant
@@ -247,7 +257,6 @@ namespace Andalos.API.Data
                       .HasForeignKey(c => c.UnitId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // 👈 ربط العقد الجديد بالعقد السابق (Parent/Child Contract)
                 entity.HasOne(c => c.ParentContract)
                       .WithMany()
                       .HasForeignKey(c => c.ParentContractId)
@@ -341,14 +350,13 @@ namespace Andalos.API.Data
                       .HasForeignKey(e => e.UnitId)
                       .OnDelete(DeleteBehavior.SetNull);
 
-                // 👈 الجديد: علاقة المصروف بالمستأجر عند تحميل التكلفة عليه
                 entity.HasOne(e => e.Tenant)
                       .WithMany()
                       .HasForeignKey(e => e.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
             });
-            // 👈 VisitorPass
-            // 👈 VisitorPass Configuration
+
+            // VisitorPass
             modelBuilder.Entity<VisitorPass>(entity =>
             {
                 entity.ToTable("VisitorPasses");
@@ -368,6 +376,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // PassTransaction
             modelBuilder.Entity<PassTransaction>(entity =>
             {
                 entity.ToTable("PassTransactions");
@@ -388,6 +397,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
+            // TenantSettlement
             modelBuilder.Entity<TenantSettlement>(entity =>
             {
                 entity.ToTable("TenantSettlements");
@@ -404,6 +414,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // GatekeeperShift
             modelBuilder.Entity<GatekeeperShift>(entity =>
             {
                 entity.ToTable("GatekeeperShifts");
@@ -414,7 +425,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // 👈 EntryLog
+            // EntryLog
             modelBuilder.Entity<EntryLog>(entity =>
             {
                 entity.ToTable("EntryLogs");
@@ -424,6 +435,152 @@ namespace Andalos.API.Data
                       .HasForeignKey(l => l.VisitorPassId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+        }
+
+        // =========================================================
+        // 3. تتبع الحركات تلقائياً (Audit Trail Engine)
+        // =========================================================
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var auditEntries = OnBeforeSaveChanges();
+            var result = await base.SaveChangesAsync(cancellationToken);
+            await OnAfterSaveChanges(auditEntries);
+            return result;
+        }
+
+        private List<AuditEntry> OnBeforeSaveChanges()
+        {
+            ChangeTracker.DetectChanges();
+            var auditEntries = new List<AuditEntry>();
+
+            int? userId = null;
+            var userIdString = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdString, out int parsedId))
+                userId = parsedId;
+
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                    continue;
+
+                var auditEntry = new AuditEntry(entry)
+                {
+                    TableName = entry.Entity.GetType().Name,
+                    UserId = userId
+                };
+                auditEntries.Add(auditEntry);
+
+                foreach (var property in entry.Properties)
+                {
+                    if (property.IsTemporary)
+                    {
+                        auditEntry.TemporaryProperties.Add(property);
+                        continue;
+                    }
+
+                    string propertyName = property.Metadata.Name;
+                    if (property.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[propertyName] = property.CurrentValue;
+                        continue;
+                    }
+
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            auditEntry.AuditType = AuditType.Create;
+                            auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            break;
+
+                        case EntityState.Deleted:
+                            auditEntry.AuditType = AuditType.Delete;
+                            auditEntry.OldValues[propertyName] = property.OriginalValue;
+                            break;
+
+                        case EntityState.Modified:
+                            if (property.IsModified && property.OriginalValue?.ToString() != property.CurrentValue?.ToString())
+                            {
+                                auditEntry.ChangedColumns.Add(propertyName);
+                                auditEntry.AuditType = AuditType.Update;
+                                auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            }
+                            break;
+                    }
+                }
+            }
+
+            foreach (var auditEntry in auditEntries.Where(_ => !_.HasTemporaryProperties))
+            {
+                AuditLogs.Add(auditEntry.ToAudit());
+            }
+
+            return auditEntries.Where(_ => _.HasTemporaryProperties).ToList();
+        }
+
+        private Task OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        {
+            if (auditEntries == null || auditEntries.Count == 0)
+                return Task.CompletedTask;
+
+            foreach (var auditEntry in auditEntries)
+            {
+                foreach (var prop in auditEntry.TemporaryProperties)
+                {
+                    if (prop.Metadata.IsPrimaryKey())
+                    {
+                        auditEntry.KeyValues[prop.Metadata.Name] = prop.CurrentValue;
+                    }
+                    else
+                    {
+                        auditEntry.NewValues[prop.Metadata.Name] = prop.CurrentValue;
+                    }
+                }
+                AuditLogs.Add(auditEntry.ToAudit());
+            }
+
+            return SaveChangesAsync();
+        }
+    }
+
+    // =========================================================
+    // 4. الكلاس المساعد لترجمة كائنات الـ Audit
+    // =========================================================
+    public class AuditEntry
+    {
+        public AuditEntry(EntityEntry entry) { Entry = entry; }
+        public EntityEntry Entry { get; }
+        public int? UserId { get; set; }
+        public string TableName { get; set; } = string.Empty;
+        public Dictionary<string, object?> KeyValues { get; } = new();
+        public Dictionary<string, object?> OldValues { get; } = new();
+        public Dictionary<string, object?> NewValues { get; } = new();
+        public AuditType AuditType { get; set; }
+        public List<string> ChangedColumns { get; } = new();
+        public List<PropertyEntry> TemporaryProperties { get; } = new();
+
+        public bool HasTemporaryProperties => TemporaryProperties.Any();
+
+        public AuditLog ToAudit()
+        {
+            // خيار لعدم تشفير الحروف العربية في الـ JSON
+            var jsonOptions = new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All)
+            };
+
+            var audit = new AuditLog
+            {
+                UserId = UserId,
+                AuditType = AuditType.ToString(),
+                TableName = TableName,
+                CreatedAt = DateTime.UtcNow,
+                PrimaryKey = JsonSerializer.Serialize(KeyValues, jsonOptions),
+                OldValues = OldValues.Count == 0 ? null : JsonSerializer.Serialize(OldValues, jsonOptions),
+                NewValues = NewValues.Count == 0 ? null : JsonSerializer.Serialize(NewValues, jsonOptions),
+                AffectedColumns = ChangedColumns.Count == 0 ? null : JsonSerializer.Serialize(ChangedColumns, jsonOptions)
+            };
+            return audit;
         }
     }
 }

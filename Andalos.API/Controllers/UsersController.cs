@@ -1,4 +1,5 @@
 ﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -111,6 +112,58 @@ namespace Andalos.API.Controllers
         {
             var users = await _userService.GetUsersByTenantIdAsync(tenantId);
             return Ok(ApiResponseDto<List<UserResponseDto>>.SuccessResponse(users));
+        }
+
+        // GET: api/users/permissions/list
+        // جلب قائمة كافة الصلاحيات المتاحة في النظام لترسيم الـ Checkboxes في الواجهة
+        [HttpGet("permissions/list")]
+        public IActionResult GetAllAvailablePermissions()
+        {
+            var permissions = Andalos.API.Constants.Permissions.GetAllPermissions();
+            return Ok(ApiResponseDto<List<string>>.SuccessResponse(permissions));
+        }
+
+        // GET: api/users/5/permissions
+        [HttpGet("{id}/permissions")]
+        public async Task<IActionResult> GetUserPermissions(int id)
+        {
+            var permissions = await _userService.GetUserPermissionsAsync(id);
+            if (permissions == null)
+                return NotFound(ApiResponseDto<string>.FailResponse("المستخدم غير موجود"));
+
+            return Ok(ApiResponseDto<UserPermissionsResponseDto>.SuccessResponse(permissions));
+        }
+
+        // PUT: api/users/5/permissions
+        [HttpPut("{id}/permissions")]
+        public async Task<IActionResult> AssignPermissions(int id, [FromBody] AssignUserPermissionsDto dto)
+        {
+            if (id != dto.UserId)
+                return BadRequest(ApiResponseDto<string>.FailResponse("رقم المستخدم غير متطابق"));
+
+            try
+            {
+                var result = await _userService.AssignPermissionsAsync(dto);
+                if (!result)
+                    return NotFound(ApiResponseDto<string>.FailResponse("المستخدم غير موجود"));
+
+                return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث صلاحيات المستخدم بنجاح"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+            }
+        }
+        [HttpGet("audit-logs")]
+        [Authorize(Roles = "SuperAdmin")] // 👈 صلاحية قوية جداً
+        public async Task<IActionResult> GetAuditLogs(
+    [FromQuery] DateTime? fromDate,
+    [FromQuery] DateTime? toDate,
+    [FromQuery] string? tableName,
+    [FromQuery] int? userId)
+        {
+            var logs = await _userService.GetAuditLogsAsync(fromDate, toDate, tableName, userId);
+            return Ok(ApiResponseDto<List<AuditLogDto>>.SuccessResponse(logs));
         }
     }
 }

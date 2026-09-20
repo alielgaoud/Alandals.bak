@@ -22,17 +22,21 @@ namespace Andalos.API.Controllers
     public class TenantPortalController : ControllerBase
     {
         private readonly ITenantPortalService _portalService;
-        private readonly IWebHostEnvironment _env;               // 👈 تم إضافة البيئة
-        private readonly IBankTransferService _bankTransferService; // 👈 تم إضافة خدمة الحوالات
+        private readonly IWebHostEnvironment _env;
+        private readonly IBankTransferService _bankTransferService;
+        private readonly IVisitorWalletService _visitorWalletService; // 👈 1. إضافة حقل خدمة محفظة الزوار
 
+        // 👈 2. تحديث المشيد Constructor لحقن IVisitorWalletService
         public TenantPortalController(
             ITenantPortalService portalService,
             IWebHostEnvironment env,
-            IBankTransferService bankTransferService)
+            IBankTransferService bankTransferService,
+            IVisitorWalletService visitorWalletService) // 👈 إضافة الخدمة هنا
         {
             _portalService = portalService;
             _env = env;
             _bankTransferService = bankTransferService;
+            _visitorWalletService = visitorWalletService;
         }
 
         // 🔒 دالة مساعدة لحماية الطلبات من هجمات التلاعب بـ IDs (IDOR)
@@ -241,6 +245,23 @@ namespace Andalos.API.Controllers
 
             var staff = await _portalService.GetMyStaffAsync(tenantId);
             return Ok(ApiResponseDto<List<TenantStaffResponseDto>>.SuccessResponse(staff));
+        }
+        private int GetCurrentTenantId()
+        {
+            var tenantIdClaim = User.FindFirst("TenantId")?.Value;
+            if (int.TryParse(tenantIdClaim, out int tid))
+            {
+                return tid;
+            }
+            throw new UnauthorizedAccessException("غير مصرح لك. التوكن لا يحتوي على بيانات المستأجر.");
+        }
+
+        [HttpGet("wallet-history")]
+        public async Task<IActionResult> GetMyWalletHistory([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] bool? isSettled)
+        {
+            int tenantId = GetCurrentTenantId(); // 👈 حماية مطلقة
+            var history = await _visitorWalletService.GetTenantWalletHistoryAsync(tenantId, fromDate, toDate, isSettled);
+            return Ok(ApiResponseDto<TenantWalletFullHistoryDto>.SuccessResponse(history));
         }
     }
 }

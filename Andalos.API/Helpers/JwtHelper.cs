@@ -1,8 +1,8 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using Andalos.API.Models;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Andalos.API.Models;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Andalos.API.Helpers
 {
@@ -17,6 +17,13 @@ namespace Andalos.API.Helpers
 
         public string GenerateToken(User user)
         {
+            var jwtSettings = _config.GetSection("JwtSettings");
+            var secretKey = jwtSettings["SecretKey"] ?? throw new ArgumentNullException("Jwt SecretKey is missing");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            // 👈 صناعة الهوية (البيانات المدمجة داخل التوكن)
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -24,20 +31,17 @@ namespace Andalos.API.Helpers
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
-            // 💡 إضافة معرف المستأجر داخل الـ Claims لحماية الاندبوينتس لاحقاً
+            // 👈 عزل بيانات المستأجر: إذا كان المستخدم مستأجراً، نزرع رقمه في التوكن!
             if (user.TenantId.HasValue)
             {
                 claims.Add(new Claim("TenantId", user.TenantId.Value.ToString()));
             }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? "YourSuperSecretKeyHere"));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: jwtSettings["Issuer"],
+                audience: jwtSettings["Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(60), // جلسة صالحة لمدة ساعة
+                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryMinutes"])),
                 signingCredentials: creds
             );
 

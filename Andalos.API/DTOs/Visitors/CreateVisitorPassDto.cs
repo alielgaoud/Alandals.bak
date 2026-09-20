@@ -204,5 +204,63 @@ namespace Andalos.API.DTOs.Visitors
         public decimal Amount { get; set; }
         public DateTime DeductionDate { get; set; }
         public string Notes { get; set; } = string.Empty;
+    } // تقرير تفصيلي لكل تصريح مدفوع تم استلام كاشه في البوابة
+    public class GateCashReceiptDetailDto
+    {
+        public int PassId { get; set; }
+        public string PassCode { get; set; } = string.Empty;
+        public string VisitorName { get; set; } = string.Empty;
+        public string VisitorPhone { get; set; } = string.Empty;
+        public decimal AmountCollected { get; set; }
+        public DateTime IssuedAt { get; set; }
+        public DateTime ValidDate { get; set; }
+        public int? IssuedByUserId { get; set; }
+        public string GatekeeperName { get; set; } = string.Empty;
+        public string? Purpose { get; set; }
+        public string WalletStatus { get; set; } = string.Empty;
+        public decimal RemainingBalance { get; set; }
+    }
+
+    // تقرير ملخص ورديات الحراس
+    public class GateShiftCashSummaryDto
+    {
+        public int ShiftId { get; set; }
+        public int UserId { get; set; }
+        public string GatekeeperName { get; set; } = string.Empty;
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public int TotalPassesIssued { get; set; }
+        public decimal TotalCashCollected { get; set; }
+        public bool IsHandedOver { get; set; }
+        public DateTime? HandedOverAt { get; set; }
+    }
+
+    // ملخص إجمالي للتقرير
+    public class GateCashReportSummaryDto
+    {
+        public int TotalReceiptsCount { get; set; }
+        public decimal TotalCashCollected { get; set; }
+        public decimal TotalHandedOverCash { get; set; }
+        public decimal TotalPendingHandoverCash { get; set; }
+        public int TotalShiftsCount { get; set; }
+        public int OpenShiftsCount { get; set; }
+
+        public List<GateCashReceiptDetailDto> Receipts { get; set; } = new();
+        public List<GateShiftCashSummaryDto> Shifts { get; set; } = new();
+    } // سجل المحفظة الشامل لمستأجر معين
+    public class TenantWalletFullHistoryDto
+    {
+        public int TenantId { get; set; }
+        public string TenantName { get; set; } = string.Empty;
+        public string? TradeName { get; set; }
+
+        // إحصائيات مالية
+        public decimal TotalUnsettledAmount { get; set; } // المبالغ المعلقة غير المسددة
+        public decimal TotalSettledAmount { get; set; }   // المبالغ التي سددتها الإدارة له سابقاً
+        public decimal GrandTotalEarned { get; set; }     // إجمالي الأرباح التاريخية
+        public int TotalTransactionsCount { get; set; }   // إجمالي عدد عمليات البيع بالـ QR
+
+        // قائمة الحركات التفصيلية
+        public List<PassTransactionDetailDto> Transactions { get; set; } = new();
     }
 }

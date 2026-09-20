@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
+using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -37,6 +38,88 @@ namespace Andalos.API.Services
         {
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
             return user == null ? null : MapToDto(user);
+        }
+
+        // 👈 جلب الصلاحيات الممنوحة لمستخدم معين
+        public async Task<UserPermissionsResponseDto?> GetUserPermissionsAsync(int userId)
+        {
+            var user = await _db.Users
+                .Include(u => u.Permissions)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+
+            if (user == null) return null;
+
+            return new UserPermissionsResponseDto
+            {
+                UserId = user.Id,
+                UserName = user.UserName,
+                FullName = user.FullName,
+                GrantedPermissions = user.Permissions.Select(p => p.PermissionKey).ToList()
+            };
+        }
+
+        // 👈 تحديث الصلاحيات الممنوحة للمستخدم (حذف القديم وإضافة الجديد)
+        public async Task<bool> AssignPermissionsAsync(AssignUserPermissionsDto dto)
+        {
+            var user = await _db.Users
+                .Include(u => u.Permissions)
+                .FirstOrDefaultAsync(u => u.Id == dto.UserId && u.IsActive);
+
+            if (user == null) return false;
+
+            // منع المساس بصلاحيات مدير النظام الافتراضي المحمي
+            if (IsProtectedSystemUser(user))
+                throw new InvalidOperationException("❌ غير مسموح: مدير النظام الرئيسي يمتلك كافة الصلاحيات ضمناً ولا يمكن تعديلها.");
+
+            // حذف الصلاحيات القديمة
+            _db.UserPermissions.RemoveRange(user.Permissions);
+
+            // التحقق من أن الصلاحيات المدخلة صحيحة وموجودة فعلياً في النظام
+            var validPermissions = Permissions.GetAllPermissions();
+
+            // إضافة الصلاحيات الجديدة
+            foreach (var permission in dto.Permissions)
+            {
+                if (validPermissions.Contains(permission))
+                {
+                    _db.UserPermissions.Add(new UserPermission
+                    {
+                        UserId = dto.UserId,
+                        PermissionKey = permission
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<AuditLogDto>> GetAuditLogsAsync(DateTime? fromDate, DateTime? toDate, string? tableName, int? userId)
+        {
+            var query = _db.AuditLogs.Include(a => a.User).AsQueryable();
+
+            if (fromDate.HasValue) query = query.Where(a => a.CreatedAt >= fromDate.Value.Date);
+            if (toDate.HasValue) query = query.Where(a => a.CreatedAt <= toDate.Value.Date.AddDays(1).AddTicks(-1));
+            if (!string.IsNullOrEmpty(tableName)) query = query.Where(a => a.TableName == tableName);
+            if (userId.HasValue) query = query.Where(a => a.UserId == userId.Value);
+
+            return await query
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(200) // جلب آخر 200 حركة كحد أقصى لحماية الأداء
+                .Select(a => new AuditLogDto
+                {
+                    Id = a.Id,
+                    UserId = a.UserId,
+                    UserName = a.User != null ? a.User.FullName : "نظام آلي",
+                    AuditType = a.AuditType,
+                    TableName = a.TableName,
+                    PrimaryKey = a.PrimaryKey,
+                    OldValues = a.OldValues,
+                    NewValues = a.NewValues,
+                    AffectedColumns = a.AffectedColumns,
+                    CreatedAt = a.CreatedAt
+                })
+                .ToListAsync();
         }
 
         public async Task<UserResponseDto> CreateUserAsync(CreateUserByAdminDto dto)

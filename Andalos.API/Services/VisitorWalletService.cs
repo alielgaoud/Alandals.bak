@@ -249,7 +249,8 @@ namespace Andalos.API.Services
         public async Task<SettlementResponseDto> SettleShopBalanceAsync(ProcessSettlementDto dto, int adminUserId)
         {
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == dto.TenantId && t.IsActive);
-            if (tenant == null) throw new KeyNotFoundException("المستأجر غير موجود");
+            if (tenant == null)
+                throw new KeyNotFoundException("المستأجر غير موجود");
 
             var unsettledTransactions = await _db.PassTransactions
                 .Where(t => t.TenantId == dto.TenantId && !t.IsSettled && t.IsActive)
@@ -281,14 +282,16 @@ namespace Andalos.API.Services
                 trans.UpdatedAt = DateTime.UtcNow;
             }
 
-            // 💡 إذا كان خيار التسوية هو "خصم من الإيجار (RentDeduction)": ننزل المبلغ كدفعة دائنة في محفظة المحل!
+            // 💡 👈 التصحيح المحاسبي الجوهري:
+            // عند التسوية بـ RentDeduction نمرر PaymentMethod.Transfer (أو Cash)
+            // لكي تُحتسب كـ Credit دائن حقيقي يُخفض مديونية المستأجر في كشف الحساب ويُضاف لمحفظته!
             if (dto.SettlementMethod == SettlementMethod.RentDeduction)
             {
                 await _tenantAccountService.DepositAdvancePaymentAsync(
                     dto.TenantId,
                     totalAmount,
-                    PaymentMethod.FromBalance,
-                    $"تسوية مبيعات زوار الـ QR رقم ({settlement.Id}) - إضافة لرصيد الإيجار"
+                    PaymentMethod.Transfer, // 👈 تم التعديل من FromBalance إلى Transfer
+                    $"تسوية مبيعات زوار الـ QR (سند تسوية رقم {settlement.Id}) - إضافة لرصيد الإيجار"
                 );
             }
 
@@ -452,6 +455,179 @@ namespace Andalos.API.Services
                 SettlementId = t.SettlementId,
                 SettlementDate = t.Settlement?.SettlementDate
             }).ToList();
+        }
+
+        // =====================================================
+        // تقرير المبالغ المستلمة في البوابة مع الفلترة
+        // =====================================================
+        public async Task<GateCashReportSummaryDto> GetGateCashReportAsync(
+            int? gatekeeperUserId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            bool? isHandedOver)
+        {
+            var from = fromDate?.Date;
+            var to = toDate.HasValue
+                ? toDate.Value.Date.AddDays(1).AddTicks(-1)
+                : (DateTime?)null;
+
+            // 1) التصاريح المدفوعة (تفاصيل الكاش المستلم)
+            var passesQuery = _db.VisitorPasses
+                .Include(p => p.IssuedByUser)
+                .Where(p => p.IsActive && p.IsPaidPass);
+
+            if (gatekeeperUserId.HasValue)
+                passesQuery = passesQuery.Where(p => p.IssuedByUserId == gatekeeperUserId.Value);
+
+            if (from.HasValue)
+                passesQuery = passesQuery.Where(p => p.CreatedAt >= from.Value);
+
+            if (to.HasValue)
+                passesQuery = passesQuery.Where(p => p.CreatedAt <= to.Value);
+
+            var paidPasses = await passesQuery
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            var receipts = paidPasses.Select(p => new GateCashReceiptDetailDto
+            {
+                PassId = p.Id,
+                PassCode = p.PassCode,
+                VisitorName = p.VisitorName,
+                VisitorPhone = p.VisitorPhone,
+                AmountCollected = p.InitialBalance,
+                IssuedAt = p.CreatedAt,
+                ValidDate = p.ValidDate,
+                IssuedByUserId = p.IssuedByUserId,
+                GatekeeperName = p.IssuedByUser?.FullName ?? "حارس غير معروف",
+                Purpose = p.Purpose,
+                WalletStatus = p.WalletStatus.ToString(),
+                RemainingBalance = p.RemainingBalance
+            }).ToList();
+
+            // 2) ملخص الورديات
+            var shiftsQuery = _db.GatekeeperShifts
+                .Include(s => s.User)
+                .Where(s => s.IsActive);
+
+            if (gatekeeperUserId.HasValue)
+                shiftsQuery = shiftsQuery.Where(s => s.UserId == gatekeeperUserId.Value);
+
+            if (from.HasValue)
+                shiftsQuery = shiftsQuery.Where(s => s.StartTime >= from.Value);
+
+            if (to.HasValue)
+                shiftsQuery = shiftsQuery.Where(s => s.StartTime <= to.Value);
+
+            if (isHandedOver.HasValue)
+                shiftsQuery = shiftsQuery.Where(s => s.IsHandedOver == isHandedOver.Value);
+
+            var shifts = await shiftsQuery
+                .OrderByDescending(s => s.StartTime)
+                .ToListAsync();
+
+            var shiftDtos = shifts.Select(s => new GateShiftCashSummaryDto
+            {
+                ShiftId = s.Id,
+                UserId = s.UserId,
+                GatekeeperName = s.User?.FullName ?? "حارس غير معروف",
+                StartTime = s.StartTime,
+                EndTime = s.EndTime,
+                TotalPassesIssued = s.TotalPassesIssued,
+                TotalCashCollected = s.TotalCashCollected,
+                IsHandedOver = s.IsHandedOver,
+                HandedOverAt = s.HandedOverAt
+            }).ToList();
+
+            // 3) الإجماليات
+            decimal totalCash = receipts.Sum(r => r.AmountCollected);
+            decimal handedOverCash = shiftDtos.Where(s => s.IsHandedOver).Sum(s => s.TotalCashCollected);
+            decimal pendingCash = shiftDtos.Where(s => !s.IsHandedOver).Sum(s => s.TotalCashCollected);
+
+            return new GateCashReportSummaryDto
+            {
+                TotalReceiptsCount = receipts.Count,
+                TotalCashCollected = totalCash,
+                TotalHandedOverCash = handedOverCash,
+                TotalPendingHandoverCash = pendingCash,
+                TotalShiftsCount = shiftDtos.Count,
+                OpenShiftsCount = shiftDtos.Count(s => !s.IsHandedOver),
+                Receipts = receipts,
+                Shifts = shiftDtos
+            };
+        }
+        // =====================================================
+        // جلب سجل مبيعات وحركات محفظة الـ QR الشامل للمستأجر
+        // =====================================================
+        public async Task<TenantWalletFullHistoryDto> GetTenantWalletHistoryAsync(
+            int tenantId,
+            DateTime? fromDate,
+            DateTime? toDate,
+            bool? isSettled)
+        {
+            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
+            if (tenant == null)
+                throw new KeyNotFoundException("المستأجر غير موجود");
+
+            var activeContract = await _db.Contracts
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Status == ContractStatus.Active && c.IsActive);
+
+            var query = _db.PassTransactions
+                .Include(t => t.VisitorPass)
+                .Include(t => t.Unit)
+                .Include(t => t.Settlement)
+                .Where(t => t.TenantId == tenantId && t.IsActive);
+
+            // تطبيق فلاتر التاريخ
+            if (fromDate.HasValue)
+                query = query.Where(t => t.TransactionDate >= fromDate.Value.Date);
+
+            if (toDate.HasValue)
+            {
+                var actualToDate = toDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(t => t.TransactionDate <= actualToDate);
+            }
+
+            // فلترة بحالة التسوية (حسب طلب المستأجر)
+            if (isSettled.HasValue)
+                query = query.Where(t => t.IsSettled == isSettled.Value);
+
+            var transactions = await query
+                .OrderByDescending(t => t.TransactionDate)
+                .ToListAsync();
+
+            // حساب الإحصائيات
+            decimal totalUnsettled = transactions.Where(t => !t.IsSettled).Sum(t => t.Amount);
+            decimal totalSettled = transactions.Where(t => t.IsSettled).Sum(t => t.Amount);
+
+            var transactionDtos = transactions.Select(t => new PassTransactionDetailDto
+            {
+                TransactionId = t.Id,
+                PassCode = t.VisitorPass?.PassCode ?? "",
+                VisitorName = t.VisitorPass?.VisitorName ?? "",
+                VisitorPhone = t.VisitorPass?.VisitorPhone ?? "",
+                TenantId = t.TenantId,
+                TenantName = tenant.FullName,
+                UnitId = t.UnitId,
+                UnitNumber = t.Unit?.UnitNumber ?? "",
+                Amount = t.Amount,
+                TransactionDate = t.TransactionDate,
+                IsSettled = t.IsSettled,
+                SettlementId = t.SettlementId,
+                SettlementDate = t.Settlement?.SettlementDate
+            }).ToList();
+
+            return new TenantWalletFullHistoryDto
+            {
+                TenantId = tenant.Id,
+                TenantName = tenant.FullName,
+                TradeName = activeContract?.TradeName,
+                TotalUnsettledAmount = totalUnsettled,
+                TotalSettledAmount = totalSettled,
+                GrandTotalEarned = totalUnsettled + totalSettled,
+                TotalTransactionsCount = transactions.Count,
+                Transactions = transactionDtos
+            };
         }
 
         // =====================================================

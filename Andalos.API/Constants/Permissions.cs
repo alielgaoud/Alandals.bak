@@ -2,48 +2,51 @@
 {
     public static class Permissions
     {
-        // ===== 1. المحلات =====
+        // ===== 1. المحلات (Units) =====
         public static class Units
         {
             public const string View = "Units.View";
             public const string Create = "Units.Create";
             public const string Edit = "Units.Edit";
             public const string Delete = "Units.Delete";
+            public const string ViewHistory = "Units.ViewHistory"; // رؤية سجل المحل الشامل
         }
 
-        // ===== 2. المستأجرين =====
+        // ===== 2. المستأجرين (Tenants) =====
         public static class Tenants
         {
             public const string View = "Tenants.View";
             public const string Create = "Tenants.Create";
             public const string Edit = "Tenants.Edit";
             public const string Delete = "Tenants.Delete";
-            public const string ViewStatement = "Tenants.ViewStatement";
+            public const string ViewStatement = "Tenants.ViewStatement"; // رؤية كشف الحساب
+            public const string ViewBalances = "Tenants.ViewBalances";   // استعراض ديون وأرصدة المستأجرين
         }
 
-        // ===== 3. العقود =====
+        // ===== 3. العقود (Contracts) =====
         public static class Contracts
         {
             public const string View = "Contracts.View";
             public const string Create = "Contracts.Create";
-            public const string Renew = "Contracts.Renew";
-            public const string UpdateStatus = "Contracts.UpdateStatus";
+            public const string Edit = "Contracts.Edit"; // تعديل البيانات البسيطة
+            public const string Renew = "Contracts.Renew"; // تجديد العقد وتصعيد الإيجار
+            public const string UpdateStatus = "Contracts.UpdateStatus"; // إيقاف/تفعيل العقد
             public const string Delete = "Contracts.Delete";
-            public const string ExportPdf = "Contracts.ExportPdf";
+            public const string ExportPdf = "Contracts.ExportPdf"; // طباعة العقد
         }
 
-        // ===== 4. الحسابات والمالية =====
+        // ===== 4. المالية والحسابات (Financials) =====
         public static class Financials
         {
-            public const string ViewPayments = "Financials.ViewPayments";
-            public const string CreatePayment = "Financials.CreatePayment";
-            public const string DepositAdvance = "Financials.DepositAdvance";
-            public const string ProcessMonthlyDues = "Financials.ProcessMonthlyDues";
-            public const string ViewRefunds = "Financials.ViewRefunds";
-            public const string CreateRefund = "Financials.CreateRefund";
+            public const string ViewPayments = "Financials.ViewPayments"; // استعراض الدفعات
+            public const string CreatePayment = "Financials.CreatePayment"; // تسجيل دفعة كاش
+            public const string DepositAdvance = "Financials.DepositAdvance"; // إيداع دفعة في المحفظة
+            public const string ProcessMonthlyDues = "Financials.ProcessMonthlyDues"; // تشغيل الخصم الشهري الآلي يدوياً
+            public const string ViewRefunds = "Financials.ViewRefunds"; // استعراض المرتجعات
+            public const string CreateRefund = "Financials.CreateRefund"; // تسجيل مرتجع
         }
 
-        // ===== 5. المصروفات =====
+        // ===== 5. المصروفات (Expenses) =====
         public static class Expenses
         {
             public const string View = "Expenses.View";
@@ -51,56 +54,82 @@
             public const string Delete = "Expenses.Delete";
         }
 
-        // ===== 6. الشكاوى والردود =====
+        // ===== 6. المطالبات المالية (Demand Letters) =====
+        public static class Demands
+        {
+            public const string GeneratePdf = "Demands.GeneratePdf"; // إنشاء مطالبة PDF
+            public const string SendToTenant = "Demands.SendToTenant"; // إرسال المطالبة كإشعار للمستأجر
+        }
+
+        // ===== 7. الشكاوى والردود (Complaints) =====
         public static class Complaints
         {
             public const string View = "Complaints.View";
-            public const string Reply = "Complaints.Reply";
-            public const string UpdateStatus = "Complaints.UpdateStatus";
-            public const string ExportPdf = "Complaints.ExportPdf";
+            public const string Reply = "Complaints.Reply"; // الرد على شكوى
+            public const string UpdateStatus = "Complaints.UpdateStatus"; // تغيير حالة الشكوى (مغلقة/قيد المعالجة)
+            public const string ExportPdf = "Complaints.ExportPdf"; // طباعة تقرير الشكاوى
         }
 
-        // ===== 7. الحوالات البنكية =====
+        // ===== 8. الحوالات البنكية (Bank Transfers) =====
         public static class BankTransfers
         {
             public const string View = "BankTransfers.View";
-            public const string Review = "BankTransfers.Review"; // قبول/رفض وتعديل المبلغ
+            public const string Review = "BankTransfers.Review"; // قبول/رفض الحوالة وتعديل المبلغ
         }
 
-        // ===== 8. الزوار وتصاريح الدخول =====
+        // ===== 9. محفظة الزوار والبوابة (Visitor Wallet) =====
+        public static class VisitorWallet
+        {
+            public const string ViewAllShopsBalances = "VisitorWallet.ViewAllShopsBalances"; // رؤية مستحقات جميع المحلات
+            public const string SettleShopBalance = "VisitorWallet.SettleShopBalance"; // تسديد مستحقات محل وتصفير الـ QR
+            public const string HandoverShift = "VisitorWallet.HandoverShift"; // استلام عهدة الحارس
+            public const string ViewGateCashReport = "VisitorWallet.ViewGateCashReport"; // تقرير صندوق البوابة
+        }
+
+        // ===== 10. الزوار وتصاريح الدخول (Visitor Passes) =====
         public static class Visitors
         {
             public const string View = "Visitors.View";
-            public const string CreatePass = "Visitors.CreatePass";
-            public const string ScanPass = "Visitors.ScanPass"; // بوابة الأمن
-            public const string ManageBlacklist = "Visitors.ManageBlacklist";
+            public const string RevokePass = "Visitors.RevokePass"; // إبطال تصريح
+            public const string ManageBlacklist = "Visitors.ManageBlacklist"; // القائمة السوداء
         }
 
-        // ===== 9. الصيانة =====
+        // ===== 11. الصيانة (Maintenance) =====
         public static class Maintenance
         {
             public const string View = "Maintenance.View";
             public const string Create = "Maintenance.Create";
-            public const string EditStatus = "Maintenance.EditStatus";
+            public const string EditStatus = "Maintenance.EditStatus"; // تغيير حالة طلب الصيانة
         }
 
-        // ===== 10. التقارير واللوحة =====
+        // ===== 12. التقارير واللوحة (Reports) =====
         public static class Reports
         {
-            public const string ViewDashboard = "Reports.ViewDashboard";
-            public const string ViewFinancialReports = "Reports.ViewFinancialReports";
-            public const string ViewOccupancyReports = "Reports.ViewOccupancyReports";
+            public const string ViewDashboard = "Reports.ViewDashboard"; // رؤية الصفحة الرئيسية والعدادات
+            public const string ViewFinancialReports = "Reports.ViewFinancialReports"; // تقارير الدخل والمصروفات
+            public const string ViewOccupancyReports = "Reports.ViewOccupancyReports"; // تقرير إشغال المحلات
         }
 
-        // ===== 11. إدارة المستخدمين والنظام =====
-        public static class SystemAdmin
+        // ===== 13. الإعدادات (Settings) =====
+        public static class Settings
         {
-            public const string ManageUsers = "SystemAdmin.ManageUsers";
-            public const string ManagePermissions = "SystemAdmin.ManagePermissions";
-            public const string ManageSettings = "SystemAdmin.ManageSettings";
+            public const string View = "Settings.View";
+            public const string Edit = "Settings.Edit"; // تغيير إعدادات النظام (الرسوم، الـ VAPID، الترقيم...)
         }
 
-        // دالة مساعدة ترجع كل الصلاحيات المتاحة في النظام كـ List
+        // ===== 14. إدارة المستخدمين (Users Management) =====
+        public static class Users
+        {
+            public const string View = "Users.View";
+            public const string Create = "Users.Create";
+            public const string Edit = "Users.Edit";
+            public const string Delete = "Users.Delete";
+            public const string ResetPassword = "Users.ResetPassword"; // تغيير باسوورد الموظفين
+            public const string ToggleLock = "Users.ToggleLock"; // قفل حساب موظف
+            public const string ManagePermissions = "Users.ManagePermissions"; // إعطاء وسحب الصلاحيات التفصيلية
+        }
+
+        // 👈 دالة مساعدة ترجع كل الصلاحيات المتاحة كـ List لغرض الـ Checkbox في الـ Frontend
         public static List<string> GetAllPermissions()
         {
             return typeof(Permissions)

@@ -25,6 +25,13 @@ namespace Andalos.API.Interfaces
 
         // 7. Scheduler: تصفير الأرصدة المنتهية بنهاية اليوم وتحويل المتبقي للإدارة
         Task<decimal> ExpireUnusedBalancesAsync();
+        Task<GateCashReportSummaryDto> GetGateCashReportAsync(
+    int? gatekeeperUserId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    bool? isHandedOver);
+        // جلب سجل مبيعات وحركات المحفظة التفصيلي لمستأجر معين (مع الفلاتر)
+        Task<TenantWalletFullHistoryDto> GetTenantWalletHistoryAsync(int tenantId, DateTime? fromDate, DateTime? toDate, bool? isSettled);
         Task<List<PassTransactionDetailDto>> GetPassTransactionsReportAsync(int? tenantId, int? unitId, DateTime? fromDate, DateTime? toDate, bool? isSettled);
     }
 }
