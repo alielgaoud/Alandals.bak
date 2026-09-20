@@ -128,9 +128,6 @@ app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
 
-// =========================================================================
-// كلاس التجاوز التلقائي (يتيح كل العمليات لجميع الأدوار بدون توكن)
-// =========================================================================
 public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     public TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -139,9 +136,19 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // 💡 قراءة سياق الاختبار من الـ Headers إن وجدت لمحاكاة مستأجر حقيقي
+        // 1) محاولة القراءة من الـ Headers (الطلبات العادية للفرونت اند)
         var hasTenantHeader = Request.Headers.TryGetValue("X-Test-Tenant-Id", out var tenantIdStr);
         var hasUserHeader = Request.Headers.TryGetValue("X-Test-User-Id", out var userIdStr);
+
+        // 2) محاولة القراءة من الـ Query String (الخاص بالـ WebSockets والـ SignalR)
+        if (!hasTenantHeader)
+        {
+            hasTenantHeader = Request.Query.TryGetValue("X-Test-Tenant-Id", out tenantIdStr);
+        }
+        if (!hasUserHeader)
+        {
+            hasUserHeader = Request.Query.TryGetValue("X-Test-User-Id", out userIdStr);
+        }
 
         var claims = new List<Claim>();
 
@@ -152,7 +159,7 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
             claims.Add(new Claim(ClaimTypes.Name, "TenantUser"));
             claims.Add(new Claim(ClaimTypes.Email, "tenant@andalos.ly"));
             claims.Add(new Claim(ClaimTypes.Role, "Tenant"));
-            claims.Add(new Claim("TenantId", tenantId.ToString())); // 👈 شحن معرف المستأجر المهم جداً
+            claims.Add(new Claim("TenantId", tenantId.ToString())); // 👈 حقن معرف المستأجر للمطابقة
         }
         else
         {

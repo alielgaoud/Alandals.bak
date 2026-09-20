@@ -12,19 +12,25 @@ namespace Andalos.API.Services
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGen;
         private readonly IWebHostEnvironment _env;
+        private readonly INotificationService _notification; // 👈 تم الحقن
 
-        public ExpenseService(AppDbContext db, INumberGeneratorService numberGen, IWebHostEnvironment env)
+        public ExpenseService(
+            AppDbContext db,
+            INumberGeneratorService numberGen,
+            IWebHostEnvironment env,
+            INotificationService notification) // 👈 تم الحقن
         {
             _db = db;
             _numberGen = numberGen;
             _env = env;
+            _notification = notification;
         }
 
         public async Task<List<ExpenseResponseDto>> GetAllAsync()
         {
             return await _db.Expenses
                 .Include(e => e.Unit)
-                .Include(e => e.Tenant) // 👈 تضمين المستأجر
+                .Include(e => e.Tenant)
                 .Where(e => e.IsActive)
                 .OrderByDescending(e => e.ExpenseDate)
                 .Select(e => MapToDto(e))
@@ -35,14 +41,13 @@ namespace Andalos.API.Services
         {
             return await _db.Expenses
                 .Include(e => e.Unit)
-                .Include(e => e.Tenant) // 👈 تضمين المستأجر
+                .Include(e => e.Tenant)
                 .Where(e => e.UnitId == unitId && e.IsActive)
                 .OrderByDescending(e => e.ExpenseDate)
                 .Select(e => MapToDto(e))
                 .ToListAsync();
         }
 
-        // 👈 جديد: دالة لجلب المصروفات التي تم تحميلها على مستأجر معين
         public async Task<List<ExpenseResponseDto>> GetByTenantAsync(int tenantId)
         {
             return await _db.Expenses
@@ -96,18 +101,13 @@ namespace Andalos.API.Services
 
             _db.Expenses.Add(expense);
 
-            // 💡 👈 السحر المحاسبي: إذا كان المصروف محصلاً/محملاً على المستأجر ويمتلك رصيداً في المحفظة
             if (dto.IsChargedToTenant && tenant != null && tenant.CreditBalance > 0)
             {
                 decimal amountToDeduct = Math.Min(tenant.CreditBalance, dto.Amount);
-
-                // 1. خصم المبلغ من محفظة المستأجر
                 tenant.CreditBalance -= amountToDeduct;
 
-                // 2. إصدار سند تسديد آلي مخصوم من الرصيد لتوثيق الحركة في كشف الحساب
                 string receiptNo = await _numberGen.GenerateAsync("Receipt");
 
-                // البحث عن العقد النشط للمستأجر
                 var activeContract = await _db.Contracts
                     .FirstOrDefaultAsync(c => c.TenantId == tenant.Id && c.Status == ContractStatus.Active && c.IsActive);
 
@@ -119,8 +119,8 @@ namespace Andalos.API.Services
                         ContractId = activeContract.Id,
                         Amount = amountToDeduct,
                         PaymentDate = dto.ExpenseDate,
-                        PaymentType = PaymentType.Maintenance, // أو Fees حسب نوع المصروف
-                        PaymentMethod = PaymentMethod.FromBalance, // خصم من الرصيد
+                        PaymentType = PaymentType.Maintenance,
+                        PaymentMethod = PaymentMethod.FromBalance,
                         ReceiptNumber = receiptNo,
                         Notes = $"خصم تلقائي لمصروف محمّل برقم ({expenseNumber}): {dto.Description}",
                         IsActive = true
@@ -132,6 +132,19 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار المستأجر إذا تم تحميل مصروف على حسابه
+            if (dto.IsChargedToTenant && dto.TenantId.HasValue)
+            {
+                _ = _notification.SendToTenantAsync(
+                    dto.TenantId.Value,
+                    "مصروف جديد محمّل على حسابك 📋",
+                    $"تم تحميل مصروف بقيمة {dto.Amount:N2} د.ل على حسابكم. الوصف: {dto.Description}.",
+                    NotificationType.AutomaticDeduction,
+                    "/portal/payments",
+                    expense.Id
+                );
+            }
+
             var saved = await _db.Expenses
                 .Include(e => e.Unit)
                 .Include(e => e.Tenant)
@@ -139,7 +152,6 @@ namespace Andalos.API.Services
 
             return MapToDto(saved);
         }
-
 
         public async Task<bool> DeleteAsync(int id)
         {
@@ -193,9 +205,9 @@ namespace Andalos.API.Services
                 ExpenseNumber = e.ExpenseNumber,
                 UnitId = e.UnitId,
                 UnitNumber = e.Unit?.UnitNumber,
-                UnitName = e.Unit?.UnitNumber, // 👈 إرجاع رقم المحل
-                TenantId = e.TenantId, // 👈 إرجاع البيانات للـ Frontend
-                TenantName = e.Tenant?.FullName, // 👈 اسم المستأجر
+                UnitName = e.Unit?.UnitNumber,
+                TenantId = e.TenantId,
+                TenantName = e.Tenant?.FullName,
                 IsChargedToTenant = e.IsChargedToTenant,
                 ExpenseType = e.ExpenseType.ToString(),
                 Amount = e.Amount,
