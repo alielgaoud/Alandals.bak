@@ -246,14 +246,20 @@ namespace Andalos.API.Controllers
             var staff = await _portalService.GetMyStaffAsync(tenantId);
             return Ok(ApiResponseDto<List<TenantStaffResponseDto>>.SuccessResponse(staff));
         }
-        // GET: api/TenantPortal/1/wallet-history (جلب سجل محفظة ومبيعات المستأجر من الـ QR)
-        [HttpGet("{tenantId}/wallet-history")]
-        public async Task<IActionResult> GetMyWalletHistory(
-            int tenantId,
-            [FromQuery] DateTime? fromDate,
-            [FromQuery] DateTime? toDate,
-            [FromQuery] bool? isSettled)
+        private int GetCurrentTenantId()
         {
+            var tenantIdClaim = User.FindFirst("TenantId")?.Value;
+            if (int.TryParse(tenantIdClaim, out int tid))
+            {
+                return tid;
+            }
+            throw new UnauthorizedAccessException("غير مصرح لك. التوكن لا يحتوي على بيانات المستأجر.");
+        }
+
+        [HttpGet("wallet-history")]
+        public async Task<IActionResult> GetMyWalletHistory([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] bool? isSettled)
+        {
+            int tenantId = GetCurrentTenantId(); // 👈 حماية مطلقة
             var history = await _visitorWalletService.GetTenantWalletHistoryAsync(tenantId, fromDate, toDate, isSettled);
             return Ok(ApiResponseDto<TenantWalletFullHistoryDto>.SuccessResponse(history));
         }
