@@ -10,17 +10,18 @@ namespace Andalos.API.Services
     public class ComplaintService : IComplaintService
     {
         private readonly AppDbContext _db;
+        private readonly INotificationService _notification; // 👈 حقن الإشعارات
 
-        public ComplaintService(AppDbContext db)
+        public ComplaintService(AppDbContext db, INotificationService notification)
         {
             _db = db;
+            _notification = notification;
         }
 
-        // ===== للمستأجر: إرسال شكوى =====
         public async Task<TenantComplaintDto> SubmitComplaintAsync(int tenantId, int userId, CreateComplaintDto dto)
         {
-            var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive);
-            if (!tenantExists)
+            var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
+            if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
 
             var complaint = new Complaint
@@ -36,6 +37,16 @@ namespace Andalos.API.Services
             _db.Complaints.Add(complaint);
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار طاقم الإدارة بوجود شكوى جديدة تحتاج لمعاينة
+            _ = _notification.SendToAllAdminsAsync(
+                "شكوى جديدة تحتاج مراجعة ⚠️",
+                $"قام المستأجر {tenant.FullName} بتقديم شكوى بخصوص: {dto.Subject}",
+                NotificationType.NewComplaint,
+                NotificationPriority.High,
+                $"/admin/complaints/{complaint.Id}",
+                complaint.Id
+            );
+
             return new TenantComplaintDto
             {
                 Id = complaint.Id,
@@ -47,7 +58,6 @@ namespace Andalos.API.Services
             };
         }
 
-        // ===== للمستأجر: عرض شكاويه =====
         public async Task<List<TenantComplaintDto>> GetTenantComplaintsAsync(int tenantId)
         {
             return await _db.Complaints
@@ -76,7 +86,6 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
-        // ===== للإدارة: عرض كل الشكاوى =====
         public async Task<List<ComplaintResponseDto>> GetAllComplaintsAsync(int? tenantId = null, string? status = null)
         {
             var query = _db.Complaints
@@ -120,7 +129,6 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
-        // ===== للإدارة: عرض شكوى واحدة =====
         public async Task<ComplaintResponseDto?> GetComplaintByIdAsync(int id)
         {
             var c = await _db.Complaints
@@ -157,7 +165,6 @@ namespace Andalos.API.Services
             };
         }
 
-        // ===== للإدارة: الرد على شكوى =====
         public async Task<ComplaintReplyDto> ReplyToComplaintAsync(int complaintId, int adminUserId, CreateReplyDto dto)
         {
             var complaint = await _db.Complaints.FirstOrDefaultAsync(c => c.Id == complaintId && c.IsActive);
@@ -189,6 +196,29 @@ namespace Andalos.API.Services
             complaint.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار المستأجر بوجود رد جديد على الشكوى
+            _ = _notification.SendToTenantAsync(
+                complaint.TenantId,
+                "تم الرد على شكواكم 💬",
+                $"مرحباً، قامت الإدارة بالرد على الشكوى المقدمة منكم: '{complaint.Subject}'.",
+                NotificationType.ComplaintReply,
+                $"/tenant/complaints/{complaint.Id}",
+                complaint.Id
+            );
+
+            // 🔔 إشعار إضافي إذا تم حل الشكوى وإغلاقها
+            if (dto.MarkAsResolved)
+            {
+                _ = _notification.SendToTenantAsync(
+                    complaint.TenantId,
+                    "تم حل الشكوى وإغلاقها ✅",
+                    $"نرجو أن نكون قد وفقنا في خدمتكم، تم حل شكواكم '{complaint.Subject}' وإغلاق الملف.",
+                    NotificationType.ComplaintStatusChanged,
+                    $"/tenant/complaints/{complaint.Id}",
+                    complaint.Id
+                );
+            }
+
             return new ComplaintReplyDto
             {
                 Id = reply.Id,
@@ -198,7 +228,6 @@ namespace Andalos.API.Services
             };
         }
 
-        // ===== للإدارة: تغيير حالة الشكوى =====
         public async Task<bool> UpdateStatusAsync(int complaintId, string status)
         {
             var complaint = await _db.Complaints.FirstOrDefaultAsync(c => c.Id == complaintId && c.IsActive);
@@ -213,6 +242,17 @@ namespace Andalos.API.Services
 
             complaint.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+
+            // 🔔 إشعار المستأجر بتغيير حالة الشكوى من قبل الإدارة
+            _ = _notification.SendToTenantAsync(
+                complaint.TenantId,
+                "تحديث حالة الشكوى 📋",
+                $"تم تعديل حالة الشكوى الخاصة بكم إلى: ({parsedStatus}).",
+                NotificationType.ComplaintStatusChanged,
+                $"/tenant/complaints/{complaint.Id}",
+                complaint.Id
+            );
+
             return true;
         }
     }

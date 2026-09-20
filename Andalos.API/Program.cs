@@ -139,15 +139,33 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var claims = new[] {
-            new Claim(ClaimTypes.NameIdentifier, "1"),
-            new Claim(ClaimTypes.Name, "Admin"),
-            new Claim(ClaimTypes.Email, "admin@andalos.ly"),
-            new Claim(ClaimTypes.Role, "SuperAdmin"),
-            new Claim(ClaimTypes.Role, "Admin"),
-            new Claim(ClaimTypes.Role, "Accountant"),
-            new Claim(ClaimTypes.Role, "GateKeeper")
-        };
+        // 💡 قراءة سياق الاختبار من الـ Headers إن وجدت لمحاكاة مستأجر حقيقي
+        var hasTenantHeader = Request.Headers.TryGetValue("X-Test-Tenant-Id", out var tenantIdStr);
+        var hasUserHeader = Request.Headers.TryGetValue("X-Test-User-Id", out var userIdStr);
+
+        var claims = new List<Claim>();
+
+        if (hasTenantHeader && int.TryParse(tenantIdStr, out var tenantId))
+        {
+            // === محاكاة مستأجر حقيقي ===
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, userIdStr.ToString() ?? "2"));
+            claims.Add(new Claim(ClaimTypes.Name, "TenantUser"));
+            claims.Add(new Claim(ClaimTypes.Email, "tenant@andalos.ly"));
+            claims.Add(new Claim(ClaimTypes.Role, "Tenant"));
+            claims.Add(new Claim("TenantId", tenantId.ToString())); // 👈 شحن معرف المستأجر المهم جداً
+        }
+        else
+        {
+            // === الافتراضي: محاكاة مدير نظام ===
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, "1"));
+            claims.Add(new Claim(ClaimTypes.Name, "Admin"));
+            claims.Add(new Claim(ClaimTypes.Email, "admin@andalos.ly"));
+            claims.Add(new Claim(ClaimTypes.Role, "SuperAdmin"));
+            claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            claims.Add(new Claim(ClaimTypes.Role, "Accountant"));
+            claims.Add(new Claim(ClaimTypes.Role, "GateKeeper"));
+        }
+
         var identity = new ClaimsIdentity(claims, "BypassAuth");
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, "BypassAuth");
