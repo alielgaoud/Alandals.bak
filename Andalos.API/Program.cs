@@ -53,7 +53,7 @@ builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
 builder.Services.AddScoped<DemandLetterPdfService>();
-
+builder.Services.AddScoped<IPermissionPackageService, PermissionPackageService>();
 builder.Services.AddHostedService<SystemSchedulerService>();
 builder.Services.AddSignalR();
 
