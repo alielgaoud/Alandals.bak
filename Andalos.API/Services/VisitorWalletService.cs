@@ -14,12 +14,18 @@ namespace Andalos.API.Services
         private readonly AppDbContext _db;
         private readonly ISettingService _settings;
         private readonly ITenantAccountService _tenantAccountService; // 👈 لخصم التسوية من الإيجار عند الرغبة
+        private readonly INotificationService _notification; // 👈 حقن خدمة الإشعارات الفورية
 
-        public VisitorWalletService(AppDbContext db, ISettingService settings, ITenantAccountService tenantAccountService)
+        public VisitorWalletService(
+            AppDbContext db,
+            ISettingService settings,
+            ITenantAccountService tenantAccountService,
+            INotificationService notification) // 👈 إضافة الخدمة في الباني
         {
             _db = db;
             _settings = settings;
             _tenantAccountService = tenantAccountService;
+            _notification = notification;
         }
 
         // =====================================================
@@ -164,6 +170,16 @@ namespace Andalos.API.Services
             _db.PassTransactions.Add(transaction);
             await _db.SaveChangesAsync();
 
+            // 🔔 [إشعار فوري]: تنبيه المستأجر (صاحب المحل) بخصم ناجح من محفظة الزائر وتوضيح المتبقي كاش إن وجد
+            _ = _notification.SendToTenantAsync(
+                tenantId,
+                "عملية بيع عبر محفظة زائر 🛒",
+                $"تم خصم مبلغ {chargedAmount:N2} د.ل من محفظة الزائر ({pass.VisitorName}) لصالح محلكم بنجاح.{(cashDifference > 0 ? $" المتبقي كاش: {cashDifference:N2} د.ل." : "")}",
+                NotificationType.PaymentReceived,
+                "/portal/wallet-scanner",
+                transaction.Id
+            );
+
             string msg = cashDifference > 0
                 ? $"✅ تم خصم {chargedAmount} د.ل من التصريح. يرجى تحصيل المتبقي ({cashDifference} د.ل) كاش من الزائر."
                 : $"✅ تم خصم كامل قيمة الفاتورة ({chargedAmount} د.ل) بنجاح من التصريح.";
@@ -281,6 +297,16 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
 
+            // 🔔 [إشعار فوري]: تنبيه المستأجر بتسوية مستحقات مبيعات الزوار وتوضيح طريقة الدفع المتخذة
+            _ = _notification.SendToTenantAsync(
+                dto.TenantId,
+                "تمت تسوية مستحقات مبيعات الزوار ✅",
+                $"نعلمكم بأنه تمت تسوية مستحقات مبيعات زوار الـ QR الخاصة بمحلكم بقيمة {totalAmount:N2} د.ل بنجاح عبر طريقة ({GetSettlementMethodLabel(dto.SettlementMethod)}).",
+                NotificationType.PaymentReceived,
+                "/portal/wallet-scanner",
+                settlement.Id
+            );
+
             return new SettlementResponseDto
             {
                 SettlementId = settlement.Id,
@@ -367,24 +393,6 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
             return totalForfeited; // إرجاع إجمالي المبالغ المتبقية التي أصبحت أرباحاً صافية للإدارة
-        }
-
-        private async Task<string> GenerateUniquePaidPassCodeAsync()
-        {
-            string passCode;
-            bool exists;
-            string datePrefix = DateTime.Now.ToString("yyyyMMdd");
-
-            do
-            {
-                string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
-                passCode = $"PASS-{datePrefix}-{randomHex}";
-
-                exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
-            }
-            while (exists);
-
-            return passCode;
         }
 
         // =====================================================
@@ -621,5 +629,34 @@ namespace Andalos.API.Services
                 Transactions = transactionDtos
             };
         }
+
+        // =====================================================
+        // دوال داخلية مساعدة لخدمة المحفظة
+        // =====================================================
+        private async Task<string> GenerateUniquePaidPassCodeAsync()
+        {
+            string passCode;
+            bool exists;
+            string datePrefix = DateTime.Now.ToString("yyyyMMdd");
+
+            do
+            {
+                string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
+                passCode = $"PASS-{datePrefix}-{randomHex}";
+
+                exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
+            }
+            while (exists);
+
+            return passCode;
+        }
+
+        private static string GetSettlementMethodLabel(SettlementMethod method) => method switch
+        {
+            SettlementMethod.Cash => "دفع كاش نقدي 💵",
+            SettlementMethod.BankTransfer => "حوالة بنكية صادرة 🏛️",
+            SettlementMethod.RentDeduction => "خصم دائن من قيمة الإيجار ⚖️",
+            _ => "طريقة تسوية عامة"
+        };
     }
 }

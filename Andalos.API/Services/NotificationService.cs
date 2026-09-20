@@ -184,17 +184,37 @@ namespace Andalos.API.Services
             }
         }
 
-        // =====================================================
-        // 4. جلب إشعاراتي (ملخص)
-        // =====================================================
         public async Task<NotificationSummaryDto> GetMyNotificationsAsync(int? userId, int? tenantId, int limit = 20)
         {
             var query = _db.Notifications.Where(n => n.IsActive && n.IsSent);
 
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId);
-            else if (tenantId.HasValue)
-                query = query.Where(n => n.TenantId == tenantId);
+            // تطبيق فلترة صارمة بناءً على الهويات المتاحة
+            if (tenantId.HasValue)
+            {
+                // سياق المستأجر: جلب الخاص بالمشروع، أو حساب الموظف، أو الموجه لكافة المستأجرين
+                if (userId.HasValue)
+                {
+                    query = query.Where(n => n.TenantId == tenantId.Value
+                                          || n.UserId == userId.Value
+                                          || n.TargetGroup == "AllTenants");
+                }
+                else
+                {
+                    query = query.Where(n => n.TenantId == tenantId.Value || n.TargetGroup == "AllTenants");
+                }
+            }
+            else if (userId.HasValue)
+            {
+                // سياق الإدارة والأمن: جلب الخاص بـ UserId الإداري، أو مجموعات التحكم
+                query = query.Where(n => n.UserId == userId.Value
+                                      || n.TargetGroup == "Admins"
+                                      || n.TargetGroup == "Accountants");
+            }
+            else
+            {
+                // إذا انعدمت الهوية تماماً، نرجع كائن فارغ بأمان
+                return new NotificationSummaryDto();
+            }
 
             var totalCount = await query.CountAsync();
             var unreadCount = await query.CountAsync(n => !n.IsRead);
@@ -214,17 +234,33 @@ namespace Andalos.API.Services
             };
         }
 
-        // =====================================================
-        // 5. جلب كل الإشعارات
-        // =====================================================
         public async Task<List<NotificationResponseDto>> GetAllAsync(int? userId, int? tenantId, bool unreadOnly = false, int limit = 50)
         {
             var query = _db.Notifications.Where(n => n.IsActive && n.IsSent);
 
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId);
-            else if (tenantId.HasValue)
-                query = query.Where(n => n.TenantId == tenantId);
+            if (tenantId.HasValue)
+            {
+                if (userId.HasValue)
+                {
+                    query = query.Where(n => n.TenantId == tenantId.Value
+                                          || n.UserId == userId.Value
+                                          || n.TargetGroup == "AllTenants");
+                }
+                else
+                {
+                    query = query.Where(n => n.TenantId == tenantId.Value || n.TargetGroup == "AllTenants");
+                }
+            }
+            else if (userId.HasValue)
+            {
+                query = query.Where(n => n.UserId == userId.Value
+                                      || n.TargetGroup == "Admins"
+                                      || n.TargetGroup == "Accountants");
+            }
+            else
+            {
+                return new List<NotificationResponseDto>();
+            }
 
             if (unreadOnly)
                 query = query.Where(n => !n.IsRead);
@@ -237,21 +273,38 @@ namespace Andalos.API.Services
             return list.Select(MapToDto).ToList();
         }
 
-        // =====================================================
-        // 6. عدد الإشعارات غير المقروءة
-        // =====================================================
+
+
         public async Task<int> GetUnreadCountAsync(int? userId, int? tenantId)
         {
             var query = _db.Notifications.Where(n => n.IsActive && n.IsSent && !n.IsRead);
 
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId);
-            else if (tenantId.HasValue)
-                query = query.Where(n => n.TenantId == tenantId);
+            if (tenantId.HasValue)
+            {
+                if (userId.HasValue)
+                {
+                    query = query.Where(n => n.TenantId == tenantId.Value
+                                          || n.UserId == userId.Value
+                                          || n.TargetGroup == "AllTenants");
+                }
+                else
+                {
+                    query = query.Where(n => n.TenantId == tenantId.Value || n.TargetGroup == "AllTenants");
+                }
+            }
+            else if (userId.HasValue)
+            {
+                query = query.Where(n => n.UserId == userId.Value
+                                      || n.TargetGroup == "Admins"
+                                      || n.TargetGroup == "Accountants");
+            }
+            else
+            {
+                return 0;
+            }
 
             return await query.CountAsync();
         }
-
         // =====================================================
         // 7. تعليم كـ مقروء
         // =====================================================

@@ -11,11 +11,16 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGen;
+        private readonly INotificationService _notification; // 👈 تم الحقن
 
-        public RefundService(AppDbContext db, INumberGeneratorService numberGen)
+        public RefundService(
+            AppDbContext db,
+            INumberGeneratorService numberGen,
+            INotificationService notification) // 👈 تم الحقن
         {
             _db = db;
             _numberGen = numberGen;
+            _notification = notification;
         }
 
         public async Task<List<RefundResponseDto>> GetAllAsync()
@@ -52,7 +57,6 @@ namespace Andalos.API.Services
             if (contract == null)
                 throw new KeyNotFoundException("العقد المحدد غير موجود");
 
-            // في حال تم ربطها بدفعة سابقة، نتحقق من أن قيمة المرتجع لا تتجاوز القيمة الأصلية
             if (dto.OriginalPaymentId.HasValue)
             {
                 var originalPayment = await _db.Payments
@@ -65,7 +69,6 @@ namespace Andalos.API.Services
                     throw new InvalidOperationException("لا يمكن إرجاع مبلغ أكبر من قيمة السند الأصلي");
             }
 
-            // توليد رقم المرتجع التلقائي (مثال: RFD-2026-00001)
             string refundNumber = await _numberGen.GenerateAsync("Refund");
 
             var refund = new Refund
@@ -86,6 +89,16 @@ namespace Andalos.API.Services
             _db.Refunds.Add(refund);
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار المستأجر بإصدار مرتجع مالي لصالحه
+            _ = _notification.SendToTenantAsync(
+                contract.TenantId,
+                "تم إصدار مرتجع مالي لصالحك 💰",
+                $"تم إصدار سند مرتجع رقم {refundNumber} بقيمة {dto.Amount:N2} د.ل. السبب: {dto.Reason}.",
+                NotificationType.PaymentReceived,
+                "/portal/payments",
+                refund.Id
+            );
+
             var saved = await _db.Refunds
                 .Include(r => r.Contract).ThenInclude(c => c!.Tenant)
                 .Include(r => r.Contract).ThenInclude(c => c!.Unit)
@@ -100,7 +113,7 @@ namespace Andalos.API.Services
             var refund = await _db.Refunds.FirstOrDefaultAsync(r => r.Id == id && r.IsActive);
             if (refund == null) return false;
 
-            refund.IsActive = false; // إلغاء المرتجع منطقياً
+            refund.IsActive = false;
             refund.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
             return true;

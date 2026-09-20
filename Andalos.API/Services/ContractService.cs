@@ -11,16 +11,17 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGen;
+        private readonly INotificationService _notification; // 👈 حقن خدمة الإشعارات
 
-        public ContractService(AppDbContext db, INumberGeneratorService numberGen)
+        public ContractService(AppDbContext db, INumberGeneratorService numberGen, INotificationService notification)
         {
             _db = db;
             _numberGen = numberGen;
+            _notification = notification;
         }
 
         public async Task<List<ContractResponseDto>> GetAllAsync()
         {
-            // 1. جلب الكيانات من قاعدة البيانات أولاً إلى الذاكرة
             var contracts = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
@@ -30,9 +31,8 @@ namespace Andalos.API.Services
                 .Include(c => c.ParentContract)
                 .Where(c => c.IsActive)
                 .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync(); // 👈 جلب البيانات من SQL أولاً
+                .ToListAsync();
 
-            // 2. تحويل الكيانات إلى DTOs في الذاكرة (In-Memory Mapping)
             return contracts.Select(c => MapToDto(c)).ToList();
         }
 
@@ -43,8 +43,8 @@ namespace Andalos.API.Services
                 .Include(c => c.Unit)
                 .Include(c => c.ContractItems)
                 .Include(c => c.ContractDocuments)
-                .Include(c => c.ContractFees)   // 👈 إصلاح: تم إضافة جلب الرسوم
-                .Include(c => c.ParentContract) // 👈 إصلاح: تم إضافة جلب العقد الأب
+                .Include(c => c.ContractFees)
+                .Include(c => c.ParentContract)
                 .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
             return contract == null ? null : MapToDto(contract);
@@ -77,11 +77,10 @@ namespace Andalos.API.Services
                     RentCycle = dto.RentCycle,
                     DepositAmount = dto.DepositAmount,
                     Status = ContractStatus.Active,
-                    // أضف عند إنشاء العقد:
                     ActivityType = dto.ActivityType,
                     TradeName = dto.TradeName,
                     AutoRenew = dto.AutoRenew,
-                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage, // 👈 إصلاح: تم إضافتها للإنشاء
+                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage,
                     Notes = dto.Notes
                 };
 
@@ -130,6 +129,16 @@ namespace Andalos.API.Services
                     .Include(c => c.ParentContract)
                     .FirstAsync(c => c.Id == contract.Id);
 
+                // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
+                _ = _notification.SendToTenantAsync(
+                    savedContract.TenantId,
+                    "تفعيل عقد إيجار جديد 📜",
+                    $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
+                    NotificationType.ContractRenewed,
+                    $"/tenant/contracts/{savedContract.Id}",
+                    savedContract.Id
+                );
+
                 return MapToDto(savedContract);
             }
             catch
@@ -143,6 +152,7 @@ namespace Andalos.API.Services
         {
             var contract = await _db.Contracts
                 .Include(c => c.Unit)
+                .Include(c => c.Tenant)
                 .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
             if (contract == null) return false;
@@ -150,6 +160,7 @@ namespace Andalos.API.Services
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var oldStatus = contract.Status;
                 contract.Status = newStatus;
                 contract.UpdatedAt = DateTime.UtcNow;
 
@@ -166,6 +177,20 @@ namespace Andalos.API.Services
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // 🔔 إشعار عند فسخ أو إنهاء العقد
+                if (newStatus == ContractStatus.Terminated)
+                {
+                    _ = _notification.SendToTenantAsync(
+                        contract.TenantId,
+                        "تم إنهاء عقد الإيجار ⚠️",
+                        $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
+                        NotificationType.ContractTerminated,
+                        $"/tenant/contracts/{contract.Id}",
+                        contract.Id
+                    );
+                }
+
                 return true;
             }
             catch
@@ -189,7 +214,6 @@ namespace Andalos.API.Services
                 contract.IsActive = false;
                 contract.UpdatedAt = DateTime.UtcNow;
 
-                // 👈 إصلاح منطقي مهم: لا تفرغ المحل إلا إذا كان العقد المحذوف نشطاً!
                 if (contract.Unit != null && contract.Status == ContractStatus.Active)
                 {
                     contract.Unit.Status = UnitStatus.Vacant;
@@ -243,7 +267,6 @@ namespace Andalos.API.Services
                     RentCycle = oldContract.RentCycle,
                     DepositAmount = oldContract.DepositAmount,
                     Status = ContractStatus.Active,
-                    // عند تجديد العقد، انسخ النشاط والاسم التجاري من العقد القديم تلقائياً:
                     ActivityType = oldContract.ActivityType,
                     TradeName = oldContract.TradeName,
                     AutoRenew = dto.AutoRenew,
@@ -299,6 +322,16 @@ namespace Andalos.API.Services
                     .Include(c => c.ParentContract)
                     .FirstAsync(c => c.Id == newContract.Id);
 
+                // 🔔 إشعار بتجديد العقد بنجاح
+                _ = _notification.SendToTenantAsync(
+                    savedContract.TenantId,
+                    "تم تجديد عقد الإيجار بنجاح 🔄",
+                    $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
+                    NotificationType.ContractRenewed,
+                    $"/tenant/contracts/{savedContract.Id}",
+                    savedContract.Id
+                );
+
                 return MapToDto(savedContract);
             }
             catch
@@ -308,7 +341,6 @@ namespace Andalos.API.Services
             }
         }
 
-        // ===== دالة التحويل من Model لـ DTO =====
         private static ContractResponseDto MapToDto(Contract contract)
         {
             int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
@@ -335,7 +367,6 @@ namespace Andalos.API.Services
                 AnnualIncreasePercentage = contract.AnnualIncreasePercentage,
                 ParentContractId = contract.ParentContractId,
                 ParentContractNumber = contract.ParentContract?.ContractNumber,
-
                 ExtraItems = contract.ContractItems?.Select(i => new ContractItemDto
                 {
                     Id = i.Id,
@@ -343,7 +374,6 @@ namespace Andalos.API.Services
                     Amount = i.Amount,
                     Notes = i.Notes
                 }).ToList() ?? new List<ContractItemDto>(),
-
                 Documents = contract.ContractDocuments?.Select(d => new ContractDocumentDto
                 {
                     Id = d.Id,
@@ -351,7 +381,6 @@ namespace Andalos.API.Services
                     FilePath = d.FilePath,
                     FileType = d.FileType
                 }).ToList() ?? new List<ContractDocumentDto>(),
-
                 ContractFees = contract.ContractFees?.Select(f => new ContractFeeResponseDto
                 {
                     Id = f.Id,

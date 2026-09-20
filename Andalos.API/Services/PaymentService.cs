@@ -10,10 +10,12 @@ namespace Andalos.API.Services
     public class PaymentService : IPaymentService
     {
         private readonly AppDbContext _db;
+        private readonly INotificationService _notification; // 👈 حقن الإشعارات
 
-        public PaymentService(AppDbContext db)
+        public PaymentService(AppDbContext db, INotificationService notification)
         {
             _db = db;
+            _notification = notification;
         }
 
         public async Task<List<PaymentResponseDto>> GetAllAsync()
@@ -57,7 +59,6 @@ namespace Andalos.API.Services
 
         public async Task<PaymentResponseDto> CreateAsync(CreatePaymentDto dto)
         {
-            // 1. التحقق من وجود العقد
             var contract = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
@@ -66,16 +67,14 @@ namespace Andalos.API.Services
             if (contract == null)
                 throw new KeyNotFoundException("العقد غير موجود");
 
-            // 2. توليد رقم إيصال تلقائي
             string receiptNumber = await GenerateReceiptNumberAsync();
 
-            // 3. إنشاء الدفعة
             var payment = new Payment
             {
                 ReceiptNumber = receiptNumber,
                 ContractId = dto.ContractId,
-                TenantId = contract.TenantId,   // نسخ مباشرة للتقارير
-                UnitId = contract.UnitId,        // نسخ مباشرة للتقارير
+                TenantId = contract.TenantId,
+                UnitId = contract.UnitId,
                 PaymentType = dto.PaymentType,
                 Amount = dto.Amount,
                 PaymentMethod = dto.PaymentMethod,
@@ -86,6 +85,25 @@ namespace Andalos.API.Services
 
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
+
+            // 🔔 إشعار المستأجر فور تسجيل السداد في النظام
+            _ = _notification.SendToTenantAsync(
+                contract.TenantId,
+                "استلام دفعة مالية ناجح 🧾",
+                $"تم استلام مبلغ {dto.Amount:N2} د.ل بنجاح بموجب الإيصال رقم {receiptNumber}.",
+                NotificationType.PaymentReceived,
+                $"/tenant/payments/{payment.Id}",
+                payment.Id
+            );
+
+            // 🔔 إشعار المحاسبين وإدارة المجمع بوجود دفعة جديدة داخل اللوحة
+            _ = _notification.SendToGroupAsync(
+                "Accountants",
+                "دفعة مالية جديدة 💰",
+                $"قام المستأجر {contract.Tenant?.FullName} بسداد مبلغ {dto.Amount:N2} د.ل للمحل {contract.Unit?.UnitNumber}.",
+                NotificationType.PaymentReceived,
+                $"/admin/payments/{payment.Id}"
+            );
 
             return MapToDto(payment);
         }
@@ -104,7 +122,6 @@ namespace Andalos.API.Services
             return true;
         }
 
-        // ===== تقرير ملخص عقد واحد =====
         public async Task<PaymentSummaryDto> GetContractSummaryAsync(int contractId)
         {
             var contract = await _db.Contracts
@@ -115,12 +132,10 @@ namespace Andalos.API.Services
             if (contract == null)
                 throw new KeyNotFoundException("العقد غير موجود");
 
-            // حساب المستحق: عدد الأشهر × الإيجار
             int months = (int)((contract.EndDate - contract.StartDate).TotalDays / 30);
             if (months < 1) months = 1;
             decimal totalDue = months * contract.RentAmount;
 
-            // حساب المدفوع
             decimal totalPaid = await _db.Payments
                 .Where(p => p.ContractId == contractId && p.IsActive)
                 .SumAsync(p => p.Amount);
@@ -137,7 +152,6 @@ namespace Andalos.API.Services
             };
         }
 
-        // ===== تقرير ملخص كل العقود =====
         public async Task<List<PaymentSummaryDto>> GetAllSummariesAsync()
         {
             var contracts = await _db.Contracts
@@ -173,15 +187,13 @@ namespace Andalos.API.Services
             return summaries;
         }
 
-        // ===== توليد رقم إيصال تلقائي =====
         private async Task<string> GenerateReceiptNumberAsync()
         {
             int year = DateTime.Now.Year;
             int count = await _db.Payments.CountAsync(p => p.PaymentDate.Year == year);
-            return $"REC-{year}-{(count + 1):D5}"; // مثال: REC-2026-00001
+            return $"REC-{year}-{(count + 1):D5}";
         }
 
-        // ===== دالة التحويل =====
         private static PaymentResponseDto MapToDto(Payment p)
         {
             return new PaymentResponseDto

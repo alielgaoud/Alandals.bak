@@ -11,10 +11,12 @@ namespace Andalos.API.Services
     public class VisitorPassService : IVisitorPassService
     {
         private readonly AppDbContext _db;
+        private readonly INotificationService _notification; // 👈 حقن الإشعارات
 
-        public VisitorPassService(AppDbContext db)
+        public VisitorPassService(AppDbContext db, INotificationService notification)
         {
             _db = db;
+            _notification = notification;
         }
 
         public async Task<VisitorPassResponseDto> CreatePassAsync(CreateVisitorPassDto dto, string createdBy)
@@ -26,7 +28,6 @@ namespace Andalos.API.Services
                     throw new KeyNotFoundException("المحل المحدد غير موجود");
             }
 
-            // توليد رمز فريد ومميز للباركود
             string passCode = await GenerateUniquePassCodeAsync();
 
             var pass = new VisitorPass
@@ -37,7 +38,7 @@ namespace Andalos.API.Services
                 NationalId = dto.NationalId,
                 VisitorType = dto.VisitorType,
                 UnitId = dto.UnitId,
-                ValidDate = dto.ValidDate.Date, // أخذ التاريخ بدون وقت
+                ValidDate = dto.ValidDate.Date,
                 MaxEntries = dto.MaxEntries > 0 ? dto.MaxEntries : 1,
                 UsedCount = 0,
                 Status = PassStatus.Active,
@@ -100,7 +101,6 @@ namespace Andalos.API.Services
 
             var today = DateTime.Today;
 
-            // 1. فحص وجود الكود
             if (pass == null)
             {
                 return new ScanResultDto
@@ -111,10 +111,9 @@ namespace Andalos.API.Services
             }
 
             string destination = pass.Unit != null
-         ? $"محل رقم: {pass.Unit.UnitNumber}" // 👈 الاعتماد على رقم المحل
-         : "إدارة المجمع";
+                 ? $"محل رقم: {pass.Unit.UnitNumber}"
+                 : "إدارة المجمع";
 
-            // 2. فحص حالة التصريح
             if (pass.Status == PassStatus.Revoked)
             {
                 await LogEntryAsync(pass.Id, dto.GateName, scannedBy, false, "التصريح ملغي من قبل الإدارة أو المحل");
@@ -127,7 +126,6 @@ namespace Andalos.API.Services
                 return FailResult(pass, destination, "❌ تم استخدام هذا التصريح واستنفاد عدد مرات الدخول");
             }
 
-            // 3. فحص صلاحية التاريخ (يجب أن يكون نفس اليوم)
             if (pass.ValidDate.Date != today)
             {
                 string reason = pass.ValidDate.Date < today
@@ -141,7 +139,6 @@ namespace Andalos.API.Services
                 return FailResult(pass, destination, $"❌ غير مسموح بالدخول: {reason}");
             }
 
-            // 4. فحص عدد مرات الاستخدام المتبقية
             if (pass.UsedCount >= pass.MaxEntries)
             {
                 pass.Status = PassStatus.Used;
@@ -151,7 +148,6 @@ namespace Andalos.API.Services
                 return FailResult(pass, destination, "❌ تم استنفاد الحد الأقصى للدخول بهذا التصريح");
             }
 
-            // 5. ✅ نجاح التحقق - تسجيل الدخول
             pass.UsedCount++;
             if (pass.UsedCount >= pass.MaxEntries)
             {
@@ -161,6 +157,26 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
             await LogEntryAsync(pass.Id, dto.GateName, scannedBy, true, null);
+
+            // 💡 [سحر الربط]: رصد المستأجر الحالي للمحل لإرسال إشعار لحظي له يفيد بدخول زائره الآن 💡
+            if (pass.UnitId.HasValue)
+            {
+                // جلب العقد النشط الحالي للمحل للوصول للمستأجر
+                var activeContract = await _db.Contracts
+                    .FirstOrDefaultAsync(c => c.UnitId == pass.UnitId.Value && c.Status == ContractStatus.Active && c.IsActive);
+
+                if (activeContract != null)
+                {
+                    _ = _notification.SendToTenantAsync(
+                        activeContract.TenantId,
+                        "وصول زائر للمحل 🚪",
+                        $"نعلمكم بأن زائرك ({pass.VisitorName}) قد تم تسجيل دخوله الآن من بوابة: {dto.GateName}.",
+                        NotificationType.VisitorEntered,
+                        "/tenant/visitors",
+                        pass.Id
+                    );
+                }
+            }
 
             return new ScanResultDto
             {
@@ -205,8 +221,8 @@ namespace Andalos.API.Services
                     PassCode = e.VisitorPass != null ? e.VisitorPass.PassCode : "",
                     VisitorName = e.VisitorPass != null ? e.VisitorPass.VisitorName : "",
                     DestinationUnit = e.VisitorPass != null && e.VisitorPass.Unit != null
-    ? $"محل رقم {e.VisitorPass.Unit.UnitNumber}" // 👈 الاعتماد على رقم المحل
-    : "الإدارة",
+                        ? $"محل رقم {e.VisitorPass.Unit.UnitNumber}"
+                        : "الإدارة",
                     ScanTime = e.ScanTime,
                     GateName = e.GateName,
                     ScannedBy = e.ScannedBy,
@@ -216,7 +232,6 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
-        // ===== تسجيل حركة المسح في السجل =====
         private async Task LogEntryAsync(int passId, string gateName, string scannedBy, bool isAllowed, string? reason)
         {
             var log = new EntryLog
@@ -248,8 +263,6 @@ namespace Andalos.API.Services
             };
         }
 
-    
-
         private async Task<string> GenerateUniquePassCodeAsync()
         {
             string passCode;
@@ -258,14 +271,11 @@ namespace Andalos.API.Services
 
             do
             {
-                // توليد 6 بايت عشوائية تشفيرية = 12 حرف هكس
                 string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
-                passCode = $"PASS-{datePrefix}-{randomHex}"; // مثال: PASS-20260914-A8F93C21E7B4
-
-                // فحص قاعدة البيانات للتأكد 100% من عدم التكرار
+                passCode = $"PASS-{datePrefix}-{randomHex}";
                 exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
             }
-            while (exists); // إذا وُجد يتكرر فوراً حتى يضمن كوداً فريداً تماماً
+            while (exists);
 
             return passCode;
         }
