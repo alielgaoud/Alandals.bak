@@ -45,6 +45,9 @@ namespace Andalos.API.Data
         public DbSet<TenantSettlement> TenantSettlements { get; set; }
         public DbSet<GatekeeperShift> GatekeeperShifts { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; } // 👈 جدول سجل التدقيق والمراقبة
+        public DbSet<PermissionPackage> PermissionPackages { get; set; }
+        public DbSet<PermissionPackageItem> PermissionPackageItems { get; set; }
+        public DbSet<UserPermissionPackage> UserPermissionPackages { get; set; }
 
         // ===== 2. التكوينات والعلاقات (OnModelCreating) =====
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -114,6 +117,39 @@ namespace Andalos.API.Data
                 entity.HasOne(p => p.Tenant)
                       .WithMany()
                       .HasForeignKey(p => p.TenantId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<PermissionPackage>(entity =>
+            {
+                entity.ToTable("PermissionPackages");
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            modelBuilder.Entity<PermissionPackageItem>(entity =>
+            {
+                entity.ToTable("PermissionPackageItems");
+                entity.HasIndex(e => new { e.PackageId, e.PermissionKey }).IsUnique();
+
+                entity.HasOne(i => i.Package)
+                      .WithMany(p => p.Items)
+                      .HasForeignKey(i => i.PackageId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<UserPermissionPackage>(entity =>
+            {
+                entity.ToTable("UserPermissionPackages");
+                entity.HasIndex(e => new { e.UserId, e.PackageId }).IsUnique();
+
+                entity.HasOne(x => x.User)
+                      .WithMany()
+                      .HasForeignKey(x => x.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Package)
+                      .WithMany(p => p.Users)
+                      .HasForeignKey(x => x.PackageId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
