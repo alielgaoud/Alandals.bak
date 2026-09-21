@@ -16,17 +16,29 @@ QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ═══════════════════════════════════════════════════════════
 // 2. Database
+// ═══════════════════════════════════════════════════════════
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(connectionString, sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null);
+        sqlOptions.CommandTimeout(60);
+    });
+});
 
 builder.Services.AddHttpContextAccessor();
 
-// 3. Helpers
+// 3. Helpers & Caching
 builder.Services.AddSingleton<JwtHelper>();
-
-// 4. Application Services (تسجيل كافة خدماتك هنا كما هي)
 builder.Services.AddMemoryCache();
+
+// 4. Application Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUnitService, UnitService>();
 builder.Services.AddScoped<ITenantService, TenantService>();
@@ -61,23 +73,34 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
-// 6. CORS
+// ═══════════════════════════════════════════════════════════
+// 6. 🌐 CORS Policy (محددة للنطاقات الأربعة المطلوبة حصرياً)
+// ═══════════════════════════════════════════════════════════
+var allowedOrigins = new[]
+{
+    "https://admin.marinaalandalus.com",
+    "https://tenant.marinaalandalus.com",
+    "http://localhost:4300",
+    "http://localhost:4200"
+};
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.AllowAnyHeader()
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
-              .SetIsOriginAllowed(_ => true)
-              .AllowCredentials();
+              .AllowAnyHeader()
+              .AllowCredentials(); // ضروري جداً لـ SignalR وتمرير التوكن
     });
 });
 
-// =========================================================
-// 🛡️ 7. تفعيل حماية JWT الحقيقية (النظام الفعلي)
-// =========================================================
+// ═══════════════════════════════════════════════════════════
+// 7. 🛡️ JWT Authentication
+// ═══════════════════════════════════════════════════════════
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"];
+var secretKey = jwtSettings["SecretKey"]
+    ?? throw new InvalidOperationException("❌ المفتاح JwtSettings:SecretKey غير موجود في appsettings.json!");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -86,12 +109,12 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; // يفضل true في الإنتاج
+    options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!)),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
         ValidateIssuer = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidateAudience = true,
@@ -100,15 +123,13 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // 👈 مهم جداً لعمل SignalR مع الـ JWT
+    // دعم SignalR لاستخراج التوكن من الـ Query String
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-
-            // إذا كان الطلب موجهاً للـ Hub وفيه توكن في الرابط
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
                 context.Token = accessToken;
@@ -119,14 +140,13 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// 👈 إضافة زر إدخال التوكن في واجهة Swagger
 builder.Services.AddSwaggerGen(c =>
 {
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "Andalos API", Version = "v1" });
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -147,43 +167,77 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
 
 var app = builder.Build();
-app.UseStaticFiles();
 
-// Seeder
+// ═══════════════════════════════════════════════════════════
+// 8. DB Migration & Seeder
+// ═══════════════════════════════════════════════════════════
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        logger.LogInformation("🔄 التحقق من اتصال قاعدة البيانات وتشغيل البيانات الأولية...");
+        await db.Database.MigrateAsync();
         await SettingsSeeder.SeedAsync(db);
         await UserSeeder.SeedAsync(db);
+        logger.LogInformation("✅ تم تجهيز قاعدة البيانات بنجاح.");
     }
     catch (Exception ex)
     {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "حدث خطأ أثناء تشغيل Seeding.");
+        logger.LogError(ex, "⚠️ تنبيه: فشل الاتصال بقاعدة البيانات أثناء الإقلاع.");
     }
 }
 
-if (app.Environment.IsDevelopment())
+// ═══════════════════════════════════════════════════════════
+// 9. خط سير المعالجة (Pipeline) المنضبط 100%
+// ═══════════════════════════════════════════════════════════
+
+// 👈 معالج سريع لطلبات OPTIONS قبل أي Middleware آخر لضمان عدم حجب المتصفح
+app.Use(async (context, next) =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    var origin = context.Request.Headers["Origin"].ToString();
+    if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
+    {
+        context.Response.Headers.Append("Access-Control-Allow-Origin", origin);
+        context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
+        context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Test-Tenant-Id, X-Test-User-Id, access_token");
+        context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
-app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+        if (context.Request.Method == "OPTIONS")
+        {
+            context.Response.StatusCode = 200;
+            await context.Response.CompleteAsync();
+            return;
+        }
+    }
+    await next();
+});
 
-app.UseAuthentication(); // 👈 تفعيل المصادقة
-app.UseAuthorization();  // 👈 تفعيل الصلاحيات
+app.UseStaticFiles();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Andalos API v1");
+    c.RoutePrefix = "swagger";
+});
+
+app.UseRouting();
+
+// 👈 تفعيل الـ CORS Policy المحددة
+app.UseCors("AllowSpecificOrigins");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notifications"); // محمي تلقائياً الآن
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
