@@ -1,4 +1,5 @@
-﻿using Andalos.API.DTOs.Common;
+﻿using Andalos.API.DTOs.Circulars;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
@@ -262,6 +263,15 @@ namespace Andalos.API.Controllers
             int tenantId = GetCurrentTenantId(); // 👈 حماية مطلقة
             var history = await _visitorWalletService.GetTenantWalletHistoryAsync(tenantId, fromDate, toDate, isSettled);
             return Ok(ApiResponseDto<TenantWalletFullHistoryDto>.SuccessResponse(history));
+        }
+
+        // ===== التعاميم =====
+        [HttpGet("circulars")]
+        public async Task<IActionResult> GetMyCirculars(
+            [FromServices] ICircularService circularService)
+        {
+            var list = await circularService.GetMyCircularsAsync();
+            return Ok(ApiResponseDto<List<TenantCircularDto>>.SuccessResponse(list));
         }
     }
 }

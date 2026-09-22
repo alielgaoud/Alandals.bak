@@ -71,7 +71,13 @@
                 Permissions.Users.View, Permissions.Users.Create, Permissions.Users.Edit,
                 Permissions.Users.Delete, Permissions.Users.ResetPassword,
                 Permissions.Users.ToggleLock, Permissions.Users.ManagePermissions
-            }
+            },
+
+            ["Circulars"] = new[]
+            {
+                Permissions.Circulars.View, Permissions.Circulars.Create,
+                Permissions.Circulars.Edit, Permissions.Circulars.Delete
+            },
         };
 
         // أسماء عربية جاهزة للعرض
@@ -90,7 +96,8 @@
             ["Reports"] = "التقارير واللوحة",
             ["Demands"] = "المطالبات المالية",
             ["Settings"] = "الإعدادات",
-            ["Users"] = "المستخدمين والصلاحيات"
+            ["Users"] = "المستخدمين والصلاحيات",
+            ["Circulars"] = "التعاميم"
         };
     }
 }

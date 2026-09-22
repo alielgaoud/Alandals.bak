@@ -49,6 +49,7 @@ namespace Andalos.API.Data
         public DbSet<PermissionPackage> PermissionPackages { get; set; }
         public DbSet<PermissionPackageItem> PermissionPackageItems { get; set; }
         public DbSet<UserPermissionPackage> UserPermissionPackages { get; set; }
+        public DbSet<Circular> Circulars { get; set; }
 
         // ===== 2. التكوينات والعلاقات (OnModelCreating) =====
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -78,6 +79,15 @@ namespace Andalos.API.Data
                       .WithMany(u => u.Permissions)
                       .HasForeignKey(up => up.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Circular
+            modelBuilder.Entity<Circular>(entity =>
+            {
+                entity.ToTable("Circulars");
+                entity.Property(e => e.Priority).HasConversion<int>();
+                entity.HasIndex(e => e.IsPublished);
+                entity.HasIndex(e => e.PublishAt);
             });
 
             // Notification

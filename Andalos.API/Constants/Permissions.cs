@@ -138,5 +138,14 @@
                 .Where(p => p != null)
                 .ToList()!;
         }
+
+        // ===== 15. التعاميم (Circulars) =====
+        public static class Circulars
+        {
+            public const string View = "Circulars.View";       // استعراض التعاميم
+            public const string Create = "Circulars.Create";   // إنشاء تعميم ونشره
+            public const string Edit = "Circulars.Edit";       // تعديل تعميم
+            public const string Delete = "Circulars.Delete";   // حذف تعميم
+        }
     }
 }

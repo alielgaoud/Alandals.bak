@@ -54,6 +54,12 @@ namespace Andalos.API.Services
                             _lastExpiredCheckDay = now.Day; // ضمان عدم التكرار في نفس اليوم
                         }
 
+                        // 👈 نشر التعاميم المجدولة المستحقة
+                        var circularService = scope.ServiceProvider.GetRequiredService<ICircularService>();
+                        int publishedCirculars = await circularService.PublishDueScheduledCircularsAsync();
+                        if (publishedCirculars > 0)
+                            _logger.LogInformation($"📢 تم نشر {publishedCirculars} تعميم مجدول.");
+
                         // 👈 2. الخصم الشهري الآلي للإيجارات (عند الساعة 1 ليلاً يوم 1 في الشهر)
                         if (now.Hour == 1)
                         {

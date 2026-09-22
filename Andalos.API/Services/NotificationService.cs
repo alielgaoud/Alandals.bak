@@ -502,6 +502,7 @@ namespace Andalos.API.Services
             NotificationType.ContractExpiringSoon or NotificationType.ContractRenewed or NotificationType.ContractTerminated => "file-text",
             NotificationType.PaymentReminder or NotificationType.PaymentOverdue or NotificationType.AutomaticDeduction or NotificationType.PaymentReceived => "dollar-sign",
             NotificationType.NewMaintenanceRequest or NotificationType.MaintenanceStatusChanged => "tool",
+            NotificationType.NewCircular => "megaphone",
             NotificationType.VisitorRejected or NotificationType.VisitorEntered => "user-check",
             NotificationType.System => "settings",
             _ => "bell"
@@ -516,6 +517,7 @@ namespace Andalos.API.Services
             NotificationType.BankTransferApproved => "قبول حوالة",
             NotificationType.BankTransferRejected => "رفض حوالة",
             NotificationType.ContractExpiringSoon => "عقد على وشك الانتهاء",
+            NotificationType.NewCircular => "تعميم جديد",
             NotificationType.ContractRenewed => "تجديد عقد",
             NotificationType.ContractTerminated => "إنهاء عقد",
             NotificationType.PaymentReminder => "تذكير باستحقاق",

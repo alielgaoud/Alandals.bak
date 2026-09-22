@@ -66,6 +66,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
 builder.Services.AddScoped<DemandLetterPdfService>();
 builder.Services.AddScoped<ISystemResetService, SystemResetService>();
+builder.Services.AddScoped<ICircularService, CircularService>();
 builder.Services.AddScoped<IPermissionPackageService, PermissionPackageService>();
 builder.Services.AddHostedService<SystemSchedulerService>();
 builder.Services.AddSignalR();
