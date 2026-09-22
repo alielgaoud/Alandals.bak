@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Circulars;
+using Andalos.API.DTOs.Notifications;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -170,38 +171,39 @@ namespace Andalos.API.Services
         // =====================================================
         private async Task SendCircularNotificationAsync(Circular circular)
         {
-            var summary = circular.Content.Length > 150
+            var userIds = await _db.Users
+                .AsNoTracking()
+                .Where(u => u.IsActive
+                            && u.TenantId != null
+                            && (u.Role == UserRole.Tenant || u.Role == UserRole.TenantStaff))
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            var title = $"📢 تعميم جديد: {circular.Title}";
+            var message = circular.Content.Length > 150
                 ? circular.Content[..150] + "..."
                 : circular.Content;
 
-            // 1) بث لحظي داخل النظام لكل المستأجرين (SignalR)
-            await _notification.SendToGroupAsync(
-                "AllTenants",
-                $"📢 تعميم جديد: {circular.Title}",
-                summary,
-                NotificationType.NewCircular,
-                $"/tenant/circulars/{circular.Id}"
-            );
-
-            // 2) Web Push لكل مستأجر لديه اشتراك نشط
-            var tenantIds = await _db.Users
-                .Where(u => u.IsActive
-                            && (u.Role == UserRole.Tenant || u.Role == UserRole.TenantStaff)
-                            && u.TenantId != null)
-                .Select(u => u.TenantId!.Value)
-                .Distinct()
-                .ToListAsync();
-
-            foreach (var tenantId in tenantIds)
+            var priority = circular.Priority switch
             {
-                _ = _notification.SendToTenantAsync(
-                    tenantId,
-                    $"📢 تعميم جديد: {circular.Title}",
-                    summary,
-                    NotificationType.NewCircular,
-                    $"/tenant/circulars/{circular.Id}",
-                    circular.Id
-                );
+                CircularPriority.Urgent => NotificationPriority.Urgent,
+                CircularPriority.Important => NotificationPriority.High,
+                _ => NotificationPriority.Medium
+            };
+
+            foreach (var userId in userIds)
+            {
+                await _notification.CreateNotificationAsync(new CreateNotificationDto
+                {
+                    UserId = userId,
+                    Title = title,
+                    Message = message,
+                    Type = NotificationType.NewCircular,
+                    Priority = priority,
+                    ActionUrl = $"/tenant/circulars/{circular.Id}",
+                    RelatedEntityId = circular.Id,
+                    RelatedEntityType = "Circular"
+                });
             }
         }
 

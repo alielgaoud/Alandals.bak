@@ -84,7 +84,8 @@ namespace Andalos.API.Services
                 if (pushEnabled)
                 {
                     // يُنفذ في الخلفية دون تعطيل الـ Request الحالي
-                    _ = _pushService.SendPushNotificationAsync(dto.UserId, dto.TenantId, dto.Title, dto.Message, dto.ActionUrl);
+                    await _pushService.SendPushNotificationAsync(
+    dto.UserId, dto.TenantId, dto.Title, dto.Message, dto.ActionUrl);
                 }
             }
 
