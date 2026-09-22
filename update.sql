@@ -1854,3 +1854,49 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260919212759_AddAuditLogs'
+)
+BEGIN
+    CREATE TABLE [AuditLogs] (
+        [Id] int NOT NULL IDENTITY,
+        [UserId] int NULL,
+        [AuditType] nvarchar(50) NOT NULL,
+        [TableName] nvarchar(100) NOT NULL,
+        [PrimaryKey] nvarchar(50) NOT NULL,
+        [OldValues] nvarchar(max) NULL,
+        [NewValues] nvarchar(max) NULL,
+        [AffectedColumns] nvarchar(max) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_AuditLogs] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_AuditLogs_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260919212759_AddAuditLogs'
+)
+BEGIN
+    CREATE INDEX [IX_AuditLogs_UserId] ON [AuditLogs] ([UserId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260919212759_AddAuditLogs'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260919212759_AddAuditLogs', N'8.0.26');
+END;
+GO
+
+COMMIT;
+GO
+

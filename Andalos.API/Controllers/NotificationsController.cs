@@ -1,9 +1,13 @@
-﻿using Andalos.API.DTOs.Common;
+﻿using Andalos.API.Constants;
+using Andalos.API.Data;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Notifications;
 using Andalos.API.Interfaces;
+using Andalos.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Security.Cryptography;
 
@@ -15,27 +19,123 @@ namespace Andalos.API.Controllers
     public class NotificationsController : ControllerBase
     {
         private readonly INotificationService _service;
+        private readonly AppDbContext _db;
+        private readonly ISettingService _settings;
         private readonly ILogger<NotificationsController> _logger;
 
-        public NotificationsController(INotificationService service, ILogger<NotificationsController> logger)
+        public NotificationsController(
+            INotificationService service,
+            AppDbContext db,
+            ISettingService settings,
+            ILogger<NotificationsController> logger)
         {
             _service = service;
+            _db = db;
+            _settings = settings;
             _logger = logger;
         }
 
-        // 1. ملخص إشعاراتي (للجرس 🔔)
-        // 💡 تم التطوير: يمكنك الآن تمرير ?testTenantId=1 أو ?testUserId=2 لتجربتها مباشرة من Swagger!
+        // ═══════════════════════════════════════════════════════════
+        // 1. تسجيل اشتراك جهاز الهاتف (Push Subscription)
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost("subscribe")]
+        public async Task<IActionResult> SubscribeToPush([FromBody] SubscribeToPushDto dto, [FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
+        {
+            var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
+
+            if (string.IsNullOrWhiteSpace(dto.Endpoint) || string.IsNullOrWhiteSpace(dto.P256dh) || string.IsNullOrWhiteSpace(dto.Auth))
+            {
+                return BadRequest(ApiResponseDto<bool>.FailResponse("بيانات اشتراك الجهاز غير مكتملة"));
+            }
+
+            var existing = await _db.PushSubscriptions.FirstOrDefaultAsync(p => p.Endpoint == dto.Endpoint);
+
+            if (existing == null)
+            {
+                var sub = new PushSubscription
+                {
+                    UserId = userId,
+                    TenantId = tenantId,
+                    Endpoint = dto.Endpoint,
+                    P256dh = dto.P256dh,
+                    Auth = dto.Auth,
+                    DeviceInfo = dto.DeviceInfo,
+                    BrowserType = dto.BrowserType,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    LastUsedAt = DateTime.UtcNow
+                };
+                _db.PushSubscriptions.Add(sub);
+            }
+            else
+            {
+                existing.UserId = userId;
+                existing.TenantId = tenantId;
+                existing.P256dh = dto.P256dh;
+                existing.Auth = dto.Auth;
+                existing.DeviceInfo = dto.DeviceInfo;
+                existing.BrowserType = dto.BrowserType;
+                existing.IsActive = true;
+                existing.LastUsedAt = DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _db.SaveChangesAsync();
+            _logger.LogInformation($"✅ تم تسجيل جهاز جديد بنجاح لـ: UserId={userId}, TenantId={tenantId}");
+
+            return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تفعيل إشعارات الهاتف بنجاح"));
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // 2. جلب وتثبيت مفتاح VAPID العام
+        // ═══════════════════════════════════════════════════════════
+        [HttpGet("vapid-public-key")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetVapidPublicKey()
+        {
+            var publicKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
+            var privateKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPrivateKey);
+
+            // إذا لم تكن المفاتيح موجودة في قاعدة البيانات، نقوم بتوليدها وتخزينها
+            if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
+            {
+                using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+                var parameters = ecdsa.ExportExplicitParameters(true);
+
+                var x = parameters.Q.X!;
+                var y = parameters.Q.Y!;
+                var publicKeyBytes = new byte[1 + x.Length + y.Length];
+                publicKeyBytes[0] = 0x04;
+                Buffer.BlockCopy(x, 0, publicKeyBytes, 1, x.Length);
+                Buffer.BlockCopy(y, 0, publicKeyBytes, 1 + x.Length, y.Length);
+
+                publicKey = WebEncoders.Base64UrlEncode(publicKeyBytes);
+                privateKey = WebEncoders.Base64UrlEncode(parameters.D!);
+
+                // 👈 تم تمرير المعامل الثالث "System" بنجاح
+                await _settings.SetValueAsync(SettingKeys.NotificationVapidPublicKey, publicKey, "System");
+                await _settings.SetValueAsync(SettingKeys.NotificationVapidPrivateKey, privateKey, "System");
+                await _settings.SetValueAsync(SettingKeys.NotificationVapidSubject, "mailto:info@andalos.ly", "System");
+                await _settings.SetValueAsync(SettingKeys.NotificationPushEnabled, "true", "System");
+            }
+
+            return Ok(new
+            {
+                publicKey = publicKey,
+                subject = "mailto:info@andalos.ly"
+            });
+        }
+
+        // 3. ملخص الإشعارات (للجرس 🔔)
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary([FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
             var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
-            _logger.LogInformation($"Fetching Summary for: UserId={userId}, TenantId={tenantId}");
-
             var summary = await _service.GetMyNotificationsAsync(userId, tenantId);
             return Ok(ApiResponseDto<NotificationSummaryDto>.SuccessResponse(summary));
         }
 
-        // 2. كل الإشعارات (للصفحة الكاملة)
+        // 4. كل الإشعارات
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] bool unreadOnly = false,
@@ -44,13 +144,11 @@ namespace Andalos.API.Controllers
             [FromQuery] int? testTenantId = null)
         {
             var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
-            _logger.LogInformation($"Fetching All Notifications for: UserId={userId}, TenantId={tenantId}");
-
             var list = await _service.GetAllAsync(userId, tenantId, unreadOnly, limit);
             return Ok(ApiResponseDto<List<NotificationResponseDto>>.SuccessResponse(list));
         }
 
-        // 3. عدد الإشعارات غير المقروءة
+        // 5. عدد الإشعارات غير المقروءة
         [HttpGet("unread-count")]
         public async Task<IActionResult> GetUnreadCount([FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
@@ -59,40 +157,36 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<int>.SuccessResponse(count));
         }
 
-        // 4. تعليم إشعار كمقروء
+        // 6. تعليم إشعار كمقروء
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkAsRead(int id, [FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
             var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
             var result = await _service.MarkAsReadAsync(id, userId, tenantId);
-            if (!result)
-                return NotFound(ApiResponseDto<bool>.FailResponse("الإشعار غير موجود أو لا تملك صلاحية الوصول إليه"));
-
+            if (!result) return NotFound(ApiResponseDto<bool>.FailResponse("الإشعار غير موجود"));
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تعليم الإشعار كمقروء"));
         }
 
-        // 5. تعليم كل الإشعارات كمقروءة
+        // 7. تعليم كل الإشعارات كمقروءة
         [HttpPut("read-all")]
         public async Task<IActionResult> MarkAllAsRead([FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
             var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
-            var result = await _service.MarkAllAsReadAsync(userId, tenantId);
+            await _service.MarkAllAsReadAsync(userId, tenantId);
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تعليم كل الإشعارات كمقروءة"));
         }
 
-        // 6. حذف إشعار
+        // 8. حذف إشعار
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id, [FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
             var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
             var result = await _service.DeleteAsync(id, userId, tenantId);
-            if (!result)
-                return NotFound(ApiResponseDto<bool>.FailResponse("الإشعار غير موجود أو لا تملك صلاحية الوصول إليه"));
-
-            return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم حذف الإشعار بنجاح"));
+            if (!result) return NotFound(ApiResponseDto<bool>.FailResponse("الإشعار غير موجود"));
+            return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم حذف الإشعار"));
         }
 
-        // 7. جلب تفضيلات الإشعارات
+        // 9. تفضيلات الإشعارات
         [HttpGet("preferences")]
         public async Task<IActionResult> GetPreferences([FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
@@ -101,20 +195,18 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<List<NotificationPreferenceDto>>.SuccessResponse(prefs));
         }
 
-        // 8. تحديث التفضيلات
         [HttpPut("preferences")]
         public async Task<IActionResult> UpdatePreferences([FromBody] UpdatePreferencesDto dto, [FromQuery] int? testUserId = null, [FromQuery] int? testTenantId = null)
         {
             var (userId, tenantId) = ResolveContext(testUserId, testTenantId);
-            var result = await _service.UpdatePreferencesAsync(userId, tenantId, dto);
-            return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث تفضيلات الإشعارات بنجاح"));
+            await _service.UpdatePreferencesAsync(userId, tenantId, dto);
+            return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث التفضيلات"));
         }
 
-        // 9. 👈 دالة تجريبية مطورة لإرسال إشعار واختباره فوراً مع إمكانية تحديد المستهدف بدقة
+        // 10. إرسال تجريبي
         [HttpPost("test-send")]
         public async Task<IActionResult> TestSend([FromBody] CreateNotificationDto dto)
         {
-            // إذا لم يحدد المستهدف في الـ Body، نقرأ سياق الطلب الحالي كمسار بديل للإنتاج
             if (!dto.UserId.HasValue && !dto.TenantId.HasValue)
             {
                 var (userId, tenantId) = ResolveContext();
@@ -122,52 +214,14 @@ namespace Andalos.API.Controllers
                 dto.TenantId = tenantId;
             }
 
-            _logger.LogInformation($"Executing TestSend Target: UserId={dto.UserId}, TenantId={dto.TenantId}");
-
             var result = await _service.CreateNotificationAsync(dto);
-            return Ok(ApiResponseDto<NotificationResponseDto>.SuccessResponse(result, "تم إرسال الإشعار بنجاح عبر النظام والـ SignalR"));
+            return Ok(ApiResponseDto<NotificationResponseDto>.SuccessResponse(result, "تم إرسال الإشعار بنجاح عبر النظام والـ SignalR والـ Push"));
         }
 
-        // 10. توليد مفاتيح VAPID
-        [HttpGet("generate-vapid-keys")]
-        [AllowAnonymous]
-        public IActionResult GenerateVapidKeys()
-        {
-            using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            var parameters = ecdsa.ExportExplicitParameters(true);
-
-            var x = parameters.Q.X!;
-            var y = parameters.Q.Y!;
-            var publicKeyBytes = new byte[1 + x.Length + y.Length];
-            publicKeyBytes[0] = 0x04;
-            Buffer.BlockCopy(x, 0, publicKeyBytes, 1, x.Length);
-            Buffer.BlockCopy(y, 0, publicKeyBytes, 1 + x.Length, y.Length);
-
-            var privateKeyBytes = parameters.D!;
-
-            var publicKey = WebEncoders.Base64UrlEncode(publicKeyBytes);
-            var privateKey = WebEncoders.Base64UrlEncode(privateKeyBytes);
-
-            return Ok(new
-            {
-                subject = "mailto:info@andalos.ly",
-                publicKey = publicKey,
-                privateKey = privateKey
-            });
-        }
-
-        // =====================================================
-        // 🔄 دالة تفكيك واستخلاص الهوية المركبة والمحسنة 100%
-        // =====================================================
         private (int? userId, int? tenantId) ResolveContext(int? queryUserId = null, int? queryTenantId = null)
         {
-            // 1. الأولوية الأولى: المعاملات الممررة في الرابط (Swagger/Testing Override)
-            if (queryUserId.HasValue || queryTenantId.HasValue)
-            {
-                return (queryUserId, queryTenantId);
-            }
+            if (queryUserId.HasValue || queryTenantId.HasValue) return (queryUserId, queryTenantId);
 
-            // 2. الأولوية الثانية: هيدرز التطوير الممررة من الـ Interceptor الخاص بالأنغولار
             int? headerUserId = null;
             int? headerTenantId = null;
 
@@ -177,12 +231,8 @@ namespace Andalos.API.Controllers
             if (Request.Headers.TryGetValue("X-Test-Tenant-Id", out var hTenantId) && int.TryParse(hTenantId, out var tid))
                 headerTenantId = tid;
 
-            if (headerUserId.HasValue || headerTenantId.HasValue)
-            {
-                return (headerUserId, headerTenantId);
-            }
+            if (headerUserId.HasValue || headerTenantId.HasValue) return (headerUserId, headerTenantId);
 
-            // 3. الأولوية الثالثة: التوكن القياسي المستخلص من الصلاحيات (Production Fallback)
             int? claimsUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cUid) ? cUid : null;
             int? claimsTenantId = int.TryParse(User.FindFirst("TenantId")?.Value, out var cTid) ? cTid : null;
 

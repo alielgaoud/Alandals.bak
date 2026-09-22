@@ -13,7 +13,6 @@ namespace Andalos.API.Services
     {
         Task SendPushNotificationAsync(int? userId, int? tenantId, string title, string body, string? url);
     }
-
     public class PushNotificationService : IPushNotificationService
     {
         private readonly AppDbContext _db;
@@ -36,71 +35,65 @@ namespace Andalos.API.Services
         {
             try
             {
-                // 1) الزر العام من الإعدادات: تفعيل/إيقاف Web Push على مستوى النظام
-                var globalPushEnabled = await _settings.GetValueAsync(SettingKeys.NotificationPushEnabled, false);
+                var globalPushEnabled = await _settings.GetValueAsync(SettingKeys.NotificationPushEnabled, true);
                 if (!globalPushEnabled)
                 {
-                    _logger.LogDebug("Web Push متوقف من إعدادات النظام.");
+                    _logger.LogInformation("Web Push متوقف من إعدادات النظام.");
                     return;
                 }
 
-                // 2) قراءة مفاتيح VAPID من Settings (تتحدث فوراً بعد الحفظ بسبب Cache)
-                var subject = await _settings.GetValueAsync(SettingKeys.NotificationVapidSubject)
-                              ?? "mailto:info@andalos.ly";
+                var subject = await _settings.GetValueAsync(SettingKeys.NotificationVapidSubject) ?? "mailto:info@andalos.ly";
                 var publicKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
                 var privateKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPrivateKey);
 
                 if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
                 {
-                    _logger.LogWarning("مفاتيح VAPID غير مكتملة في الإعدادات. تم تجاهل Web Push.");
+                    _logger.LogWarning("مفاتيح VAPID غير موجودة في قاعدة البيانات.");
                     return;
                 }
 
-                // 3) تهيئة المصادقة ديناميكياً عند كل إرسال
-                try
+                _pushClient.DefaultAuthentication = new VapidAuthentication(publicKey, privateKey)
                 {
-                    _pushClient.DefaultAuthentication = new VapidAuthentication(publicKey, privateKey)
-                    {
-                        Subject = subject
-                    };
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "مفاتيح VAPID في الإعدادات غير صالحة.");
-                    return;
-                }
+                    Subject = subject
+                };
 
-                // 4) جلب اشتراكات المستلم
                 var query = _db.PushSubscriptions.Where(p => p.IsActive);
 
-                if (userId.HasValue)
-                    query = query.Where(p => p.UserId == userId);
+                if (tenantId.HasValue && userId.HasValue)
+                    query = query.Where(p => p.TenantId == tenantId.Value || p.UserId == userId.Value);
                 else if (tenantId.HasValue)
-                    query = query.Where(p => p.TenantId == tenantId);
+                    query = query.Where(p => p.TenantId == tenantId.Value);
+                else if (userId.HasValue)
+                    query = query.Where(p => p.UserId == userId.Value);
                 else
                     return;
 
                 var subscriptions = await query.ToListAsync();
                 if (!subscriptions.Any())
                 {
-                    _logger.LogDebug("لا توجد اشتراكات Push نشطة للمستلم.");
+                    _logger.LogInformation($"لا توجد أجهزة هاتف مسجلة لـ: TenantId={tenantId}, UserId={userId}");
                     return;
                 }
 
-                // 5) بناء Payload القياسي لـ Service Worker
+                // 💡 تصحيح حرج: بناء روابط مطلقة كاملة للأيقونات بصيغة PNG حصرياً لـ iOS
+                string domain = "https://tenant.marinaalandalus.com"; // رابط الفرونت اند الرئيسي الخاص بك
+                string iconUrl = $"{domain}/assets/gold_logo-removebg.png"; // 👈 استخدام الـ PNG بدلاً من SVG
+
                 var payload = JsonSerializer.Serialize(new
                 {
                     notification = new
                     {
-                        title,
-                        body,
-                        icon = "/assets/icons/icon-192x192.png",
-                        vibrate = new[] { 100, 50, 100 },
-                        data = new { url = url ?? "/" }
+                        title = title,
+                        body = body,
+                        icon = iconUrl,          // 👈 رابط كامل PNG
+                        badge = iconUrl,         // 👈 رابط كامل PNG
+                        vibrate = new[] { 200, 100, 200 },
+                        data = new { url = url ?? "/portal/dashboard" }
                     }
                 });
 
-                // 6) الإرسال لكل جهاز/متصفح
+                _logger.LogInformation($"جاري إرسال إشعار الهاتف إلى {subscriptions.Count} جهاز...");
+
                 foreach (var sub in subscriptions)
                 {
                     try
@@ -116,14 +109,11 @@ namespace Andalos.API.Services
                         };
 
                         await _pushClient.RequestPushMessageDeliveryAsync(pushSubscription, new PushMessage(payload));
-                        sub.LastUsedAt = DateTimeHelper.LibyaNow;
+                        sub.LastUsedAt = DateTime.UtcNow;
                     }
-                    catch (PushServiceClientException ex)
-                        when (ex.StatusCode == System.Net.HttpStatusCode.Gone ||
-                              ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    catch (PushServiceClientException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Gone || ex.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
-                        // الاشتراك منتهٍ أو محذوف من المتصفح
-                        sub.IsActive = false;
+                        sub.IsActive = false; // إلغاء تفعيل الأجهزة القديمة
                     }
                     catch (Exception ex)
                     {
@@ -135,7 +125,6 @@ namespace Andalos.API.Services
             }
             catch (Exception ex)
             {
-                // لا نكسر مسار العمل الأساسي إذا فشل Push
                 _logger.LogError(ex, "خطأ غير متوقع أثناء إرسال Web Push.");
             }
         }
