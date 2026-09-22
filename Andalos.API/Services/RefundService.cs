@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Refunds;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -114,7 +115,7 @@ namespace Andalos.API.Services
             if (refund == null) return false;
 
             refund.IsActive = false;
-            refund.UpdatedAt = DateTime.UtcNow;
+            refund.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }

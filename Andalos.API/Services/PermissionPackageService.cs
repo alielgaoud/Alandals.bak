@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Users;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -95,7 +96,7 @@ namespace Andalos.API.Services
             package.Name = dto.Name.Trim();
             package.Description = dto.Description;
             package.IsActive = dto.IsActive;
-            package.UpdatedAt = DateTime.UtcNow;
+            package.UpdatedAt = DateTimeHelper.LibyaNow;
 
             // استبدال العناصر
             _db.PermissionPackageItems.RemoveRange(package.Items);
@@ -123,7 +124,7 @@ namespace Andalos.API.Services
             if (package == null) return false;
 
             package.IsActive = false;
-            package.UpdatedAt = DateTime.UtcNow;
+            package.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }

@@ -2,6 +2,7 @@
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,6 @@ namespace Andalos.API.Services
     {
         Task<TenantAccountStatementDto?> GetStatementAsync(int tenantId, DateTime? fromDate = null, DateTime? toDate = null);
         Task<List<TenantBalanceOverviewDto>> GetAllTenantsBalancesAsync();
-
         Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes);
         Task ProcessMonthlyRentDuesAsync();
         Task<List<TenantWalletDeductionDetailDto>> GetTenantWalletDeductionsAsync(int? tenantId, DateTime? fromDate, DateTime? toDate);
@@ -60,7 +60,7 @@ namespace Andalos.API.Services
                 TenantId = tenantId,
                 ContractId = activeContract.Id,
                 Amount = amount,
-                PaymentDate = DateTime.Now,
+                PaymentDate = DateTimeHelper.LibyaNow, // 👈 تم التحديث
                 PaymentType = PaymentType.AdvancePayment,
                 PaymentMethod = method,
                 ReceiptNumber = receiptNo,
@@ -79,7 +79,7 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task ProcessMonthlyRentDuesAsync()
         {
-            var today = DateTime.Today;
+            var today = DateTimeHelper.LibyaToday; // 👈 تم التحديث
             var startOfMonth = new DateTime(today.Year, today.Month, 1);
             var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
 
@@ -120,7 +120,7 @@ namespace Andalos.API.Services
                         TenantId = tenant.Id,
                         ContractId = contract.Id,
                         Amount = totalMonthlyDue,
-                        PaymentDate = today,
+                        PaymentDate = today, // 👈 تاريخ اليوم المحلي
                         PaymentType = PaymentType.Rent,
                         PaymentMethod = PaymentMethod.FromBalance,
                         ReceiptNumber = receiptNo,
@@ -140,7 +140,7 @@ namespace Andalos.API.Services
                         TenantId = tenant.Id,
                         ContractId = contract.Id,
                         Amount = partialAmount,
-                        PaymentDate = today,
+                        PaymentDate = today, // 👈 تاريخ اليوم المحلي
                         PaymentType = PaymentType.Rent,
                         PaymentMethod = PaymentMethod.FromBalance,
                         ReceiptNumber = receiptNo,
@@ -160,7 +160,7 @@ namespace Andalos.API.Services
         public async Task<List<TenantWalletDeductionDetailDto>> GetTenantWalletDeductionsAsync(int? tenantId, DateTime? fromDate, DateTime? toDate)
         {
             var query = _db.Payments
-                .Include(p => p.Contract).ThenInclude(c => c!.Tenant) // 👈 الجلب عن طريق العقد
+                .Include(p => p.Contract).ThenInclude(c => c!.Tenant)
                 .Include(p => p.Contract).ThenInclude(c => c!.Unit)
                 .Where(p => p.IsActive && p.PaymentMethod == PaymentMethod.FromBalance);
 
@@ -185,7 +185,7 @@ namespace Andalos.API.Services
                 PaymentId = p.Id,
                 ReceiptNumber = p.ReceiptNumber,
                 TenantId = p.TenantId,
-                TenantName = p.Contract?.Tenant?.FullName ?? "", // 👈 تصحيح قراءة اسم المستأجر من العقد
+                TenantName = p.Contract?.Tenant?.FullName ?? "",
                 UnitNumber = p.Contract?.Unit?.UnitNumber ?? "",
                 PaymentType = p.PaymentType.ToString(),
                 PaymentTypeLabel = GetPaymentTypeLabel(p.PaymentType),
@@ -203,10 +203,9 @@ namespace Andalos.API.Services
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
             if (tenant == null) return null;
 
-            var today = DateTime.Today;
+            var today = DateTimeHelper.LibyaToday; // 👈 تم التحديث
             fromDate ??= new DateTime(today.Year - 2, 1, 1);
 
-            // 👈 إصلاح جوهري: ضبط تاريخ النهاية ليشمل كامل اليوم الحالي حتى الساعة 23:59:59
             var actualToDate = (toDate ?? today).Date.AddDays(1).AddTicks(-1);
 
             var contracts = await _db.Contracts
@@ -218,7 +217,7 @@ namespace Andalos.API.Services
             var payments = await _db.Payments
                 .Include(p => p.Contract).ThenInclude(c => c!.Unit)
                 .Where(p => p.TenantId == tenantId && p.IsActive
-                    && p.PaymentDate >= fromDate && p.PaymentDate <= actualToDate) // 👈 تم الاستبدال لـ actualToDate
+                    && p.PaymentDate >= fromDate && p.PaymentDate <= actualToDate)
                 .ToListAsync();
 
             var transactions = new List<AccountTransactionDto>();
@@ -233,7 +232,6 @@ namespace Andalos.API.Services
                 int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
                 decimal totalContractValue = contract.RentAmount * durationMonths;
 
-                // أ) قيد التأمين / العربون عند بداية العقد
                 if (contract.DepositAmount > 0 && contract.StartDate >= fromDate && contract.StartDate <= actualToDate)
                 {
                     transactions.Add(new AccountTransactionDto
@@ -253,7 +251,6 @@ namespace Andalos.API.Services
                     });
                 }
 
-                // ب) الرسوم والعمولات التي تُدفع مَرّة واحدة
                 var oneTimeFees = contract.ContractFees.Where(f => f.Frequency == FeeFrequency.OneTime);
                 foreach (var fee in oneTimeFees)
                 {
@@ -278,7 +275,6 @@ namespace Andalos.API.Services
                     }
                 }
 
-                // ج) قيود الإيجار الشهرية + الرسوم الشهرية المتكررة
                 var monthlyFees = contract.ContractFees.Where(f => f.Frequency == FeeFrequency.Monthly).ToList();
                 decimal monthlyFeesAmount = monthlyFees.Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
 
@@ -310,7 +306,7 @@ namespace Andalos.API.Services
                 }
             }
 
-            // --- 2. المصروفات المحملة على المستأجر (Debit) ---
+            // --- 2. المصروفات المحملة (Debit) ---
             var chargedExpenses = await _db.Expenses
                 .Include(e => e.Unit)
                 .Where(e => e.TenantId == tenantId && e.IsChargedToTenant && e.IsActive
@@ -362,7 +358,6 @@ namespace Andalos.API.Services
                 });
             }
 
-            // --- 4. ترتيب الحركات وحساب الرصيد الجاري ---
             transactions = transactions.OrderBy(t => t.TransactionDate).ThenBy(t => t.TransactionType == "Debit" ? 0 : 1).ToList();
 
             decimal runningBalance = 0;
@@ -462,7 +457,7 @@ namespace Andalos.API.Services
         {
             var tenants = await _db.Tenants.Where(t => t.IsActive).ToListAsync();
             var result = new List<TenantBalanceOverviewDto>();
-            var today = DateTime.Today;
+            var today = DateTimeHelper.LibyaToday; // 👈 تم التحديث
 
             foreach (var tenant in tenants)
             {
@@ -543,4 +538,4 @@ namespace Andalos.API.Services
             _ => "غير محدد"
         };
     }
-} 
+}

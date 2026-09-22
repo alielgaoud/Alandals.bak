@@ -52,7 +52,7 @@ namespace Andalos.API.Services
                 FullName = user.FullName,
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
-                Expiration = DateTime.UtcNow.AddMinutes(60)
+                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
             };
         }
 
@@ -90,7 +90,7 @@ namespace Andalos.API.Services
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
                 TenantId = user.TenantId.Value,
-                Expiration = DateTime.UtcNow.AddMinutes(60)
+                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
             };
         }
 
@@ -99,8 +99,11 @@ namespace Andalos.API.Services
         {
             if (user.IsLocked)
             {
-                if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
-                    throw new UnauthorizedAccessException($"الحساب مقفل مؤقتاً. حاول مجدداً بعد {Math.Ceiling((user.LockoutEnd.Value - DateTime.UtcNow).TotalMinutes)} دقيقة");
+                if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeHelper.LibyaNow)
+                {
+                    var remaining = Math.Ceiling((user.LockoutEnd.Value - DateTimeHelper.LibyaNow).TotalMinutes);
+                    throw new UnauthorizedAccessException($"الحساب مقفل مؤقتاً. حاول مجدداً بعد {remaining} دقيقة");
+                }
                 else
                 {
                     user.IsLocked = false;
@@ -115,7 +118,7 @@ namespace Andalos.API.Services
                 if (user.FailedLoginAttempts >= 5)
                 {
                     user.IsLocked = true;
-                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(15); // قفل الحساب 15 دقيقة
+                    user.LockoutEnd = DateTimeHelper.LibyaNow.AddMinutes(15);
                     await _db.SaveChangesAsync();
                     throw new UnauthorizedAccessException("تم قفل الحساب لمدة 15 دقيقة بسبب محاولات دخول خاطئة متعددة");
                 }
@@ -128,7 +131,7 @@ namespace Andalos.API.Services
             user.FailedLoginAttempts = 0;
             user.IsLocked = false;
             user.LockoutEnd = null;
-            user.LastLoginAt = DateTime.UtcNow;
+            user.LastLoginAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
         }
 
@@ -158,7 +161,7 @@ namespace Andalos.API.Services
                 FullName = user.FullName,
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
-                Expiration = DateTime.UtcNow.AddMinutes(60)
+                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
             };
         }
 

@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Lib.Net.Http.WebPush;
 using Lib.Net.Http.WebPush.Authentication;
@@ -115,7 +116,7 @@ namespace Andalos.API.Services
                         };
 
                         await _pushClient.RequestPushMessageDeliveryAsync(pushSubscription, new PushMessage(payload));
-                        sub.LastUsedAt = DateTime.UtcNow;
+                        sub.LastUsedAt = DateTimeHelper.LibyaNow;
                     }
                     catch (PushServiceClientException ex)
                         when (ex.StatusCode == System.Net.HttpStatusCode.Gone ||

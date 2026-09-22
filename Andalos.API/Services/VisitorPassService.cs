@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -153,7 +154,7 @@ namespace Andalos.API.Services
             {
                 pass.Status = PassStatus.Used;
             }
-            pass.UpdatedAt = DateTime.UtcNow;
+            pass.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             await LogEntryAsync(pass.Id, dto.GateName, scannedBy, true, null);
@@ -198,7 +199,7 @@ namespace Andalos.API.Services
             if (pass == null) return false;
 
             pass.Status = PassStatus.Revoked;
-            pass.UpdatedAt = DateTime.UtcNow;
+            pass.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }
@@ -239,7 +240,7 @@ namespace Andalos.API.Services
                 VisitorPassId = passId,
                 GateName = gateName,
                 ScannedBy = scannedBy,
-                ScanTime = DateTime.Now,
+                ScanTime = DateTimeHelper.LibyaNow,
                 IsAllowed = isAllowed,
                 RejectReason = reason
             };
@@ -258,7 +259,7 @@ namespace Andalos.API.Services
                 VisitorType = pass.VisitorType.ToString(),
                 DestinationUnit = destination,
                 Purpose = pass.Purpose,
-                ScanTime = DateTime.Now,
+                ScanTime = DateTimeHelper.LibyaNow,
                 RemainingEntries = Math.Max(0, pass.MaxEntries - pass.UsedCount)
             };
         }
@@ -267,7 +268,7 @@ namespace Andalos.API.Services
         {
             string passCode;
             bool exists;
-            string datePrefix = DateTime.Now.ToString("yyyyMMdd");
+            string datePrefix = DateTimeHelper.LibyaNow.ToString("yyyyMMdd");
 
             do
             {

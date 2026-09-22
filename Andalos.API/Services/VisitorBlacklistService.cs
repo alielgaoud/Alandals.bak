@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Blacklist;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -127,7 +128,7 @@ namespace Andalos.API.Services
 
             // Soft Delete لرفع الحظر
             entry.IsActive = false;
-            entry.UpdatedAt = DateTime.UtcNow;
+            entry.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }

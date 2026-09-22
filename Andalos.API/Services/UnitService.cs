@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Units;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ namespace Andalos.API.Services
             unit.Description = dto.Description;
             unit.Notes = dto.Notes;
             unit.ElectricityMeterStart = dto.ElectricityMeterStart;
-            unit.UpdatedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
 
@@ -88,7 +89,7 @@ namespace Andalos.API.Services
             if (unit == null) return false;
 
             unit.IsActive = false;
-            unit.UpdatedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
 
             return true;

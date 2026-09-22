@@ -2,6 +2,7 @@
 using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,7 @@ namespace Andalos.API.Services
                 VisitorPhone = dto.VisitorPhone,
                 NationalId = dto.NationalId,
                 VisitorType = VisitorType.Customer,
-                ValidDate = DateTime.Today,
+                ValidDate = DateTimeHelper.LibyaNow,
                 MaxEntries = 1,
                 UsedCount = 0,
                 Status = PassStatus.Active,
@@ -72,7 +73,7 @@ namespace Andalos.API.Services
                 shift = new GatekeeperShift
                 {
                     UserId = gatekeeperUserId,
-                    StartTime = DateTime.UtcNow,
+                    StartTime = DateTimeHelper.LibyaNow,
                     TotalPassesIssued = 1,
                     TotalCashCollected = passPrice,
                     IsActive = true
@@ -83,7 +84,7 @@ namespace Andalos.API.Services
             {
                 shift.TotalPassesIssued++;
                 shift.TotalCashCollected += passPrice;
-                shift.UpdatedAt = DateTime.UtcNow;
+                shift.UpdatedAt = DateTimeHelper.LibyaNow;
             }
 
             await _db.SaveChangesAsync();
@@ -96,7 +97,7 @@ namespace Andalos.API.Services
                 VisitorPhone = pass.VisitorPhone,
                 NationalId = pass.NationalId,
                 VisitorType = pass.VisitorType.ToString(),
-                ValidDate = pass.ValidDate,
+                ValidDate = pass.ValidDate = DateTimeHelper.LibyaToday,
                 MaxEntries = pass.MaxEntries,
                 UsedCount = pass.UsedCount,
                 Status = pass.Status.ToString(),
@@ -124,7 +125,7 @@ namespace Andalos.API.Services
             if (!pass.IsPaidPass)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ هذا التصريح مجاني ولا يحتوي على محفظة مالية" };
 
-            if (pass.ValidDate.Date != DateTime.Today)
+            if (pass.ValidDate.Date != DateTimeHelper.LibyaNow)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ صلاحية كود الشراء انتهت (تاريخ اليوم فقط)" };
 
             if (pass.WalletStatus != WalletStatus.Active || pass.RemainingBalance <= 0)
@@ -154,7 +155,7 @@ namespace Andalos.API.Services
                 pass.WalletStatus = WalletStatus.Depleted;
             }
 
-            pass.UpdatedAt = DateTime.UtcNow;
+            pass.UpdatedAt = DateTimeHelper.LibyaNow;
 
             // تسجيل الحركة لصالح المحل
             var transaction = new PassTransaction
@@ -163,7 +164,7 @@ namespace Andalos.API.Services
                 TenantId = tenantId,
                 UnitId = dto.UnitId,
                 Amount = chargedAmount,
-                TransactionDate = DateTime.Now,
+                TransactionDate = DateTimeHelper.LibyaNow,
                 IsSettled = false
             };
 
@@ -266,7 +267,7 @@ namespace Andalos.API.Services
             {
                 TenantId = dto.TenantId,
                 TotalAmount = totalAmount,
-                SettlementDate = DateTime.Now,
+                SettlementDate = DateTimeHelper.LibyaNow,
                 SettlementMethod = dto.SettlementMethod,
                 ProcessedByUserId = adminUserId
             };
@@ -279,7 +280,7 @@ namespace Andalos.API.Services
             {
                 trans.IsSettled = true;
                 trans.SettlementId = settlement.Id;
-                trans.UpdatedAt = DateTime.UtcNow;
+                trans.UpdatedAt = DateTimeHelper.LibyaNow;
             }
 
             // 💡 👈 التصحيح المحاسبي الجوهري:
@@ -334,7 +335,7 @@ namespace Andalos.API.Services
                 {
                     UserId = gatekeeperUserId,
                     GatekeeperName = user?.FullName ?? "حارس البوابة",
-                    StartTime = DateTime.Now,
+                    StartTime = DateTimeHelper.LibyaNow,
                     TotalPassesIssued = 0,
                     TotalCashCollected = 0,
                     IsHandedOver = false
@@ -346,7 +347,7 @@ namespace Andalos.API.Services
                 ShiftId = shift.Id,
                 UserId = gatekeeperUserId,
                 GatekeeperName = user?.FullName ?? "حارس البوابة",
-                StartTime = shift.StartTime,
+                StartTime = shift.StartTime = DateTimeHelper.LibyaNow,
                 EndTime = shift.EndTime,
                 TotalPassesIssued = shift.TotalPassesIssued,
                 TotalCashCollected = shift.TotalCashCollected,
@@ -361,9 +362,9 @@ namespace Andalos.API.Services
             if (shift == null || shift.IsHandedOver) return false;
 
             shift.IsHandedOver = true;
-            shift.HandedOverAt = DateTime.Now;
-            shift.EndTime = DateTime.Now;
-            shift.UpdatedAt = DateTime.UtcNow;
+            shift.HandedOverAt = DateTimeHelper.LibyaNow;
+            shift.EndTime = DateTimeHelper.LibyaNow;
+            shift.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             return true;
@@ -374,7 +375,7 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task<decimal> ExpireUnusedBalancesAsync()
         {
-            var today = DateTime.Today;
+            var today = DateTimeHelper.LibyaNow;
 
             // تصاريح الأيام السابقة التي لم تُصفر بعد
             var expiredPasses = await _db.VisitorPasses
@@ -388,7 +389,7 @@ namespace Andalos.API.Services
                 totalForfeited += pass.RemainingBalance;
                 pass.RemainingBalance = 0;
                 pass.WalletStatus = WalletStatus.Expired;
-                pass.UpdatedAt = DateTime.UtcNow;
+                pass.UpdatedAt = DateTimeHelper.LibyaNow;
             }
 
             await _db.SaveChangesAsync();
@@ -637,7 +638,7 @@ namespace Andalos.API.Services
         {
             string passCode;
             bool exists;
-            string datePrefix = DateTime.Now.ToString("yyyyMMdd");
+            string datePrefix = DateTimeHelper.LibyaNow.ToString("yyyyMMdd");
 
             do
             {

@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -65,7 +66,7 @@ namespace Andalos.API.Services
                     LastNumber = 0,
                     CurrentYear = currentYear,
                     LastYear = currentYear,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTimeHelper.LibyaNow
                 };
                 _db.NumberSequences.Add(sequence);
             }
@@ -84,7 +85,7 @@ namespace Andalos.API.Services
             do
             {
                 sequence.LastNumber += 1;
-                sequence.UpdatedAt = DateTime.UtcNow;
+                sequence.UpdatedAt = DateTimeHelper.LibyaNow;
                 generatedNumber = BuildNumber(format, prefix, sequence.LastNumber, currentYear);
 
                 exists = await CheckIfNumberExistsAsync(sequenceKey, generatedNumber);

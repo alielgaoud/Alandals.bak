@@ -1,4 +1,5 @@
 ﻿using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -597,9 +598,9 @@ namespace Andalos.API.Data
 
         public bool HasTemporaryProperties => TemporaryProperties.Any();
 
+        // داخل كلاس AuditEntry في أسفل AppDbContext.cs:
         public AuditLog ToAudit()
         {
-            // خيار لعدم تشفير الحروف العربية في الـ JSON
             var jsonOptions = new JsonSerializerOptions
             {
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All)
@@ -610,7 +611,7 @@ namespace Andalos.API.Data
                 UserId = UserId,
                 AuditType = AuditType.ToString(),
                 TableName = TableName,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.LibyaNow, // 👈 تم التحديث ليحفظ التوقيت بـ +2 ساعات
                 PrimaryKey = JsonSerializer.Serialize(KeyValues, jsonOptions),
                 OldValues = OldValues.Count == 0 ? null : JsonSerializer.Serialize(OldValues, jsonOptions),
                 NewValues = NewValues.Count == 0 ? null : JsonSerializer.Serialize(NewValues, jsonOptions),

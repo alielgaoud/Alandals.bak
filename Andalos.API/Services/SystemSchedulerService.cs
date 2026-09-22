@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +30,7 @@ namespace Andalos.API.Services
             {
                 try
                 {
-                    var now = DateTime.Now;
+                    var now = DateTimeHelper.LibyaNow; // 👈 قراءة الساعة المحلية لليبيا
 
                     using (var scope = _serviceProvider.CreateScope())
                     {

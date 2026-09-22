@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -162,17 +163,17 @@ namespace Andalos.API.Services
             {
                 var oldStatus = contract.Status;
                 contract.Status = newStatus;
-                contract.UpdatedAt = DateTime.UtcNow;
+                contract.UpdatedAt = DateTimeHelper.LibyaNow;
 
                 if (contract.Unit != null && (newStatus == ContractStatus.Expired || newStatus == ContractStatus.Terminated))
                 {
                     contract.Unit.Status = UnitStatus.Vacant;
-                    contract.Unit.UpdatedAt = DateTime.UtcNow;
+                    contract.UpdatedAt = DateTimeHelper.LibyaNow;
                 }
                 else if (contract.Unit != null && newStatus == ContractStatus.Active)
                 {
                     contract.Unit.Status = UnitStatus.Rented;
-                    contract.Unit.UpdatedAt = DateTime.UtcNow;
+                    contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
                 }
 
                 await _db.SaveChangesAsync();
@@ -212,12 +213,12 @@ namespace Andalos.API.Services
             try
             {
                 contract.IsActive = false;
-                contract.UpdatedAt = DateTime.UtcNow;
+                contract.UpdatedAt = DateTimeHelper.LibyaNow;
 
                 if (contract.Unit != null && contract.Status == ContractStatus.Active)
                 {
                     contract.Unit.Status = UnitStatus.Vacant;
-                    contract.Unit.UpdatedAt = DateTime.UtcNow;
+                    contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
                 }
 
                 await _db.SaveChangesAsync();

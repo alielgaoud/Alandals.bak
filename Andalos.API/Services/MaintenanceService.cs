@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -88,10 +89,10 @@ namespace Andalos.API.Services
             request.Status = dto.Status;
             request.Cost = dto.Cost > 0 ? dto.Cost : request.Cost;
             if (dto.Notes != null) request.Notes = dto.Notes;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = DateTimeHelper.LibyaNow;
 
             if (dto.Status == MaintenanceStatus.Completed)
-                request.CompletionDate = DateTime.Now;
+                request.CompletionDate = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             return true;
@@ -103,7 +104,7 @@ namespace Andalos.API.Services
             if (request == null) return false;
 
             request.IsActive = false;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }

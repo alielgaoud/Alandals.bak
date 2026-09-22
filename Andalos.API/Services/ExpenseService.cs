@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Expenses;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -159,7 +160,7 @@ namespace Andalos.API.Services
             if (expense == null) return false;
 
             expense.IsActive = false;
-            expense.UpdatedAt = DateTime.UtcNow;
+            expense.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }

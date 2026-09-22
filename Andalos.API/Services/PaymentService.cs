@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -116,7 +117,7 @@ namespace Andalos.API.Services
             if (payment == null) return false;
 
             payment.IsActive = false;
-            payment.UpdatedAt = DateTime.UtcNow;
+            payment.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
 
             return true;

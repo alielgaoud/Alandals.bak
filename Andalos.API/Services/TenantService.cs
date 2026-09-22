@@ -6,6 +6,7 @@ using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Units;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ namespace Andalos.API.Services
             tenant.Phone = dto.Phone;
             tenant.ContactPerson = dto.ContactPerson;
             tenant.Notes = dto.Notes;
-            tenant.UpdatedAt = DateTime.UtcNow;
+            tenant.UpdatedAt = DateTimeHelper.LibyaNow;
             tenant.MaxAllowedEntriesPerPass = dto.MaxAllowedEntriesPerPass > 0 ? dto.MaxAllowedEntriesPerPass : 1; // 👈 تحديث القيمة
 
 
@@ -87,7 +88,7 @@ namespace Andalos.API.Services
             if (tenant == null) return false;
 
             tenant.IsActive = false;
-            tenant.UpdatedAt = DateTime.UtcNow;
+            tenant.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }

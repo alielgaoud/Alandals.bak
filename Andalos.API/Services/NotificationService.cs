@@ -2,6 +2,7 @@
 using Andalos.API.Data;
 using Andalos.API.DTOs.Notifications;
 using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using Andalos.API.Hubs;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -64,7 +65,7 @@ namespace Andalos.API.Services
                 Channel = NotificationChannel.InApp,
                 ScheduledFor = dto.ScheduledFor,
                 IsSent = !dto.ScheduledFor.HasValue,
-                SentAt = dto.ScheduledFor.HasValue ? null : DateTime.UtcNow
+                SentAt = dto.ScheduledFor.HasValue ? null : DateTimeHelper.LibyaNow,
             };
 
             _db.Notifications.Add(notification);
@@ -132,7 +133,7 @@ namespace Andalos.API.Services
                 ActionUrl = actionUrl,
                 Channel = NotificationChannel.InApp,
                 IsSent = true,
-                SentAt = DateTime.UtcNow
+                SentAt = DateTimeHelper.LibyaNow
             };
 
             _db.Notifications.Add(notification);
@@ -319,8 +320,8 @@ namespace Andalos.API.Services
             if (tenantId.HasValue && notification.TenantId != tenantId) return false;
 
             notification.IsRead = true;
-            notification.ReadAt = DateTime.UtcNow;
-            notification.UpdatedAt = DateTime.UtcNow;
+            notification.ReadAt = DateTimeHelper.LibyaNow;
+            notification.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             return true;
@@ -339,8 +340,8 @@ namespace Andalos.API.Services
             foreach (var n in notifications)
             {
                 n.IsRead = true;
-                n.ReadAt = DateTime.UtcNow;
-                n.UpdatedAt = DateTime.UtcNow;
+                n.ReadAt = DateTimeHelper.LibyaNow;
+                n.UpdatedAt = DateTimeHelper.LibyaNow;
             }
 
             await _db.SaveChangesAsync();
@@ -358,7 +359,7 @@ namespace Andalos.API.Services
             if (tenantId.HasValue && notification.TenantId != tenantId) return false;
 
             notification.IsActive = false;
-            notification.UpdatedAt = DateTime.UtcNow;
+            notification.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }
@@ -427,7 +428,7 @@ namespace Andalos.API.Services
                     existing.SmsEnabled = prefDto.SmsEnabled;
                     existing.QuietHoursStart = dto.QuietHoursStart;
                     existing.QuietHoursEnd = dto.QuietHoursEnd;
-                    existing.UpdatedAt = DateTime.UtcNow;
+                    existing.UpdatedAt = DateTimeHelper.LibyaNow;
                 }
             }
 
@@ -485,7 +486,7 @@ namespace Andalos.API.Services
 
         private static string GetTimeAgo(DateTime dateTime)
         {
-            var diff = DateTime.UtcNow - dateTime;
+            var diff = DateTimeHelper.LibyaNow - dateTime;
             if (diff.TotalMinutes < 1) return "الآن";
             if (diff.TotalMinutes < 60) return $"منذ {(int)diff.TotalMinutes} دقيقة";
             if (diff.TotalHours < 24) return $"منذ {(int)diff.TotalHours} ساعة";

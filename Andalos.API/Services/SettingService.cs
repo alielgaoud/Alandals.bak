@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Settings;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +49,7 @@ namespace Andalos.API.Services
             if (setting == null) return;
 
             setting.SettingValue = value;
-            setting.UpdatedAt = DateTime.UtcNow;
+            setting.UpdatedAt = DateTimeHelper.LibyaNow;
             setting.UpdatedBy = updatedBy;
 
             await _db.SaveChangesAsync();
@@ -112,7 +113,7 @@ namespace Andalos.API.Services
             if (setting == null) return;
 
             setting.SettingValue = setting.DefaultValue;
-            setting.UpdatedAt = DateTime.UtcNow;
+            setting.UpdatedAt = DateTimeHelper.LibyaNow;
             setting.UpdatedBy = "System";
 
             await _db.SaveChangesAsync();

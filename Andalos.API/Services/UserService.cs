@@ -2,6 +2,7 @@
 using Andalos.API.Data;
 using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
+using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -162,7 +163,7 @@ namespace Andalos.API.Services
             user.Phone = dto.Phone;
             user.Role = dto.Role;
             user.IsActive = dto.IsActive;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             return MapToDto(user);
@@ -181,7 +182,7 @@ namespace Andalos.API.Services
             user.FailedLoginAttempts = 0;
             user.IsLocked = false;
             user.LockoutEnd = null;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             return true;
@@ -204,9 +205,9 @@ namespace Andalos.API.Services
             }
             else
             {
-                user.LockoutEnd = DateTime.UtcNow.AddYears(10);
+                user.LockoutEnd = DateTimeHelper.LibyaNow.AddYears(10);
             }
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
             return true;
@@ -222,7 +223,7 @@ namespace Andalos.API.Services
                 throw new InvalidOperationException("❌ غير مسموح: لا يمكن حذف حساب مدير النظام الرئيسي الافتراضي.");
 
             user.IsActive = false;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
         }
