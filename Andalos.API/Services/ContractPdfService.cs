@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -27,7 +27,8 @@ namespace Andalos.API.Services
             var contract = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
-                .Include(c => c.ContractItems)
+                .Include(c => c.ContractItems.Where(i => i.IsActive))
+                .Include(c => c.ContractFees.Where(f => f.IsActive))
                 .FirstOrDefaultAsync(c => c.Id == contractId);
 
             if (contract == null)
@@ -390,6 +391,74 @@ namespace Andalos.API.Services
                                 c,
                                 headers,
                                 rows));
+                }
+
+                // =================================================
+                // الرسوم والعمولات (جديد)
+                // =================================================
+
+                if (contract.ContractFees.Any())
+                {
+                    PdfMasterTemplate.SectionTitle(
+                        col.Item(),
+                        "الرسوم والعمولات");
+
+                    int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
+                    decimal totalContractValue = contract.RentAmount * durationMonths;
+
+                    var feeHeaders = new[]
+                    {
+                        "#",
+                        "اسم الرسم",
+                        "النوع",
+                        "الدورية",
+                        "القيمة المدخلة",
+                        "المبلغ المحسوب"
+                    };
+
+                    var feeRows = contract.ContractFees
+                        .Select((fee, i) =>
+                        {
+                            string valueTypeLabel = fee.ValueType == Enums.FeeValueType.Fixed ? "ثابت" : "نسبة %";
+                            string freqLabel = fee.Frequency == Enums.FeeFrequency.OneTime ? "مرة واحدة" : "شهري";
+                            string inputValue = fee.ValueType == Enums.FeeValueType.Percentage ? $"{fee.Value}%" : $"{fee.Value:N2} د.ل";
+                            decimal calc = fee.CalculateActualAmount(contract.RentAmount, totalContractValue);
+                            return new[]
+                            {
+                                (i + 1).ToString(),
+                                fee.FeeName,
+                                valueTypeLabel,
+                                freqLabel,
+                                inputValue,
+                                $"{calc:N2} د.ل"
+                            };
+                        });
+
+                    col.Item()
+                        .Element(c =>
+                            PdfMasterTemplate.BuildTable(
+                                c,
+                                feeHeaders,
+                                feeRows));
+
+                    // ملخص إجمالي
+                    decimal totalOneTime = contract.ContractFees
+                        .Where(f => f.Frequency == Enums.FeeFrequency.OneTime)
+                        .Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
+                    decimal totalMonthly = contract.ContractFees
+                        .Where(f => f.Frequency == Enums.FeeFrequency.Monthly)
+                        .Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
+
+                    col.Item()
+                        .PaddingTop(8)
+                        .Row(row =>
+                        {
+                            row.RelativeItem().Element(c =>
+                                InfoBox(c, "إجمالي الرسوم لمرة واحدة", $"{totalOneTime:N2} د.ل"));
+                            row.ConstantItem(10);
+                            row.RelativeItem().Element(c =>
+                                InfoBox(c, "إجمالي الرسوم الشهرية", $"{totalMonthly:N2} د.ل / شهر"));
+                        });
                 }
 
                 // =================================================
