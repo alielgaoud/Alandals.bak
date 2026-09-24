@@ -20,10 +20,10 @@ namespace Andalos.API.Seed
                 New("Company", SettingKeys.CompanyEmail, "info@andalos.ly", "String", "البريد الإلكتروني", "", 4),
                 New("Company", SettingKeys.CompanyAddress, "ليبيا", "String", "العنوان", "", 5),
                 New("Company", SettingKeys.CompanyTaxNumber, "", "String", "الرقم الضريبي", "", 6),
-                New("Company", SettingKeys.CompanyLogoPath, "/uploads/logos/logo.png", "Image", "مسار شعار الشركة (محلي)", "المسار النسبي للشعار داخل wwwroot", 7),
-                New("Company", SettingKeys.CompanyLogoUrl, "", "String", "رابط الشعار الكامل", "رابط URL كامل للشعار (يستخدم في الإشعارات و PDF إذا كان خارجي)", 8),
-                New("Company", SettingKeys.CompanyFaviconUrl, "/favicon.ico", "String", "رابط الأيقونة المفضلة", "Favicon URL", 9),
-                New("Company", SettingKeys.CompanyStampUrl, "/uploads/logos/stamp.png", "Image", "مسار ختم الشركة", "يستخدم في العقود والمستندات", 10),
+                New("Company", SettingKeys.CompanyLogoPath, "/uploads/logos/logo.png", "Image", "شعار الشركة (رفع مباشر)", "ارفع شعار الشركة بصيغة PNG/JPG/SVG - يظهر في كل PDFs والإشعارات", 7),
+                New("Company", SettingKeys.CompanyLogoUrl, "", "Image", "رابط الشعار الكامل (تلقائي)", "يتم تحديثه تلقائياً عند رفع الشعار - يستخدم في الإشعارات الخارجية", 8),
+                New("Company", SettingKeys.CompanyFaviconUrl, "/favicon.ico", "Image", "أيقونة المتصفح Favicon (رفع مباشر)", "ارفع أيقونة المتصفح المفضلة - تظهر في تبويب المتصفح", 9),
+                New("Company", SettingKeys.CompanyStampUrl, "/uploads/logos/stamp.png", "Image", "ختم الشركة (رفع مباشر)", "ارفع ختم الشركة - يستخدم في العقود والمستندات الرسمية", 10),
 
                 // ===== محتوى عقد الإيجار =====
 New("ContractTemplate", "Contract.TemplateTitle", "عقد إيجار محل تجاري", "String", "عنوان العقد", "يظهر أعلى العقد", 1),
@@ -128,8 +128,8 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                New("Notifications", SettingKeys.NotificationVapidSubject, "mailto:info@andalos.ly", "String", "بريد مرسل الإشعارات (VAPID)", "يستخدم للتعريف بسيرفر الإشعارات", 3),
                New("Notifications", SettingKeys.NotificationVapidPublicKey, "", "String", "المفتاح العام للإشعارات", "VAPID Public Key", 4),
                New("Notifications", SettingKeys.NotificationVapidPrivateKey, "", "String", "المفتاح الخاص للإشعارات", "VAPID Private Key", 5),
-               New("Notifications", SettingKeys.NotificationIconUrl, "/assets/gold_logo-removebg.png", "Image", "أيقونة الإشعارات", "تظهر في إشعارات الجوال والمتصفح", 6),
-               New("Notifications", SettingKeys.NotificationBadgeUrl, "/assets/gold_logo-removebg.png", "Image", "شارة الإشعارات", "Badge للإشعارات", 7),
+               New("Notifications", SettingKeys.NotificationIconUrl, "/assets/gold_logo-removebg.png", "Image", "أيقونة الإشعارات (رفع مباشر)", "ارفع أيقونة الإشعارات - تظهر في إشعارات الجوال والمتصفح - يتم تحديثها تلقائياً من الشعار", 6),
+               New("Notifications", SettingKeys.NotificationBadgeUrl, "/assets/gold_logo-removebg.png", "Image", "شارة الإشعارات (رفع مباشر)", "Badge للإشعارات - أيقونة صغيرة تظهر في شريط الإشعارات", 7),
 
                 // ===== PDF =====
                 New("Pdf", SettingKeys.PdfShowLogo, "True", "Boolean", "إظهار الشعار في PDF", "هل يظهر شعار الشركة في ملفات PDF", 1),
