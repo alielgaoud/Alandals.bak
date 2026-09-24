@@ -1,4 +1,4 @@
-﻿namespace Andalos.API.Constants
+namespace Andalos.API.Constants
 {
     public static class SettingKeys
     {
@@ -9,6 +9,10 @@
         public const string CompanyEmail = "Company.Email";
         public const string CompanyAddress = "Company.Address";
         public const string CompanyTaxNumber = "Company.TaxNumber";
+        public const string CompanyLogoPath = "Company.LogoPath";
+        public const string CompanyLogoUrl = "Company.LogoUrl";
+        public const string CompanyFaviconUrl = "Company.FaviconUrl";
+        public const string CompanyStampUrl = "Company.StampUrl";
 
         // ===== المالية =====
         public const string Currency = "Financial.Currency";
@@ -35,6 +39,8 @@
         public const string ExpenseNumberPrefix = "Numbering.ExpensePrefix";
         public const string PassCodeFormat = "Numbering.PassCodeFormat";
         public const string PassCodePrefix = "Numbering.PassCodePrefix";
+        public const string RefundNumberFormat = "Numbering.RefundFormat";
+        public const string RefundNumberPrefix = "Numbering.RefundPrefix";
 
         // ===== العقود =====
         public const string ContractDefaultDuration = "Contract.DefaultDurationMonths";
@@ -49,6 +55,7 @@
         public const string VisitorEntryStart = "Visitor.EntryHoursStart";
         public const string VisitorEntryEnd = "Visitor.EntryHoursEnd";
         public const string VisitorFamilyOnly = "Visitor.FamilyOnly";
+        public const string VisitorWalletExpirationHour = "Visitor.WalletExpirationHour";
 
         // ===== النظام =====
         public const string SystemLanguage = "System.Language";
@@ -56,6 +63,9 @@
         public const string SystemDateFormat = "System.DateFormat";
         public const string SystemSessionTimeout = "System.SessionTimeout";
         public const string SystemMaintenanceMode = "System.MaintenanceMode";
+        public const string SystemFrontendAdminUrl = "System.FrontendAdminUrl";
+        public const string SystemFrontendTenantUrl = "System.FrontendTenantUrl";
+        public const string SystemBackendUrl = "System.BackendUrl";
 
         // ===== محتوى العقد =====
         public const string ContractTemplateTitle = "Contract.TemplateTitle";
@@ -74,17 +84,20 @@
         public const string ContractFooterNote = "Contract.FooterNote";
         public const string ContractShowWitnesses = "Contract.ShowWitnesses";
         public const string ContractShowHijriDate = "Contract.ShowHijriDate";
-        public const string RefundNumberFormat = "Numbering.RefundFormat";
-        public const string RefundNumberPrefix = "Numbering.RefundPrefix";
-        // ===== الإشعارات (الجديدة) =====
-        public const string NotificationInAppEnabled = "Notifications.InAppEnabled";   // تفعيل جرس الإشعارات الداخلي
-        public const string NotificationPushEnabled = "Notifications.PushEnabled";     // تفعيل إشعارات الجوال المتصفح
-        public const string NotificationVapidSubject = "Notifications.VapidSubject";   // بريد المرسل للـ VAPID
-        public const string NotificationVapidPublicKey = "Notifications.VapidPublicKey"; // المفتاح العام
-        public const string NotificationVapidPrivateKey = "Notifications.VapidPrivateKey"; // المفتاح الخاص
 
-        // في Constants/SettingKeys.cs
-        public const string VisitorWalletExpirationHour = "Visitor.WalletExpirationHour"; // 👈 ساعة تصفير محفظة الزوار
+        // ===== الإشعارات =====
+        public const string NotificationInAppEnabled = "Notifications.InAppEnabled";
+        public const string NotificationPushEnabled = "Notifications.PushEnabled";
+        public const string NotificationVapidSubject = "Notifications.VapidSubject";
+        public const string NotificationVapidPublicKey = "Notifications.VapidPublicKey";
+        public const string NotificationVapidPrivateKey = "Notifications.VapidPrivateKey";
+        public const string NotificationIconUrl = "Notifications.IconUrl";
+        public const string NotificationBadgeUrl = "Notifications.BadgeUrl";
 
+        // ===== PDF =====
+        public const string PdfShowLogo = "Pdf.ShowLogo";
+        public const string PdfHeaderEnabled = "Pdf.HeaderEnabled";
+        public const string PdfFooterEnabled = "Pdf.FooterEnabled";
+        public const string PdfCompanyInfoInHeader = "Pdf.CompanyInfoInHeader";
     }
 }

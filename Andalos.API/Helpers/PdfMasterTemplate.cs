@@ -1,4 +1,4 @@
-﻿using QuestPDF.Fluent;
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
@@ -7,31 +7,64 @@ namespace Andalos.API.Helpers
     /// <summary>
     /// القالب الرئيسي الموحد لجميع مستندات منظومة الأندلس.
     /// التصميم: Minimal / Professional / Black & White
+    /// الآن متكامل مع الإعدادات: الشعار والاسم يقرأ من Settings
     /// </summary>
     public static class PdfMasterTemplate
     {
         // =========================================================
         // نظام الألوان الموحد
-        // التصميم الرسمي: Black & White فقط
         // =========================================================
         public const string Black = "#000000";
         public const string White = "#FFFFFF";
 
-        // =========================================================
         // Compatibility Aliases
-        // =========================================================
         public const string Gray = Black;
         public const string DarkGray = Black;
         public const string BorderGray = Black;
         public const string LightGray = White;
 
         // =========================================================
-        // بيانات الشركة
+        // بيانات الشركة - الآن ديناميكية من الإعدادات
         // =========================================================
         public static string CompanyName = "الأندلس للاستثمار السياحي";
+        public static string CompanyShortName = "الأندلس";
         public static string CompanyPhone = "0925288883";
         public static string CompanyEmail = "info@andalos.ly";
         public static string CompanyAddress = "Tripoli, Libya";
+        public static string CompanyTaxNumber = "";
+        public static string CompanyLogoPath = "/uploads/logos/logo.png";
+        public static string CompanyLogoUrl = "";
+        public static string CurrencySymbol = "د.ل";
+        public static bool ShowLogo = true;
+        public static bool HeaderEnabled = true;
+        public static bool FooterEnabled = true;
+
+        // تحديث بيانات الشركة من الإعدادات
+        public static void ConfigureFromCompanyInfo(Interfaces.CompanyInfoDto info, bool? showLogo = null, bool? headerEnabled = null, bool? footerEnabled = null)
+        {
+            if (info == null) return;
+            CompanyName = !string.IsNullOrWhiteSpace(info.Name) ? info.Name : CompanyName;
+            CompanyShortName = !string.IsNullOrWhiteSpace(info.ShortName) ? info.ShortName : CompanyShortName;
+            CompanyPhone = !string.IsNullOrWhiteSpace(info.Phone) ? info.Phone : CompanyPhone;
+            CompanyEmail = !string.IsNullOrWhiteSpace(info.Email) ? info.Email : CompanyEmail;
+            CompanyAddress = !string.IsNullOrWhiteSpace(info.Address) ? info.Address : CompanyAddress;
+            CompanyTaxNumber = info.TaxNumber ?? CompanyTaxNumber;
+            CompanyLogoPath = !string.IsNullOrWhiteSpace(info.LogoPath) ? info.LogoPath : CompanyLogoPath;
+            CompanyLogoUrl = info.LogoUrl ?? CompanyLogoUrl;
+            CurrencySymbol = !string.IsNullOrWhiteSpace(info.CurrencySymbol) ? info.CurrencySymbol : CurrencySymbol;
+            if (showLogo.HasValue) ShowLogo = showLogo.Value;
+            if (headerEnabled.HasValue) HeaderEnabled = headerEnabled.Value;
+            if (footerEnabled.HasValue) FooterEnabled = footerEnabled.Value;
+        }
+
+        // مسار الشعار الفعلي على القرص
+        public static string GetLogoPhysicalPath(string webRootPath)
+        {
+            if (string.IsNullOrWhiteSpace(CompanyLogoPath)) return "";
+            // إذا كان مسار نسبي مثل /uploads/logos/logo.png
+            var trimmed = CompanyLogoPath.TrimStart('/', '\\');
+            return Path.Combine(webRootPath, trimmed);
+        }
 
         // =========================================================
         // بناء الصفحة الموحدة
@@ -95,26 +128,73 @@ namespace Andalos.API.Helpers
         {
             container.Column(column =>
             {
+                if (!HeaderEnabled)
+                {
+                    column.Item().Height(0);
+                    return;
+                }
+
                 column.Item()
                     .MinHeight(72)
                     .Row(row =>
                     {
-                        // =================================================
                         // بيانات الشركة - الجهة اليسرى
-                        // =================================================
                         row.RelativeItem()
                             .Column(company =>
                             {
                                 company.Item()
                                     .Row(logoRow =>
                                     {
-                                        logoRow.ConstantItem(38)
-                                            .AlignMiddle()
-                                            .Text("A")
-                                            .FontFamily("Arial")
-                                            .FontSize(32)
-                                            .Bold()
-                                            .FontColor(Black);
+                                        if (ShowLogo)
+                                        {
+                                            // محاولة تحميل الشعار من القرص إذا موجود
+                                            try
+                                            {
+                                                string webRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot");
+                                                if (!Directory.Exists(webRoot))
+                                                    webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+
+                                                string logoPhysicalPath = GetLogoPhysicalPath(webRoot);
+                                                if (!string.IsNullOrWhiteSpace(logoPhysicalPath) && File.Exists(logoPhysicalPath))
+                                                {
+                                                    logoRow.ConstantItem(50)
+                                                        .AlignMiddle()
+                                                        .Image(logoPhysicalPath)
+                                                        .FitArea();
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(CompanyLogoUrl) && CompanyLogoUrl.StartsWith("http"))
+                                                {
+                                                    // إذا كان رابط خارجي، نستخدم حرف مختصر كـ fallback لأن QuestPDF لا يدعم URL مباشرة
+                                                    logoRow.ConstantItem(38)
+                                                        .AlignMiddle()
+                                                        .Text(CompanyShortName.Length > 0 ? CompanyShortName[0].ToString() : "A")
+                                                        .FontFamily("Arial")
+                                                        .FontSize(32)
+                                                        .Bold()
+                                                        .FontColor(Black);
+                                                }
+                                                else
+                                                {
+                                                    logoRow.ConstantItem(38)
+                                                        .AlignMiddle()
+                                                        .Text(CompanyShortName.Length > 0 ? CompanyShortName[0].ToString() : "A")
+                                                        .FontFamily("Arial")
+                                                        .FontSize(32)
+                                                        .Bold()
+                                                        .FontColor(Black);
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                logoRow.ConstantItem(38)
+                                                    .AlignMiddle()
+                                                    .Text(CompanyShortName.Length > 0 ? CompanyShortName[0].ToString() : "A")
+                                                    .FontFamily("Arial")
+                                                    .FontSize(32)
+                                                    .Bold()
+                                                    .FontColor(Black);
+                                            }
+                                        }
 
                                         logoRow.RelativeItem()
                                             .PaddingLeft(8)
@@ -139,13 +219,20 @@ namespace Andalos.API.Helpers
                                                     .FontFamily("Arial")
                                                     .FontSize(8)
                                                     .FontColor(Black);
+
+                                                if (!string.IsNullOrWhiteSpace(CompanyTaxNumber))
+                                                {
+                                                    info.Item()
+                                                        .Text($"الرقم الضريبي: {CompanyTaxNumber}")
+                                                        .FontFamily("Arial")
+                                                        .FontSize(7)
+                                                        .FontColor(Black);
+                                                }
                                             });
                                     });
                             });
 
-                        // =================================================
-                        // بيانات المستند - الجهة اليمنى (معدلة)
-                        // =================================================
+                        // بيانات المستند - الجهة اليمنى
                         row.ConstantItem(220)
                             .AlignRight()
                             .Column(document =>
@@ -186,10 +273,16 @@ namespace Andalos.API.Helpers
         }
 
         // =========================================================
-        // Footer (تم إزالة المربعات السوداء)
+        // Footer
         // =========================================================
         private static void BuildFooter(IContainer container)
         {
+            if (!FooterEnabled)
+            {
+                container.Height(0);
+                return;
+            }
+
             container.Column(column =>
             {
                 column.Item()

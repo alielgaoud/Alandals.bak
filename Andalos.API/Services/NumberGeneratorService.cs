@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -10,10 +10,12 @@ namespace Andalos.API.Services
     public class NumberGeneratorService : INumberGeneratorService
     {
         private readonly AppDbContext _db;
+        private readonly ISettingService _settingService;
 
-        public NumberGeneratorService(AppDbContext db)
+        public NumberGeneratorService(AppDbContext db, ISettingService settingService)
         {
             _db = db;
+            _settingService = settingService;
         }
 
         public Task<string> GenerateAsync(string sequenceKey)
@@ -46,12 +48,24 @@ namespace Andalos.API.Services
             => GenerateNumberAsync("PassCode", SettingKeys.PassCodeFormat, SettingKeys.PassCodePrefix);
 
         public Task<string> GenerateRefundNumberAsync()
-            => GenerateNumberAsync("Refund", "Numbering.RefundFormat", "Numbering.RefundPrefix");
+            => GenerateNumberAsync("Refund", SettingKeys.RefundNumberFormat, SettingKeys.RefundNumberPrefix);
 
         public async Task<string> GenerateNumberAsync(string sequenceKey, string formatSettingKey, string prefixSettingKey)
         {
-            var format = await GetSettingValueAsync(formatSettingKey) ?? $"{sequenceKey.ToUpper()}-{{YYYY}}-{{SEQ:5}}";
-            var prefix = await GetSettingValueAsync(prefixSettingKey) ?? sequenceKey.ToUpper();
+            // الآن يقرأ من الإعدادات المتكاملة عبر ISettingService (مع Cache)
+            var format = await _settingService.GetValueAsync(formatSettingKey);
+            if (string.IsNullOrWhiteSpace(format))
+            {
+                var setting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.SettingKey == formatSettingKey);
+                format = setting?.SettingValue ?? setting?.DefaultValue ?? $"{sequenceKey.ToUpper()}-{{YYYY}}-{{SEQ:5}}";
+            }
+
+            var prefix = await _settingService.GetValueAsync(prefixSettingKey);
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                var setting = await _db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.SettingKey == prefixSettingKey);
+                prefix = setting?.SettingValue ?? setting?.DefaultValue ?? sequenceKey.ToUpper();
+            }
 
             int currentYear = DateTime.Now.Year;
 
@@ -81,7 +95,6 @@ namespace Andalos.API.Services
             string generatedNumber;
             bool exists;
 
-            // 👈 حلقة ذكية لضمان تخطي أي رقم موجود سابقاً في قاعدة البيانات
             do
             {
                 sequence.LastNumber += 1;
@@ -97,7 +110,6 @@ namespace Andalos.API.Services
             return generatedNumber;
         }
 
-        // 👈 دالة تحقق تمنع تكرار الأرقام في كل جداول المنظومة
         private async Task<bool> CheckIfNumberExistsAsync(string sequenceKey, string number)
         {
             return sequenceKey.ToLower() switch
@@ -110,17 +122,6 @@ namespace Andalos.API.Services
                 "passcode" or "pass" => await _db.VisitorPasses.AnyAsync(v => v.PassCode == number),
                 _ => false
             };
-        }
-
-        private async Task<string?> GetSettingValueAsync(string key)
-        {
-            var setting = await _db.Settings
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.SettingKey == key);
-
-            return string.IsNullOrWhiteSpace(setting?.SettingValue)
-                ? setting?.DefaultValue
-                : setting.SettingValue;
         }
 
         private static string BuildNumber(string format, string prefix, int sequenceNumber, int year)

@@ -1,4 +1,5 @@
-﻿
+
+using Andalos.API.Constants;
 using Andalos.API.DTOs.Reports;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -10,10 +11,21 @@ namespace Andalos.API.Services
     public class ReportPdfService
     {
         private readonly IReportService _reportService;
+        private readonly ISettingService _settings;
 
-        public ReportPdfService(IReportService reportService)
+        public ReportPdfService(IReportService reportService, ISettingService settings)
         {
             _reportService = reportService;
+            _settings = settings;
+        }
+
+        private async Task ConfigurePdfAsync()
+        {
+            var companyInfo = await _settings.GetCompanyInfoAsync();
+            var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
+            var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
+            var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
         }
 
         // =========================================================
@@ -22,6 +34,7 @@ namespace Andalos.API.Services
 
         public async Task<byte[]> GenerateOverdueReportPdfAsync()
         {
+            await ConfigurePdfAsync();
             var data =
                 await _reportService.GetOverdueReportAsync();
 
@@ -47,6 +60,7 @@ namespace Andalos.API.Services
 
         public async Task<byte[]> GenerateOccupancyReportPdfAsync()
         {
+            await ConfigurePdfAsync();
             var data =
                 await _reportService
                     .GetUnitsOccupancyReportAsync();
@@ -74,6 +88,7 @@ namespace Andalos.API.Services
         public async Task<byte[]> GenerateFinancialReportPdfAsync(
             int year)
         {
+            await ConfigurePdfAsync();
             var data =
                 await _reportService
                     .GetAnnualFinancialPerformanceAsync(year);

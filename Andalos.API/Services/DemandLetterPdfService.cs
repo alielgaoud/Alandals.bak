@@ -1,7 +1,9 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Constants;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Reports;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
+using Andalos.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -12,14 +14,22 @@ namespace Andalos.API.Services
     public class DemandLetterPdfService
     {
         private readonly AppDbContext _db;
+        private readonly ISettingService _settings;
 
-        public DemandLetterPdfService(AppDbContext db)
+        public DemandLetterPdfService(AppDbContext db, ISettingService settings)
         {
             _db = db;
+            _settings = settings;
         }
 
         public async Task<byte[]> GenerateAsync(GenerateDemandLetterDto dto)
         {
+            var companyInfo = await _settings.GetCompanyInfoAsync();
+            var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
+            var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
+            var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
+
             var data = await BuildDataAsync(dto);
 
             var document = Document.Create(container =>

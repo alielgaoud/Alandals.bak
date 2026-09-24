@@ -24,6 +24,13 @@ namespace Andalos.API.Services
 
         public async Task<byte[]> GenerateContractPdfAsync(int contractId)
         {
+            // تحميل بيانات الشركة والشعار من الإعدادات المتكاملة
+            var companyInfo = await _settings.GetCompanyInfoAsync();
+            var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
+            var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
+            var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
+
             var contract = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)

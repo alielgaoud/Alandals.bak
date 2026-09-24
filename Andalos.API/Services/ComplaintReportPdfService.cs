@@ -1,6 +1,8 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Constants;
+using Andalos.API.Data;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
+using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -9,16 +11,26 @@ using QuestPDF.Infrastructure;
 namespace Andalos.API.Services
 {
     /// <summary>
-    /// إنشاء تقارير الشكاوى بصيغة PDF
-    /// التصميم: Minimal / Professional / Black & White
+    /// إنشاء تقارير الشكاوى بصيغة PDF - متكامل مع الإعدادات والشعار
     /// </summary>
     public class ComplaintReportPdfService
     {
         private readonly AppDbContext _db;
+        private readonly ISettingService _settings;
 
-        public ComplaintReportPdfService(AppDbContext db)
+        public ComplaintReportPdfService(AppDbContext db, ISettingService settings)
         {
             _db = db;
+            _settings = settings;
+        }
+
+        private async Task ConfigurePdfAsync()
+        {
+            var companyInfo = await _settings.GetCompanyInfoAsync();
+            var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
+            var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
+            var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
         }
 
 
@@ -32,6 +44,7 @@ namespace Andalos.API.Services
             DateTime? toDate,
             bool summaryOnly = false)
         {
+            await ConfigurePdfAsync();
             // -----------------------------------------------------
             // Query
             // -----------------------------------------------------

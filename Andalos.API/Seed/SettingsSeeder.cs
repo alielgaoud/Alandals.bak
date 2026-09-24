@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +9,7 @@ namespace Andalos.API.Seed
     {
         public static async Task SeedAsync(AppDbContext db)
         {
-            if (await db.Settings.AnyAsync()) return;
+            var existingKeys = await db.Settings.Select(s => s.SettingKey).ToListAsync();
 
             var settings = new List<Setting>
             {
@@ -20,6 +20,10 @@ namespace Andalos.API.Seed
                 New("Company", SettingKeys.CompanyEmail, "info@andalos.ly", "String", "البريد الإلكتروني", "", 4),
                 New("Company", SettingKeys.CompanyAddress, "ليبيا", "String", "العنوان", "", 5),
                 New("Company", SettingKeys.CompanyTaxNumber, "", "String", "الرقم الضريبي", "", 6),
+                New("Company", SettingKeys.CompanyLogoPath, "/uploads/logos/logo.png", "Image", "مسار شعار الشركة (محلي)", "المسار النسبي للشعار داخل wwwroot", 7),
+                New("Company", SettingKeys.CompanyLogoUrl, "", "String", "رابط الشعار الكامل", "رابط URL كامل للشعار (يستخدم في الإشعارات و PDF إذا كان خارجي)", 8),
+                New("Company", SettingKeys.CompanyFaviconUrl, "/favicon.ico", "String", "رابط الأيقونة المفضلة", "Favicon URL", 9),
+                New("Company", SettingKeys.CompanyStampUrl, "/uploads/logos/stamp.png", "Image", "مسار ختم الشركة", "يستخدم في العقود والمستندات", 10),
 
                 // ===== محتوى عقد الإيجار =====
 New("ContractTemplate", "Contract.TemplateTitle", "عقد إيجار محل تجاري", "String", "عنوان العقد", "يظهر أعلى العقد", 1),
@@ -114,6 +118,9 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("System", SettingKeys.SystemDateFormat, "DD/MM/YYYY", "Dropdown", "صيغة التاريخ", "", 3),
                 New("System", SettingKeys.SystemSessionTimeout, "30", "Number", "مهلة الجلسة", "بالدقائق", 4),
                 New("System", SettingKeys.SystemMaintenanceMode, "False", "Boolean", "وضع الصيانة", "إغلاق النظام للصيانة", 5),
+                New("System", SettingKeys.SystemFrontendAdminUrl, "https://admin.marinaalandalus.com", "String", "رابط لوحة الإدارة", "يستخدم في الإشعارات والروابط", 6),
+                New("System", SettingKeys.SystemFrontendTenantUrl, "https://tenant.marinaalandalus.com", "String", "رابط بوابة المستأجرين", "يستخدم في الإشعارات والروابط", 7),
+                New("System", SettingKeys.SystemBackendUrl, "https://api.marinaalandalus.com", "String", "رابط الـ API", "يستخدم لبناء الروابط الكاملة", 8),
 
                 // ===== الإشعارات =====
                New("Notifications", SettingKeys.NotificationInAppEnabled, "True", "Boolean", "تفعيل الإشعارات الداخلية", "تفعيل جرس التنبيهات داخل النظام", 1),
@@ -121,10 +128,23 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                New("Notifications", SettingKeys.NotificationVapidSubject, "mailto:info@andalos.ly", "String", "بريد مرسل الإشعارات (VAPID)", "يستخدم للتعريف بسيرفر الإشعارات", 3),
                New("Notifications", SettingKeys.NotificationVapidPublicKey, "", "String", "المفتاح العام للإشعارات", "VAPID Public Key", 4),
                New("Notifications", SettingKeys.NotificationVapidPrivateKey, "", "String", "المفتاح الخاص للإشعارات", "VAPID Private Key", 5),
+               New("Notifications", SettingKeys.NotificationIconUrl, "/assets/gold_logo-removebg.png", "Image", "أيقونة الإشعارات", "تظهر في إشعارات الجوال والمتصفح", 6),
+               New("Notifications", SettingKeys.NotificationBadgeUrl, "/assets/gold_logo-removebg.png", "Image", "شارة الإشعارات", "Badge للإشعارات", 7),
+
+                // ===== PDF =====
+                New("Pdf", SettingKeys.PdfShowLogo, "True", "Boolean", "إظهار الشعار في PDF", "هل يظهر شعار الشركة في ملفات PDF", 1),
+                New("Pdf", SettingKeys.PdfHeaderEnabled, "True", "Boolean", "تفعيل ترويسة PDF", "إظهار الترويسة في ملفات PDF", 2),
+                New("Pdf", SettingKeys.PdfFooterEnabled, "True", "Boolean", "تفعيل تذييل PDF", "إظهار التذييل في ملفات PDF", 3),
+                New("Pdf", SettingKeys.PdfCompanyInfoInHeader, "True", "Boolean", "بيانات الشركة في الترويسة", "إظهار اسم وهاتف الشركة في ترويسة PDF", 4),
             };
 
-            db.Settings.AddRange(settings);
-            await db.SaveChangesAsync();
+            var newSettings = settings.Where(s => !existingKeys.Contains(s.SettingKey)).ToList();
+
+            if (newSettings.Any())
+            {
+                db.Settings.AddRange(newSettings);
+                await db.SaveChangesAsync();
+            }
         }
 
         private static Setting New(string group, string key, string defaultValue, string dataType, string displayName, string description, int sortOrder, bool isRequired = false)
