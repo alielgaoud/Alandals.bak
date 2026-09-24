@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -11,12 +11,16 @@ namespace Andalos.API.Services
     public class PaymentService : IPaymentService
     {
         private readonly AppDbContext _db;
-        private readonly INotificationService _notification; // 👈 حقن الإشعارات
+        private readonly INotificationService _notification;
+        private readonly INumberGeneratorService _numberGen;
+        private readonly ISettingService _settings;
 
-        public PaymentService(AppDbContext db, INotificationService notification)
+        public PaymentService(AppDbContext db, INotificationService notification, INumberGeneratorService numberGen, ISettingService settings)
         {
             _db = db;
             _notification = notification;
+            _numberGen = numberGen;
+            _settings = settings;
         }
 
         public async Task<List<PaymentResponseDto>> GetAllAsync()
@@ -68,7 +72,36 @@ namespace Andalos.API.Services
             if (contract == null)
                 throw new KeyNotFoundException("العقد غير موجود");
 
-            string receiptNumber = await GenerateReceiptNumberAsync();
+            // قراءة إعدادات الإيجار - مترابطة
+            var dueDay = await _settings.GetValueAsync<int>(Constants.SettingKeys.RentDueDay, 1);
+            var graceDays = await _settings.GetValueAsync<int>(Constants.SettingKeys.RentGraceDays, 5);
+            var lateFeeEnabled = await _settings.GetValueAsync<bool>(Constants.SettingKeys.RentLateFeeEnabled, false);
+            var lateFeePercent = await _settings.GetValueAsync<decimal>(Constants.SettingKeys.RentLateFeePercent, 2);
+            var taxEnabled = await _settings.GetValueAsync<bool>(Constants.SettingKeys.TaxEnabled, false);
+            var taxRate = await _settings.GetValueAsync<decimal>(Constants.SettingKeys.TaxRate, 0);
+            var decimalPlaces = await _settings.GetValueAsync<int>(Constants.SettingKeys.DecimalPlaces, 3);
+
+            // الآن يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:5}
+            string receiptNumber = await _numberGen.GenerateReceiptNumberAsync();
+
+            // حساب غرامة التأخير إذا كان الدفع متأخراً
+            decimal lateFee = 0;
+            if (lateFeeEnabled)
+            {
+                var dueDate = new DateTime(dto.PaymentDate.Year, dto.PaymentDate.Month, dueDay);
+                var graceDate = dueDate.AddDays(graceDays);
+                if (dto.PaymentDate > graceDate)
+                {
+                    lateFee = Math.Round(contract.RentAmount * (lateFeePercent / 100m), decimalPlaces);
+                }
+            }
+
+            // حساب الضريبة إذا مفعلة
+            decimal taxAmount = 0;
+            if (taxEnabled && taxRate > 0)
+            {
+                taxAmount = Math.Round(dto.Amount * (taxRate / 100m), decimalPlaces);
+            }
 
             var payment = new Payment
             {
@@ -81,7 +114,7 @@ namespace Andalos.API.Services
                 PaymentMethod = dto.PaymentMethod,
                 ReferenceNumber = dto.ReferenceNumber,
                 PaymentDate = dto.PaymentDate,
-                Notes = dto.Notes
+                Notes = dto.Notes + (lateFee > 0 ? $" [غرامة تأخير {lateFeePercent}% = {lateFee:N2}]" : "") + (taxAmount > 0 ? $" [ضريبة {taxRate}% = {taxAmount:N2}]" : "")
             };
 
             _db.Payments.Add(payment);
@@ -186,13 +219,6 @@ namespace Andalos.API.Services
             }
 
             return summaries;
-        }
-
-        private async Task<string> GenerateReceiptNumberAsync()
-        {
-            int year = DateTime.Now.Year;
-            int count = await _db.Payments.CountAsync(p => p.PaymentDate.Year == year);
-            return $"REC-{year}-{(count + 1):D5}";
         }
 
         private static PaymentResponseDto MapToDto(Payment p)

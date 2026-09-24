@@ -75,19 +75,19 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("Financial", SettingKeys.DecimalPlaces, "3", "Number", "المنازل العشرية", "", 3),
                 New("Financial", SettingKeys.TaxRate, "0", "Percentage", "نسبة الضريبة", "0 = بدون ضريبة", 4),
                 New("Financial", SettingKeys.TaxEnabled, "False", "Boolean", "تفعيل الضريبة", "", 5),
-                New("Numbering", "Numbering.RefundFormat", "RFD-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند المرتجع", "", 11, true),
+                New("Numbering", "Numbering.RefundFormat", "{PREFIX}-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند المرتجع", "يستخدم {PREFIX} للبادئة", 11, true),
                 New("Numbering", "Numbering.RefundPrefix", "RFD", "String", "بادئة سند المرتجع", "", 12),
 
-                // ===== الترقيم التسلسلي (الأهم!) =====
-                New("Numbering", SettingKeys.ContractNumberFormat, "CTR-{YYYY}-{SEQ:4}", "String", "صيغة رقم العقد", "الرموز: {YYYY} سنة, {SEQ:4} تسلسل 4 أرقام", 1, true),
-                New("Numbering", SettingKeys.ContractNumberPrefix, "CTR", "String", "بادئة العقود", "", 2),
-                New("Numbering", SettingKeys.ReceiptNumberFormat, "REC-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند القبض", "{SEQ:5} = 5 أرقام", 3, true),
+                // ===== الترقيم التسلسلي (الأهم!) - يستخدم {PREFIX} ليكون مترابط مع إعداد البادئة =====
+                New("Numbering", SettingKeys.ContractNumberFormat, "{PREFIX}-{YYYY}-{SEQ:4}", "String", "صيغة رقم العقد", "الرموز: {PREFIX} البادئة, {YYYY} سنة, {YY} سنتين, {MM} شهر, {DD} يوم, {SEQ:4} تسلسل 4 أرقام", 1, true),
+                New("Numbering", SettingKeys.ContractNumberPrefix, "CTR", "String", "بادئة العقود", "تستخدم داخل {PREFIX} في صيغة رقم العقد", 2),
+                New("Numbering", SettingKeys.ReceiptNumberFormat, "{PREFIX}-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند القبض", "{PREFIX} البادئة, {SEQ:5} = 5 أرقام", 3, true),
                 New("Numbering", SettingKeys.ReceiptNumberPrefix, "REC", "String", "بادئة سندات القبض", "", 4),
-                New("Numbering", SettingKeys.MaintenanceNumberFormat, "MNT-{YYYY}-{SEQ:4}", "String", "صيغة رقم طلب الصيانة", "", 5, true),
+                New("Numbering", SettingKeys.MaintenanceNumberFormat, "{PREFIX}-{YYYY}-{SEQ:4}", "String", "صيغة رقم طلب الصيانة", "", 5, true),
                 New("Numbering", SettingKeys.MaintenanceNumberPrefix, "MNT", "String", "بادئة الصيانة", "", 6),
-                New("Numbering", SettingKeys.ExpenseNumberFormat, "EXP-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند الصرف", "", 7, true),
-                New("Numbering", SettingKeys.ExpenseNumberPrefix, "EXP", "String", "بادئة المصروفات", "", 8),
-                New("Numbering", SettingKeys.PassCodeFormat, "PASS-{SEQ:6}", "String", "صيغة كود تصريح الدخول", "", 9, true),
+                New("Numbering", SettingKeys.ExpenseNumberFormat, "{PREFIX}-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند الصرف", "مثال: EXP-2025-00001 - غيّر البادئة أو الصيغة كاملة", 7, true),
+                New("Numbering", SettingKeys.ExpenseNumberPrefix, "EXP", "String", "بادئة المصروفات", "تظهر في رقم المصروف إذا كانت الصيغة تحتوي {PREFIX}", 8),
+                New("Numbering", SettingKeys.PassCodeFormat, "{PREFIX}-{SEQ:6}", "String", "صيغة كود تصريح الدخول", "", 9, true),
                 New("Numbering", SettingKeys.PassCodePrefix, "PASS", "String", "بادئة تصاريح الدخول", "", 10),
 
                 // ===== الإيجارات =====
@@ -137,6 +137,66 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("Pdf", SettingKeys.PdfFooterEnabled, "True", "Boolean", "تفعيل تذييل PDF", "إظهار التذييل في ملفات PDF", 3),
                 New("Pdf", SettingKeys.PdfCompanyInfoInHeader, "True", "Boolean", "بيانات الشركة في الترويسة", "إظهار اسم وهاتف الشركة في ترويسة PDF", 4),
             };
+
+            // ===== ترحيل الصيغ القديمة التي كانت تحتوي بادئة ثابتة إلى صيغة تستخدم {PREFIX} =====
+            // هذا يضمن أن تغيير البادئة من الإعدادات يعمل فوراً حتى للقواعد القديمة
+            var oldToNewFormatMap = new Dictionary<string, string>
+            {
+                { "CTR-{YYYY}-{SEQ:4}", "{PREFIX}-{YYYY}-{SEQ:4}" },
+                { "REC-{YYYY}-{SEQ:5}", "{PREFIX}-{YYYY}-{SEQ:5}" },
+                { "MNT-{YYYY}-{SEQ:4}", "{PREFIX}-{YYYY}-{SEQ:4}" },
+                { "EXP-{YYYY}-{SEQ:5}", "{PREFIX}-{YYYY}-{SEQ:5}" },
+                { "PASS-{SEQ:6}", "{PREFIX}-{SEQ:6}" },
+                { "RFD-{YYYY}-{SEQ:5}", "{PREFIX}-{YYYY}-{SEQ:5}" },
+                { "CTR-{YYYY}-{SEQ:5}", "{PREFIX}-{YYYY}-{SEQ:5}" },
+                { "EXP-{YYYY}-{SEQ:4}", "{PREFIX}-{YYYY}-{SEQ:4}" },
+            };
+
+            var existingSettings = await db.Settings.ToListAsync();
+            bool hasMigration = false;
+
+            foreach (var existing in existingSettings)
+            {
+                if (existing.SettingGroup == "Numbering" && existing.SettingKey.EndsWith("Format"))
+                {
+                    if (oldToNewFormatMap.TryGetValue(existing.SettingValue ?? "", out var migrated))
+                    {
+                        existing.SettingValue = migrated;
+                        existing.DefaultValue = migrated;
+                        existing.UpdatedAt = Andalos.API.Helpers.DateTimeHelper.LibyaNow;
+                        hasMigration = true;
+                    }
+                    // أيضاً إذا كانت القيمة تحتوي بادئة ثابتة معروفة ولا تحتوي {PREFIX}، نحولها تلقائياً
+                    else if (!existing.SettingValue.Contains("{PREFIX}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // إذا كانت الصيغة تبدأ بـ 3-4 أحرف كبيرة ثم - مثل EXP- أو CTR-، نحولها إلى {PREFIX}-...
+                        var val = existing.SettingValue ?? "";
+                        var dashIdx = val.IndexOf('-');
+                        if (dashIdx >= 2 && dashIdx <= 5)
+                        {
+                            var leading = val.Substring(0, dashIdx);
+                            if (leading.All(char.IsLetter) && leading.All(c => char.IsUpper(c) || c == '_'))
+                            {
+                                var rest = val.Substring(dashIdx); // يتضمن -
+                                var newVal = "{PREFIX}" + rest;
+                                // فقط إذا كان الباقي يحتوي {SEQ} لنتأكد أنها صيغة ترقيم
+                                if (newVal.Contains("{SEQ", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    existing.SettingValue = newVal;
+                                    existing.DefaultValue = newVal;
+                                    existing.UpdatedAt = Andalos.API.Helpers.DateTimeHelper.LibyaNow;
+                                    hasMigration = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (hasMigration)
+            {
+                await db.SaveChangesAsync();
+            }
 
             var newSettings = settings.Where(s => !existingKeys.Contains(s.SettingKey)).ToList();
 

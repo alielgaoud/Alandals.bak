@@ -23,17 +23,20 @@ namespace Andalos.API.Services
         public async Task<byte[]> GenerateReceiptPdfAsync(int paymentId)
         {
             var companyInfo = await _settings.GetCompanyInfoAsync();
+            var allSettings = await _settings.GetAllSettingsDictionaryAsync();
             var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
             var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
             var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
-            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
+            var companyInfoInHeader = await _settings.GetValueAsync<bool>(SettingKeys.PdfCompanyInfoInHeader, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled, companyInfoInHeader);
+            PdfMasterTemplate.ConfigureFromSettingsDictionary(allSettings);
             {
-                var payment = await _db.Payments
-                    .Include(p => p.Contract)
-                        .ThenInclude(c => c!.Tenant)
-                    .Include(p => p.Contract)
-                        .ThenInclude(c => c!.Unit)
-                    .FirstOrDefaultAsync(p => p.Id == paymentId);
+            var payment = await _db.Payments
+                .Include(p => p.Contract)
+                    .ThenInclude(c => c!.Tenant)
+                .Include(p => p.Contract)
+                    .ThenInclude(c => c!.Unit)
+                .FirstOrDefaultAsync(p => p.Id == paymentId);
 
                 if (payment == null)
                     throw new KeyNotFoundException(

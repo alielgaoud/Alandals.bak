@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Refunds;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -70,7 +70,7 @@ namespace Andalos.API.Services
                     throw new InvalidOperationException("لا يمكن إرجاع مبلغ أكبر من قيمة السند الأصلي");
             }
 
-            string refundNumber = await _numberGen.GenerateAsync("Refund");
+            string refundNumber = await _numberGen.GenerateRefundNumberAsync();
 
             var refund = new Refund
             {

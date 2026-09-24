@@ -27,10 +27,13 @@ namespace Andalos.API.Services
         private async Task ConfigurePdfAsync()
         {
             var companyInfo = await _settings.GetCompanyInfoAsync();
+            var allSettings = await _settings.GetAllSettingsDictionaryAsync();
             var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
             var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
             var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
-            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
+            var companyInfoInHeader = await _settings.GetValueAsync<bool>(SettingKeys.PdfCompanyInfoInHeader, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled, companyInfoInHeader);
+            PdfMasterTemplate.ConfigureFromSettingsDictionary(allSettings);
         }
 
 

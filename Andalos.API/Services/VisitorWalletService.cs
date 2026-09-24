@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
@@ -14,19 +14,22 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly ISettingService _settings;
-        private readonly ITenantAccountService _tenantAccountService; // 👈 لخصم التسوية من الإيجار عند الرغبة
-        private readonly INotificationService _notification; // 👈 حقن خدمة الإشعارات الفورية
+        private readonly ITenantAccountService _tenantAccountService;
+        private readonly INotificationService _notification;
+        private readonly INumberGeneratorService _numberGen;
 
         public VisitorWalletService(
             AppDbContext db,
             ISettingService settings,
             ITenantAccountService tenantAccountService,
-            INotificationService notification) // 👈 إضافة الخدمة في الباني
+            INotificationService notification,
+            INumberGeneratorService numberGen)
         {
             _db = db;
             _settings = settings;
             _tenantAccountService = tenantAccountService;
             _notification = notification;
+            _numberGen = numberGen;
         }
 
         // =====================================================
@@ -636,6 +639,19 @@ namespace Andalos.API.Services
         // =====================================================
         private async Task<string> GenerateUniquePaidPassCodeAsync()
         {
+            // يحاول استخدام الإعدادات المترابطة أولاً
+            try
+            {
+                var sequentialCode = await _numberGen.GeneratePassCodeAsync();
+                bool existsSeq = await _db.VisitorPasses.AnyAsync(p => p.PassCode == sequentialCode);
+                if (!existsSeq)
+                    return sequentialCode;
+            }
+            catch
+            {
+                // fallback للعشوائي
+            }
+
             string passCode;
             bool exists;
             string datePrefix = DateTimeHelper.LibyaNow.ToString("yyyyMMdd");
@@ -644,7 +660,6 @@ namespace Andalos.API.Services
             {
                 string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
                 passCode = $"PASS-{datePrefix}-{randomHex}";
-
                 exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
             }
             while (exists);

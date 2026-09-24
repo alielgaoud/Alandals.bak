@@ -199,6 +199,101 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم إعادة الإعداد للقيمة الافتراضية"));
         }
 
+        // GET: api/settings/preview/Expense
+        [HttpGet("preview/{sequenceKey}")]
+        public async Task<IActionResult> PreviewNumber(string sequenceKey, [FromServices] INumberGeneratorService numberGen)
+        {
+            try
+            {
+                string seqKey = sequenceKey.Trim();
+                string formatKey = $"Numbering.{seqKey}Format";
+                string prefixKey = $"Numbering.{seqKey}Prefix";
+
+                // دعم الأسماء المختلفة
+                var keyMap = new Dictionary<string, (string format, string prefix)>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "Contract", (SettingKeys.ContractNumberFormat, SettingKeys.ContractNumberPrefix) },
+                    { "Receipt", (SettingKeys.ReceiptNumberFormat, SettingKeys.ReceiptNumberPrefix) },
+                    { "Payment", (SettingKeys.ReceiptNumberFormat, SettingKeys.ReceiptNumberPrefix) },
+                    { "Maintenance", (SettingKeys.MaintenanceNumberFormat, SettingKeys.MaintenanceNumberPrefix) },
+                    { "Expense", (SettingKeys.ExpenseNumberFormat, SettingKeys.ExpenseNumberPrefix) },
+                    { "PassCode", (SettingKeys.PassCodeFormat, SettingKeys.PassCodePrefix) },
+                    { "Pass", (SettingKeys.PassCodeFormat, SettingKeys.PassCodePrefix) },
+                    { "Refund", (SettingKeys.RefundNumberFormat, SettingKeys.RefundNumberPrefix) },
+                };
+
+                if (keyMap.TryGetValue(seqKey, out var mapped))
+                {
+                    formatKey = mapped.format;
+                    prefixKey = mapped.prefix;
+                }
+
+                var format = await _settingService.GetValueAsync(formatKey) ?? "(غير موجود)";
+                var prefix = await _settingService.GetValueAsync(prefixKey) ?? "(غير موجود)";
+                var preview = await numberGen.PreviewNextNumberAsync(seqKey, formatKey, prefixKey);
+
+                var result = new
+                {
+                    sequenceKey = seqKey,
+                    formatKey,
+                    formatValue = format,
+                    prefixKey,
+                    prefixValue = prefix,
+                    nextNumberPreview = preview,
+                    note = "هذه معاينة للرقم القادم حسب الإعدادات الحالية - لن يزيد العداد"
+                };
+
+                return Ok(ApiResponseDto<object>.SuccessResponse(result));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponseDto<object>.FailResponse($"خطأ في المعاينة: {ex.Message}"));
+            }
+        }
+
+        // GET: api/settings/numbering/overview - نظرة شاملة على كل الترقيمات
+        [HttpGet("numbering/overview")]
+        public async Task<IActionResult> GetNumberingOverview([FromServices] INumberGeneratorService numberGen, [FromServices] Andalos.API.Data.AppDbContext db)
+        {
+            var sequences = new[]
+            {
+                new { Key = "Contract", FormatKey = SettingKeys.ContractNumberFormat, PrefixKey = SettingKeys.ContractNumberPrefix, Model = "Contracts.ContractNumber", Service = "ContractService" },
+                new { Key = "Receipt", FormatKey = SettingKeys.ReceiptNumberFormat, PrefixKey = SettingKeys.ReceiptNumberPrefix, Model = "Payments.ReceiptNumber", Service = "PaymentService, TenantAccountService, ContractService.ProcessDue, ExpenseService" },
+                new { Key = "Maintenance", FormatKey = SettingKeys.MaintenanceNumberFormat, PrefixKey = SettingKeys.MaintenanceNumberPrefix, Model = "MaintenanceRequests.RequestNumber", Service = "MaintenanceService" },
+                new { Key = "Expense", FormatKey = SettingKeys.ExpenseNumberFormat, PrefixKey = SettingKeys.ExpenseNumberPrefix, Model = "Expenses.ExpenseNumber", Service = "ExpenseService" },
+                new { Key = "PassCode", FormatKey = SettingKeys.PassCodeFormat, PrefixKey = SettingKeys.PassCodePrefix, Model = "VisitorPasses.PassCode", Service = "VisitorPassService, VisitorWalletService" },
+                new { Key = "Refund", FormatKey = SettingKeys.RefundNumberFormat, PrefixKey = SettingKeys.RefundNumberPrefix, Model = "Refunds.RefundNumber", Service = "RefundService" },
+            };
+
+            var result = new List<object>();
+            foreach (var seq in sequences)
+            {
+                var format = await _settingService.GetValueAsync(seq.FormatKey) ?? "(غير موجود)";
+                var prefix = await _settingService.GetValueAsync(seq.PrefixKey) ?? "(غير موجود)";
+                string preview;
+                try { preview = await numberGen.PreviewNextNumberAsync(seq.Key, seq.FormatKey, seq.PrefixKey); }
+                catch (Exception ex) { preview = $"خطأ: {ex.Message}"; }
+
+                var dbSeq = await db.NumberSequences.AsNoTracking().FirstOrDefaultAsync(s => s.SequenceKey == seq.Key);
+                result.Add(new
+                {
+                    sequenceKey = seq.Key,
+                    formatKey = seq.FormatKey,
+                    formatValue = format,
+                    prefixKey = seq.PrefixKey,
+                    prefixValue = prefix,
+                    nextPreview = preview,
+                    currentState = dbSeq == null ? null : new { lastNumber = dbSeq.LastNumber, currentYear = dbSeq.CurrentYear, lastYear = dbSeq.LastYear, updatedAt = dbSeq.UpdatedAt },
+                    usedInModel = seq.Model,
+                    usedInServices = seq.Service,
+                    tokens = new[] { "{PREFIX}", "{YYYY}", "{YY}", "{MM}", "{DD}", "{SEQ:n}", "{DATE}", "{DATE:format}", "{RND:n}", "{HEX:n}" },
+                    example = $"{prefix}-2025-00001"
+                });
+            }
+
+            return Ok(ApiResponseDto<object>.SuccessResponse(result, "نظرة شاملة على كل مفاتيح التسلسل وربطها بالإعدادات"));
+        }
+
         // POST: api/Settings/reset-database
         [HttpPost("reset-database")]
         [Authorize(Roles = "SuperAdmin")]
@@ -223,26 +318,53 @@ namespace Andalos.API.Controllers
             }
         }
 
-        // GET: api/settings/system-time
+        // GET: api/settings/system-time - يستخدم إعدادات النظام المترابطة
         [HttpGet("system-time")]
         [AllowAnonymous]
-        public IActionResult GetSystemTime()
+        public async Task<IActionResult> GetSystemTime()
         {
             var libyaNow = DateTimeHelper.LibyaNow;
             var utcNow = DateTime.UtcNow;
+
+            // قراءة إعدادات النظام - مترابطة
+            var timeZone = await _settingService.GetValueAsync(SettingKeys.SystemTimeZone, "Africa/Tripoli");
+            var dateFormat = await _settingService.GetValueAsync(SettingKeys.SystemDateFormat, "DD/MM/YYYY");
+            var language = await _settingService.GetValueAsync(SettingKeys.SystemLanguage, "ar");
+            var sessionTimeout = await _settingService.GetValueAsync<int>(SettingKeys.SystemSessionTimeout, 30);
+            var maintenanceMode = await _settingService.GetValueAsync<bool>(SettingKeys.SystemMaintenanceMode, false);
+            var backendUrl = await _settingService.GetValueAsync(SettingKeys.SystemBackendUrl, "https://api.marinaalandalus.com");
+            var frontendAdminUrl = await _settingService.GetValueAsync(SettingKeys.SystemFrontendAdminUrl, "https://admin.marinaalandalus.com");
+            var frontendTenantUrl = await _settingService.GetValueAsync(SettingKeys.SystemFrontendTenantUrl, "https://tenant.marinaalandalus.com");
+
+            string formattedDate = dateFormat.ToUpper() switch
+            {
+                "DD/MM/YYYY" => libyaNow.ToString("dd/MM/yyyy"),
+                "MM/DD/YYYY" => libyaNow.ToString("MM/dd/yyyy"),
+                "YYYY-MM-DD" => libyaNow.ToString("yyyy-MM-dd"),
+                "DD-MM-YYYY" => libyaNow.ToString("dd-MM-yyyy"),
+                _ => libyaNow.ToString("yyyy/MM/dd")
+            };
 
             var timeInfo = new
             {
                 systemLibyaTime = libyaNow,
                 systemLibyaToday = DateTimeHelper.LibyaToday,
                 serverUtcTime = utcNow,
-                timeZone = "Africa/Tripoli (UTC+2)",
-                formattedDate = libyaNow.ToString("yyyy/MM/dd"),
+                timeZone = timeZone,
+                dateFormat = dateFormat,
+                language = language,
+                sessionTimeoutMinutes = sessionTimeout,
+                maintenanceMode = maintenanceMode,
+                backendUrl = backendUrl,
+                frontendAdminUrl = frontendAdminUrl,
+                frontendTenantUrl = frontendTenantUrl,
+                formattedDate = formattedDate,
                 formattedTime = libyaNow.ToString("hh:mm:ss tt"),
-                fullFormatted = libyaNow.ToString("yyyy/MM/dd - hh:mm:ss tt")
+                fullFormatted = $"{formattedDate} - {libyaNow:hh:mm:ss tt}",
+                note = "كل هذه القيم تأتي من إعدادات النظام المترابطة - تغييرها في الإعدادات يغير سلوك النظام فوراً"
             };
 
-            return Ok(ApiResponseDto<object>.SuccessResponse(timeInfo, "التوقيت الحالي المعتمد داخل كافة عمليات المنظومة"));
+            return Ok(ApiResponseDto<object>.SuccessResponse(timeInfo, "التوقيت الحالي والإعدادات المترابطة للنظام"));
         }
     }
 }
