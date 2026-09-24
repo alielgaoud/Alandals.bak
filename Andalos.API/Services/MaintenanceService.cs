@@ -12,11 +12,13 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INotificationService _notification;
+        private readonly INumberGeneratorService _numberGen;
 
-        public MaintenanceService(AppDbContext db, INotificationService notification)
+        public MaintenanceService(AppDbContext db, INotificationService notification, INumberGeneratorService numberGen)
         {
             _db = db;
             _notification = notification;
+            _numberGen = numberGen;
         }
 
         public async Task<List<MaintenanceResponseDto>> GetAllAsync()
@@ -57,7 +59,8 @@ namespace Andalos.API.Services
             if (unit == null)
                 throw new KeyNotFoundException("المحل المحدد غير موجود");
 
-            string requestNumber = await GenerateRequestNumberAsync();
+            // الآن يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:4}
+            string requestNumber = await _numberGen.GenerateMaintenanceNumberAsync();
 
             var request = new MaintenanceRequest
             {
@@ -158,13 +161,6 @@ namespace Andalos.API.Services
             request.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
-        }
-
-        private async Task<string> GenerateRequestNumberAsync()
-        {
-            int year = DateTime.Now.Year;
-            int count = await _db.MaintenanceRequests.CountAsync(m => m.RequestDate.Year == year);
-            return $"MNT-{year}-{(count + 1):D4}";
         }
 
         private static MaintenanceResponseDto MapToDto(MaintenanceRequest m)

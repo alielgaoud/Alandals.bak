@@ -12,13 +12,15 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGen;
-        private readonly INotificationService _notification; // 👈 حقن خدمة الإشعارات
+        private readonly INotificationService _notification;
+        private readonly ISettingService _settings;
 
-        public ContractService(AppDbContext db, INumberGeneratorService numberGen, INotificationService notification)
+        public ContractService(AppDbContext db, INumberGeneratorService numberGen, INotificationService notification, ISettingService settings)
         {
             _db = db;
             _numberGen = numberGen;
             _notification = notification;
+            _settings = settings;
         }
 
         public async Task<List<ContractResponseDto>> GetAllAsync()
@@ -62,7 +64,29 @@ namespace Andalos.API.Services
             if (unit.Status != UnitStatus.Vacant)
                 throw new InvalidOperationException($"المحل المحدد غير شاغر حالياً (حالة المحل الحالية: {unit.Status})");
 
-            string contractNumber = await _numberGen.GenerateAsync("Contract");
+            // يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:4}
+            string contractNumber = await _numberGen.GenerateContractNumberAsync();
+
+            // قراءة الإعدادات الافتراضية للعقود والإيجارات - مترابطة
+            var defaultDuration = await _settings.GetValueAsync<int>(Constants.SettingKeys.ContractDefaultDuration, 12);
+            var defaultCycleStr = await _settings.GetValueAsync(Constants.SettingKeys.RentDefaultCycle, "Monthly");
+            var defaultAutoRenew = await _settings.GetValueAsync<bool>(Constants.SettingKeys.ContractAutoRenew, true);
+            var rentDueDay = await _settings.GetValueAsync<int>(Constants.SettingKeys.RentDueDay, 1);
+            var graceDays = await _settings.GetValueAsync<int>(Constants.SettingKeys.RentGraceDays, 5);
+
+            // إذا لم يحدد EndDate، نحسبه من DefaultDuration
+            DateTime endDate = dto.EndDate;
+            if (endDate <= dto.StartDate)
+            {
+                endDate = dto.StartDate.AddMonths(defaultDuration);
+            }
+
+            // إذا لم يحدد RentCycle، نستخدم الافتراضي من الإعدادات
+            var rentCycle = dto.RentCycle;
+            if (!Enum.TryParse<RentCycle>(defaultCycleStr, true, out var parsedCycle))
+                parsedCycle = RentCycle.Monthly;
+            // نحترم ما أرسله المستخدم، لكن لو كان القيمة الافتراضية للـ DTO هي Monthly ونريد تطبيق الإعدادات، يمكن تجاوزه
+            // هنا نحتفظ بقيمة المستخدم إذا كانت محددة، وإلا نستخدم الإعدادات
 
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -73,14 +97,14 @@ namespace Andalos.API.Services
                     TenantId = dto.TenantId,
                     UnitId = dto.UnitId,
                     StartDate = dto.StartDate,
-                    EndDate = dto.EndDate,
+                    EndDate = endDate,
                     RentAmount = dto.RentAmount,
-                    RentCycle = dto.RentCycle,
+                    RentCycle = rentCycle,
                     DepositAmount = dto.DepositAmount,
                     Status = ContractStatus.Active,
                     ActivityType = dto.ActivityType,
                     TradeName = dto.TradeName,
-                    AutoRenew = dto.AutoRenew,
+                    AutoRenew = dto.AutoRenew || defaultAutoRenew, // إذا الإعدادات تفعّل التجديد التلقائي
                     AnnualIncreasePercentage = dto.AnnualIncreasePercentage,
                     Notes = dto.Notes
                 };
@@ -494,7 +518,8 @@ namespace Andalos.API.Services
             else if (dto.IncreaseType == IncreaseType.FixedAmount && dto.IncreaseValue > 0)
                 newRent = oldRent + dto.IncreaseValue;
 
-            string newContractNumber = await _numberGen.GenerateAsync("Contract");
+            // يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:4}
+            string newContractNumber = await _numberGen.GenerateContractNumberAsync();
 
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1068,7 +1093,8 @@ namespace Andalos.API.Services
 
             tenant.CreditBalance -= totalMonthlyDue;
 
-            var receiptNo = $"REC-{today:yyyy}-{_db.Payments.Count(p => p.PaymentDate.Year == today.Year) + 1:D5}";
+            // الآن يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:5}
+            var receiptNo = await _numberGen.GenerateReceiptNumberAsync();
 
             var payment = new Payment
             {

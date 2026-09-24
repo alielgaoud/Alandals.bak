@@ -77,7 +77,8 @@ namespace Andalos.API.Services
                     throw new KeyNotFoundException("المستأجر المحدد غير موجود");
             }
 
-            string expenseNumber = await _numberGen.GenerateAsync("Expense");
+            // الآن يقرأ الصيغة مباشرة من الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:5}
+            string expenseNumber = await _numberGen.GenerateExpenseNumberAsync();
 
             string? attachmentPath = null;
             if (dto.Attachment != null && dto.Attachment.Length > 0)
@@ -107,7 +108,7 @@ namespace Andalos.API.Services
                 decimal amountToDeduct = Math.Min(tenant.CreditBalance, dto.Amount);
                 tenant.CreditBalance -= amountToDeduct;
 
-                string receiptNo = await _numberGen.GenerateAsync("Receipt");
+                string receiptNo = await _numberGen.GenerateReceiptNumberAsync();
 
                 var activeContract = await _db.Contracts
                     .FirstOrDefaultAsync(c => c.TenantId == tenant.Id && c.Status == ContractStatus.Active && c.IsActive);

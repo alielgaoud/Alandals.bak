@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -91,8 +91,12 @@ namespace Andalos.API.Services
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+            var settings = scope.ServiceProvider.GetRequiredService<ISettingService>();
 
-            var targetDate = DateTime.Today.AddDays(30);
+            // قراءة عدد أيام الإشعار من الإعدادات - مترابط
+            var noticeDays = await settings.GetValueAsync<int>(SettingKeys.ContractExpiryNoticeDays, 30);
+
+            var targetDate = DateTime.Today.AddDays(noticeDays);
 
             var expiringContracts = await db.Contracts
                 .Include(c => c.Tenant)
@@ -104,7 +108,7 @@ namespace Andalos.API.Services
                 // إشعار للإدارة
                 await notificationService.SendToAllAdminsAsync(
                     "عقد قارب على الانتهاء",
-                    $"العقد رقم {contract.ContractNumber} للمستأجر {contract.Tenant?.FullName} سينتهي بعد 30 يوم.",
+                    $"العقد رقم {contract.ContractNumber} للمستأجر {contract.Tenant?.FullName} سينتهي بعد {noticeDays} يوم (حسب إعدادات النظام).",
                     NotificationType.ContractExpiringSoon,
                     NotificationPriority.High,
                     $"/admin/contracts/{contract.Id}");
@@ -115,7 +119,7 @@ namespace Andalos.API.Services
                     await notificationService.SendToTenantAsync(
                         contract.TenantId,
                         "تذكير بانتهاء العقد",
-                        $"عزيزي المستأجر، عقدك رقم {contract.ContractNumber} سينتهي بتاريخ {contract.EndDate:yyyy/MM/dd}. يرجى مراجعة الإدارة.",
+                        $"عزيزي المستأجر، عقدك رقم {contract.ContractNumber} سينتهي بتاريخ {contract.EndDate:yyyy/MM/dd} (بعد {noticeDays} يوم). يرجى مراجعة الإدارة.",
                         NotificationType.ContractExpiringSoon,
                         $"/tenant/contracts");
                 }

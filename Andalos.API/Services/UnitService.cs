@@ -12,11 +12,13 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INotificationService _notification;
+        private readonly ISettingService _settings;
 
-        public UnitService(AppDbContext db, INotificationService notification)
+        public UnitService(AppDbContext db, INotificationService notification, ISettingService settings)
         {
             _db = db;
             _notification = notification;
+            _settings = settings;
         }
 
         public async Task<List<UnitResponseDto>> GetAllAsync()
@@ -44,6 +46,10 @@ namespace Andalos.API.Services
             if (exists)
                 throw new InvalidOperationException($"المحل رقم {dto.UnitNumber} موجود مسبقاً");
 
+            // قراءة وحدة المساحة من الإعدادات - مترابطة
+            var areaUnit = await _settings.GetValueAsync(Constants.SettingKeys.UnitAreaUnit, "SQM");
+            var areaUnitLabel = areaUnit == "SQM" ? "م²" : areaUnit;
+
             var unit = new Unit
             {
                 UnitNumber = dto.UnitNumber,
@@ -62,7 +68,7 @@ namespace Andalos.API.Services
             // 🔔 إشعار للإدارة بإضافة محل جديد
             _ = _notification.SendToAllAdminsAsync(
                 $"تمت إضافة محل جديد: {dto.UnitNumber} 🏬",
-                $"تمت إضافة المحل رقم {dto.UnitNumber} - المساحة {dto.Area} م² - {dto.Building} {dto.Floor}",
+                $"تمت إضافة المحل رقم {dto.UnitNumber} - المساحة {dto.Area} {areaUnitLabel} - {dto.Building} {dto.Floor}",
                 NotificationType.System,
                 NotificationPriority.Low,
                 $"/admin/units/{unit.Id}",

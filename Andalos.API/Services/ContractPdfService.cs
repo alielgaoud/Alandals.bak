@@ -24,12 +24,15 @@ namespace Andalos.API.Services
 
         public async Task<byte[]> GenerateContractPdfAsync(int contractId)
         {
-            // تحميل بيانات الشركة والشعار من الإعدادات المتكاملة
+            // تحميل بيانات الشركة والشعار وكل الإعدادات المترابطة
             var companyInfo = await _settings.GetCompanyInfoAsync();
+            var allSettings = await _settings.GetAllSettingsDictionaryAsync();
             var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
             var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
             var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
-            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
+            var companyInfoInHeader = await _settings.GetValueAsync<bool>(SettingKeys.PdfCompanyInfoInHeader, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled, companyInfoInHeader);
+            PdfMasterTemplate.ConfigureFromSettingsDictionary(allSettings);
 
             var contract = await _db.Contracts
                 .Include(c => c.Tenant)
@@ -105,15 +108,41 @@ namespace Andalos.API.Services
                     SettingKeys.ContractShowWitnesses,
                     false);
 
+            var showHijriDate =
+                await _settings.GetValueAsync<bool>(
+                    SettingKeys.ContractShowHijriDate,
+                    false);
+
+            // قراءة إضافية لإعدادات النظام والتاريخ - مترابطة
+            var dateFormat = await _settings.GetValueAsync(SettingKeys.SystemDateFormat, "DD/MM/YYYY");
+            var language = await _settings.GetValueAsync(SettingKeys.SystemLanguage, "ar");
+
             // =====================================================
             // استبدال الرموز
             // =====================================================
 
+            string formattedDate = dateFormat.ToUpper() switch
+            {
+                "DD/MM/YYYY" => contract.StartDate.ToString("dd/MM/yyyy"),
+                "MM/DD/YYYY" => contract.StartDate.ToString("MM/dd/yyyy"),
+                "YYYY-MM-DD" => contract.StartDate.ToString("yyyy-MM-dd"),
+                _ => contract.StartDate.ToString("yyyy/MM/dd")
+            };
+
+            string hijriDate = "";
+            if (showHijriDate)
+            {
+                try
+                {
+                    var hijri = new System.Globalization.HijriCalendar();
+                    hijriDate = $"{hijri.GetDayOfMonth(contract.StartDate):00}/{hijri.GetMonth(contract.StartDate):00}/{hijri.GetYear(contract.StartDate)} هـ";
+                }
+                catch { hijriDate = ""; }
+            }
+
             intro = intro
-                .Replace(
-                    "{Date}",
-                    contract.StartDate.ToString("yyyy/MM/dd"))
-                .Replace("{HijriDate}", "");
+                .Replace("{Date}", formattedDate)
+                .Replace("{HijriDate}", hijriDate);
 
             var graceDays =
                 await _settings.GetValueAsync(

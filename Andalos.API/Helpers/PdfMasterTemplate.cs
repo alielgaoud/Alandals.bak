@@ -35,12 +35,19 @@ namespace Andalos.API.Helpers
         public static string CompanyLogoPath = "/uploads/logos/logo.png";
         public static string CompanyLogoUrl = "";
         public static string CurrencySymbol = "د.ل";
+        public static string Currency = "LYD";
+        public static int DecimalPlaces = 3;
+        public static string DateFormat = "DD/MM/YYYY";
+        public static string AreaUnit = "SQM";
         public static bool ShowLogo = true;
         public static bool HeaderEnabled = true;
         public static bool FooterEnabled = true;
+        public static bool CompanyInfoInHeader = true;
+        public static bool TaxEnabled = false;
+        public static decimal TaxRate = 0;
 
         // تحديث بيانات الشركة من الإعدادات
-        public static void ConfigureFromCompanyInfo(Interfaces.CompanyInfoDto info, bool? showLogo = null, bool? headerEnabled = null, bool? footerEnabled = null)
+        public static void ConfigureFromCompanyInfo(Interfaces.CompanyInfoDto info, bool? showLogo = null, bool? headerEnabled = null, bool? footerEnabled = null, bool? companyInfoInHeader = null)
         {
             if (info == null) return;
             CompanyName = !string.IsNullOrWhiteSpace(info.Name) ? info.Name : CompanyName;
@@ -52,9 +59,63 @@ namespace Andalos.API.Helpers
             CompanyLogoPath = !string.IsNullOrWhiteSpace(info.LogoPath) ? info.LogoPath : CompanyLogoPath;
             CompanyLogoUrl = info.LogoUrl ?? CompanyLogoUrl;
             CurrencySymbol = !string.IsNullOrWhiteSpace(info.CurrencySymbol) ? info.CurrencySymbol : CurrencySymbol;
+            Currency = !string.IsNullOrWhiteSpace(info.Currency) ? info.Currency : Currency;
             if (showLogo.HasValue) ShowLogo = showLogo.Value;
             if (headerEnabled.HasValue) HeaderEnabled = headerEnabled.Value;
             if (footerEnabled.HasValue) FooterEnabled = footerEnabled.Value;
+            if (companyInfoInHeader.HasValue) CompanyInfoInHeader = companyInfoInHeader.Value;
+        }
+
+        // تحديث إضافي من قاموس الإعدادات الكامل - يضمن ترابط كل الإعدادات
+        public static void ConfigureFromSettingsDictionary(Dictionary<string, string?> settings)
+        {
+            if (settings == null) return;
+            string Get(string key, string fallback) => settings.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v! : fallback;
+
+            Currency = Get(Constants.SettingKeys.Currency, Currency);
+            CurrencySymbol = Get(Constants.SettingKeys.CurrencySymbol, CurrencySymbol);
+            DateFormat = Get(Constants.SettingKeys.SystemDateFormat, DateFormat);
+            AreaUnit = Get(Constants.SettingKeys.UnitAreaUnit, AreaUnit);
+
+            if (int.TryParse(Get(Constants.SettingKeys.DecimalPlaces, DecimalPlaces.ToString()), out var dec))
+                DecimalPlaces = dec;
+
+            if (decimal.TryParse(Get(Constants.SettingKeys.TaxRate, TaxRate.ToString()), out var taxR))
+                TaxRate = taxR;
+
+            if (bool.TryParse(Get(Constants.SettingKeys.TaxEnabled, TaxEnabled.ToString()), out var taxE))
+                TaxEnabled = taxE;
+
+            if (bool.TryParse(Get(Constants.SettingKeys.PdfShowLogo, ShowLogo.ToString()), out var sl))
+                ShowLogo = sl;
+
+            if (bool.TryParse(Get(Constants.SettingKeys.PdfHeaderEnabled, HeaderEnabled.ToString()), out var he))
+                HeaderEnabled = he;
+
+            if (bool.TryParse(Get(Constants.SettingKeys.PdfFooterEnabled, FooterEnabled.ToString()), out var fe))
+                FooterEnabled = fe;
+
+            if (bool.TryParse(Get(Constants.SettingKeys.PdfCompanyInfoInHeader, CompanyInfoInHeader.ToString()), out var ci))
+                CompanyInfoInHeader = ci;
+        }
+
+        // تنسيق المبالغ حسب DecimalPlaces من الإعدادات
+        public static string FormatAmount(decimal amount)
+        {
+            return amount.ToString($"N{DecimalPlaces}") + $" {CurrencySymbol}";
+        }
+
+        // تنسيق التاريخ حسب DateFormat من الإعدادات
+        public static string FormatDate(DateTime date)
+        {
+            return DateFormat.ToUpper() switch
+            {
+                "DD/MM/YYYY" => date.ToString("dd/MM/yyyy"),
+                "MM/DD/YYYY" => date.ToString("MM/dd/yyyy"),
+                "YYYY-MM-DD" => date.ToString("yyyy-MM-dd"),
+                "DD-MM-YYYY" => date.ToString("dd-MM-yyyy"),
+                _ => date.ToString("dd/MM/yyyy")
+            };
         }
 
         // مسار الشعار الفعلي على القرص
