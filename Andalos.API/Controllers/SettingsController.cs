@@ -192,6 +192,182 @@ namespace Andalos.API.Controllers
             }
         }
 
+        // POST: api/settings/upload-image - رفع صورة لأي إعداد (UX محسن بدل روابط)
+        [HttpPost("upload-image")]
+        [Consumes("multipart/form-data")]
+        [DisableRequestSizeLimit]
+        public async Task<IActionResult> UploadImageForSetting([FromForm] IFormFile file, [FromForm] string settingKey, [FromForm] string? customFileName = null)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                    return BadRequest(ApiResponseDto<string>.FailResponse("الملف مطلوب"));
+
+                if (string.IsNullOrWhiteSpace(settingKey))
+                    return BadRequest(ApiResponseDto<string>.FailResponse("مفتاح الإعداد مطلوب"));
+
+                var allowedExtensions = new[] { ".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico" };
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (!allowedExtensions.Contains(ext))
+                    return BadRequest(ApiResponseDto<string>.FailResponse("نوع الملف غير مدعوم، استخدم PNG, JPG, SVG, WEBP, ICO"));
+
+                if (file.Length > 5 * 1024 * 1024)
+                    return BadRequest(ApiResponseDto<string>.FailResponse("حجم الملف كبير جداً، الحد الأقصى 5MB"));
+
+                string webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                
+                // تحديد المجلد حسب نوع الإعداد
+                string subFolder = settingKey.ToLower() switch
+                {
+                    var k when k.Contains("logo") => "logos",
+                    var k when k.Contains("favicon") => "logos",
+                    var k when k.Contains("stamp") => "logos",
+                    var k when k.Contains("icon") || k.Contains("badge") => "notifications",
+                    _ => "settings"
+                };
+
+                string uploadsFolder = Path.Combine(webRoot, "uploads", subFolder);
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                // اسم الملف: إما مخصص أو من مفتاح الإعداد
+                string fileName;
+                if (!string.IsNullOrWhiteSpace(customFileName))
+                {
+                    fileName = customFileName.Trim() + ext;
+                }
+                else
+                {
+                    // تحويل Company.LogoPath → company-logopath.png
+                    var safeKey = settingKey.Replace(".", "-").Replace("/", "-").ToLowerInvariant();
+                    fileName = $"{safeKey}{ext}";
+                }
+
+                // حذف القديم بنفس الاسم بامتدادات مختلفة
+                foreach (var oldFile in Directory.GetFiles(uploadsFolder, $"{Path.GetFileNameWithoutExtension(fileName)}.*"))
+                {
+                    try { System.IO.File.Delete(oldFile); } catch { }
+                }
+
+                string fullPath = Path.Combine(uploadsFolder, fileName);
+                using (var stream = new FileStream(fullPath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                string relativePath = $"/uploads/{subFolder}/{fileName}";
+                string user = User.Identity?.Name ?? "Admin";
+
+                // تحديث الإعداد في DB
+                await _settingService.SetValueAsync(settingKey, relativePath, user);
+
+                // إذا كان شعار الشركة، حدث أيضاً الإشعارات
+                if (settingKey == SettingKeys.CompanyLogoPath)
+                {
+                    var existingLogoUrl = await _settingService.GetValueAsync(SettingKeys.CompanyLogoUrl);
+                    if (string.IsNullOrWhiteSpace(existingLogoUrl))
+                    {
+                        var frontendUrl = await _settingService.GetValueAsync(SettingKeys.SystemFrontendTenantUrl, "https://tenant.marinaalandalus.com");
+                        var fullUrl = $"{frontendUrl.TrimEnd('/')}{relativePath}";
+                        await _settingService.SetValueAsync(SettingKeys.NotificationIconUrl, fullUrl, user);
+                        await _settingService.SetValueAsync(SettingKeys.NotificationBadgeUrl, fullUrl, user);
+                    }
+                }
+
+                var result = new
+                {
+                    settingKey = settingKey,
+                    relativePath = relativePath,
+                    fileName = fileName,
+                    size = file.Length,
+                    previewUrl = relativePath, // للعرض المباشر في الفرونت
+                    message = $"تم رفع الصورة وتحديث {settingKey} بنجاح"
+                };
+
+                return Ok(ApiResponseDto<object>.SuccessResponse(result, $"تم رفع الصورة وربطها بـ {settingKey} بنجاح"));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponseDto<string>.FailResponse($"خطأ أثناء رفع الصورة: {ex.Message}"));
+            }
+        }
+
+        // GET: api/settings/images - كل إعدادات الصور مع معاينة (UX محسن)
+        [HttpGet("images")]
+        public async Task<IActionResult> GetImageSettings()
+        {
+            var all = await _settingService.GetAllSettingsAsync();
+            var imageSettings = all.Where(s => s.DataType == "Image" || s.SettingKey.Contains("Logo") || s.SettingKey.Contains("Icon") || s.SettingKey.Contains("Badge") || s.SettingKey.Contains("Favicon") || s.SettingKey.Contains("Stamp")).ToList();
+
+            var backendUrl = await _settingService.GetValueAsync(SettingKeys.SystemBackendUrl, "");
+            var result = imageSettings.Select(s => new
+            {
+                settingKey = s.SettingKey,
+                settingGroup = s.SettingGroup,
+                displayName = s.DisplayName,
+                description = s.Description,
+                value = s.SettingValue,
+                defaultValue = s.DefaultValue,
+                previewUrl = s.SettingValue, // مسار نسبي يمكن عرضه مباشرة
+                fullUrl = !string.IsNullOrWhiteSpace(s.SettingValue) && s.SettingValue.StartsWith("/") && !string.IsNullOrWhiteSpace(backendUrl) ? $"{backendUrl.TrimEnd('/')}{s.SettingValue}" : s.SettingValue,
+                dataType = s.DataType,
+                isImage = true
+            }).ToList();
+
+            return Ok(ApiResponseDto<object>.SuccessResponse(result, "إعدادات الصور مع معاينة"));
+        }
+
+        // GET: api/settings/with-previews - كل الإعدادات مع معاينة الصور (للفرونت)
+        [HttpGet("with-previews")]
+        public async Task<IActionResult> GetAllWithPreviews()
+        {
+            var groups = await _settingService.GetGroupedSettingsAsync();
+            var backendUrl = await _settingService.GetValueAsync(SettingKeys.SystemBackendUrl, "");
+
+            var enrichedGroups = groups.Select(g => new
+            {
+                groupName = g.GroupName,
+                groupDisplayName = g.GroupDisplayName,
+                settings = g.Settings.Select(s => {
+                    bool isImage = s.DataType == "Image" || s.SettingKey.Contains("Logo") || s.SettingKey.Contains("Icon") || s.SettingKey.Contains("Badge") || s.SettingKey.Contains("Favicon") || s.SettingKey.Contains("Stamp") || s.SettingKey.Contains("Url") && (s.SettingValue?.Contains("/uploads/") == true);
+                    string? preview = null;
+                    if (isImage && !string.IsNullOrWhiteSpace(s.SettingValue))
+                    {
+                        preview = s.SettingValue;
+                    }
+                    return new
+                    {
+                        s.SettingKey,
+                        s.SettingValue,
+                        s.SettingGroup,
+                        s.DataType,
+                        s.DisplayName,
+                        s.Description,
+                        s.DefaultValue,
+                        s.IsRequired,
+                        s.SortOrder,
+                        isImage,
+                        previewUrl = preview,
+                        fullPreviewUrl = !string.IsNullOrWhiteSpace(preview) && preview.StartsWith("/") && !string.IsNullOrWhiteSpace(backendUrl) ? $"{backendUrl.TrimEnd('/')}{preview}" : preview,
+                        // UX: نوع الإدخال المقترح للفرونت
+                        inputType = s.DataType switch
+                        {
+                            "Image" => "image-upload",
+                            "Boolean" => "switch",
+                            "Number" => "number",
+                            "Percentage" => "slider",
+                            "Dropdown" => "select",
+                            "Text" => "textarea",
+                            "Time" => "time",
+                            _ => s.SettingKey.Contains("Logo") || s.SettingKey.Contains("Icon") || s.SettingKey.Contains("Badge") || s.SettingKey.Contains("Favicon") || s.SettingKey.Contains("Stamp") ? "image-upload" : "text"
+                        }
+                    };
+                }).ToList()
+            }).ToList();
+
+            return Ok(ApiResponseDto<object>.SuccessResponse(enrichedGroups, "كل الإعدادات مع معاينة الصور ونوع الإدخال المقترح"));
+        }
+
         // POST: api/settings/reset/Numbering.ContractFormat
         [HttpPost("reset/{key}")]
         public async Task<IActionResult> Reset(string key)
