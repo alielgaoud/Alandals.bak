@@ -27,33 +27,33 @@ namespace Andalos.API.Services
             var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
             var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
             PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled);
-        {
-            var payment = await _db.Payments
-                .Include(p => p.Contract)
-                    .ThenInclude(c => c!.Tenant)
-                .Include(p => p.Contract)
-                    .ThenInclude(c => c!.Unit)
-                .FirstOrDefaultAsync(p => p.Id == paymentId);
-
-            if (payment == null)
-                throw new KeyNotFoundException(
-                    "الدفعة غير موجودة");
-
-            var document = Document.Create(container =>
             {
-                PdfMasterTemplate.BuildPage(
-                    container,
-                    "سند قبض",
-                    payment.ReceiptNumber,
-                    content => BuildReceiptContent(
-                        content,
-                        payment)
-                );
-            });
+                var payment = await _db.Payments
+                    .Include(p => p.Contract)
+                        .ThenInclude(c => c!.Tenant)
+                    .Include(p => p.Contract)
+                        .ThenInclude(c => c!.Unit)
+                    .FirstOrDefaultAsync(p => p.Id == paymentId);
 
-            return document.GeneratePdf();
+                if (payment == null)
+                    throw new KeyNotFoundException(
+                        "الدفعة غير موجودة");
+
+                var document = Document.Create(container =>
+                {
+                    PdfMasterTemplate.BuildPage(
+                        container,
+                        "سند قبض",
+                        payment.ReceiptNumber,
+                        content => BuildReceiptContent(
+                            content,
+                            payment)
+                    );
+                });
+
+                return document.GeneratePdf();
+            }
         }
-
         // =========================================================
         // محتوى سند القبض
         // =========================================================
