@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -195,12 +195,33 @@ namespace Andalos.API.Services
 
         public async Task<bool> RevokePassAsync(int id)
         {
-            var pass = await _db.VisitorPasses.FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+            var pass = await _db.VisitorPasses
+                .Include(p => p.Unit)
+                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
             if (pass == null) return false;
 
             pass.Status = PassStatus.Revoked;
             pass.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            // 🔔 إشعار للمستأجر بإلغاء التصريح
+            if (pass.UnitId.HasValue)
+            {
+                var activeContract = await _db.Contracts
+                    .FirstOrDefaultAsync(c => c.UnitId == pass.UnitId.Value && c.Status == ContractStatus.Active && c.IsActive);
+                if (activeContract != null)
+                {
+                    _ = _notification.SendToTenantAsync(
+                        activeContract.TenantId,
+                        "تم إلغاء تصريح زائر ❌",
+                        $"تم إلغاء تصريح الزائر {pass.VisitorName} للمحل {pass.Unit?.UnitNumber} من قبل الإدارة.",
+                        NotificationType.VisitorRejected,
+                        "/tenant/visitors",
+                        pass.Id
+                    );
+                }
+            }
+
             return true;
         }
 

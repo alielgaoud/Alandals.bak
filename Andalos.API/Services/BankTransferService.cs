@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -17,12 +17,14 @@ namespace Andalos.API.Services
     public class BankTransferService : IBankTransferService
     {
         private readonly AppDbContext _db;
-        private readonly ITenantAccountService _accountService; // 👈 لاستدعاء المحفظة
+        private readonly ITenantAccountService _accountService;
+        private readonly INotificationService _notification;
 
-        public BankTransferService(AppDbContext db, ITenantAccountService accountService)
+        public BankTransferService(AppDbContext db, ITenantAccountService accountService, INotificationService notification)
         {
             _db = db;
             _accountService = accountService;
+            _notification = notification;
         }
 
         // ===== 1. المستأجر يرفع الطلب =====
@@ -32,7 +34,6 @@ namespace Andalos.API.Services
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود أو غير نشط");
 
-            // 👈 إنشاء مسار wwwroot/uploads/receipts بالكامل بشكل أمن على القرص
             string receiptsDirectory = Path.Combine(uploadsFolder, "uploads", "receipts");
             if (!Directory.Exists(receiptsDirectory))
             {
@@ -45,7 +46,6 @@ namespace Andalos.API.Services
             string fileName = $"{Guid.NewGuid()}{fileExtension}";
             string fullPath = Path.Combine(receiptsDirectory, fileName);
 
-            // كتابة الملف بأمان
             using (var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 await dto.ReceiptFile.CopyToAsync(stream);
@@ -66,10 +66,30 @@ namespace Andalos.API.Services
             _db.BankTransferRequests.Add(request);
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار فوري للإدارة بوجود حوالة جديدة
+            _ = _notification.SendToAllAdminsAsync(
+                "حوالة بنكية جديدة بانتظار المراجعة 💳",
+                $"المستأجر {tenant.FullName} رفع حوالة بنكية بقيمة {dto.RequestedAmount:N2} د.ل - بنك {dto.BankName} - مرجع {dto.ReferenceNumber}",
+                NotificationType.NewBankTransfer,
+                NotificationPriority.High,
+                $"/admin/bank-transfers/{request.Id}",
+                request.Id
+            );
+
+            // 🔔 تأكيد للمستأجر
+            _ = _notification.SendToTenantAsync(
+                tenantId,
+                "تم استلام إيصال الحوالة بنجاح 📤",
+                $"تم رفع إيصال الحوالة بقيمة {dto.RequestedAmount:N2} د.ل بنجاح، وسيتم مراجعته من الإدارة قريباً.",
+                NotificationType.NewBankTransfer,
+                $"/tenant/bank-transfers",
+                request.Id
+            );
+
             return MapToDto(request, tenant.FullName);
         }
 
-        // ===== 2. الإدارة تستعرض الطلبات (يمكن الفلترة لمعرفة المعلق فقط) =====
+        // ===== 2. الإدارة تستعرض الطلبات =====
         public async Task<List<TransferRequestResponseDto>> GetRequestsAsync(TransferRequestStatus? status = null)
         {
             var query = _db.BankTransferRequests.Include(r => r.Tenant).Where(r => r.IsActive);
@@ -91,12 +111,10 @@ namespace Andalos.API.Services
             if (dto.IsApproved)
             {
                 request.Status = TransferRequestStatus.Approved;
-                // إذا أدخلت الإدارة مبلغاً مصححاً، اعتمده، وإلا اعتمد مبلغ المستأجر
                 decimal finalAmount = dto.CorrectedAmount ?? request.RequestedAmount;
                 request.ApprovedAmount = finalAmount;
                 request.AdminNotes = dto.AdminNotes;
 
-                // 💡 سحر الربط: إيداع المبلغ تلقائياً في محفظة المستأجر 💡
                 string depositNotes = $"حوالة بنكية معتمدة (طلب رقم {request.Id}) {(request.BankName != null ? $"- بنك {request.BankName}" : "")}";
 
                 await _accountService.DepositAdvancePaymentAsync(
@@ -105,11 +123,31 @@ namespace Andalos.API.Services
                     PaymentMethod.Transfer,
                     depositNotes
                 );
+
+                // 🔔 إشعار فوري للمستأجر بالقبول وإيداع الرصيد
+                _ = _notification.SendToTenantAsync(
+                    request.TenantId,
+                    "تم قبول الحوالة البنكية وإيداع الرصيد ✅",
+                    $"تمت الموافقة على حوالتك البنكية بقيمة {finalAmount:N2} د.ل وتم إيداعها في محفظتك. {(dto.CorrectedAmount.HasValue ? $"(تم تصحيح المبلغ من {request.RequestedAmount:N2})" : "")}",
+                    NotificationType.BankTransferApproved,
+                    $"/tenant/payments",
+                    request.Id
+                );
             }
             else
             {
                 request.Status = TransferRequestStatus.Rejected;
                 request.AdminNotes = dto.AdminNotes ?? "تم الرفض لعدم صحة البيانات المرفقة";
+
+                // 🔔 إشعار فوري بالرفض
+                _ = _notification.SendToTenantAsync(
+                    request.TenantId,
+                    "تم رفض الحوالة البنكية ❌",
+                    $"نأسف، تم رفض الحوالة البنكية بقيمة {request.RequestedAmount:N2} د.ل. السبب: {request.AdminNotes}",
+                    NotificationType.BankTransferRejected,
+                    $"/tenant/bank-transfers",
+                    request.Id
+                );
             }
 
             request.UpdatedAt = DateTime.UtcNow;

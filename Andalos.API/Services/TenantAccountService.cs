@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
@@ -23,11 +23,13 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGenerator;
+        private readonly INotificationService _notification;
 
-        public TenantAccountService(AppDbContext db, INumberGeneratorService numberGenerator)
+        public TenantAccountService(AppDbContext db, INumberGeneratorService numberGenerator, INotificationService notification)
         {
             _db = db;
             _numberGenerator = numberGenerator;
+            _notification = notification;
         }
 
         // =====================================================
@@ -71,6 +73,16 @@ namespace Andalos.API.Services
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار فوري للمستأجر بإيداع الرصيد
+            _ = _notification.SendToTenantAsync(
+                tenantId,
+                "تم إيداع مبلغ في محفظتك 💰",
+                $"تم إيداع مبلغ {amount:N2} د.ل في رصيدك بنجاح. رصيدك الحالي: {tenant.CreditBalance:N2} د.ل. {notes}",
+                NotificationType.PaymentReceived,
+                $"/tenant/payments/{payment.Id}",
+                payment.Id
+            );
+
             return payment;
         }
 
@@ -85,6 +97,7 @@ namespace Andalos.API.Services
 
             var activeContracts = await _db.Contracts
                 .Include(c => c.Tenant)
+                .Include(c => c.Unit)
                 .Include(c => c.ContractFees)
                 .Where(c => c.IsActive && c.Status == ContractStatus.Active && c.Tenant!.CreditBalance > 0)
                 .ToListAsync();
@@ -119,6 +132,7 @@ namespace Andalos.API.Services
                     {
                         TenantId = tenant.Id,
                         ContractId = contract.Id,
+                        UnitId = contract.UnitId,
                         Amount = totalMonthlyDue,
                         PaymentDate = today, // 👈 تاريخ اليوم المحلي
                         PaymentType = PaymentType.Rent,
@@ -128,6 +142,21 @@ namespace Andalos.API.Services
                         IsActive = true
                     };
                     _db.Payments.Add(rentPayment);
+
+                    // حفظ مؤقت للإشعار بعد الحفظ
+                    await _db.SaveChangesAsync();
+
+                    // 🔔 إشعار فوري بالخصم الكامل
+                    _ = _notification.SendToTenantAsync(
+                        tenant.Id,
+                        $"تم خصم إيجار {today:MM/yyyy} تلقائياً ✅",
+                        $"تم خصم مبلغ {totalMonthlyDue:N2} د.ل من رصيدك لإيجار المحل {contract.Unit?.UnitNumber} شامل الرسوم {monthlyFeesTotal:N2} د.ل. رصيدك المتبقي: {tenant.CreditBalance:N2} د.ل",
+                        NotificationType.AutomaticDeduction,
+                        $"/tenant/payments/{rentPayment.Id}",
+                        rentPayment.Id
+                    );
+
+                    continue;
                 }
                 else if (tenant.CreditBalance > 0)
                 {
@@ -139,6 +168,7 @@ namespace Andalos.API.Services
                     {
                         TenantId = tenant.Id,
                         ContractId = contract.Id,
+                        UnitId = contract.UnitId,
                         Amount = partialAmount,
                         PaymentDate = today, // 👈 تاريخ اليوم المحلي
                         PaymentType = PaymentType.Rent,
@@ -148,6 +178,19 @@ namespace Andalos.API.Services
                         IsActive = true
                     };
                     _db.Payments.Add(partialPayment);
+
+                    await _db.SaveChangesAsync();
+
+                    _ = _notification.SendToTenantAsync(
+                        tenant.Id,
+                        $"تم خصم جزئي لإيجار {today:MM/yyyy} ⚠️",
+                        $"تم خصم جزئي {partialAmount:N2} د.ل من رصيدك لإيجار {contract.Unit?.UnitNumber}. المبلغ المتبقي المطلوب: {totalMonthlyDue - partialAmount:N2} د.ل. رصيدك الآن صفر.",
+                        NotificationType.PaymentOverdue,
+                        $"/tenant/payments/{partialPayment.Id}",
+                        partialPayment.Id
+                    );
+
+                    continue;
                 }
             }
 

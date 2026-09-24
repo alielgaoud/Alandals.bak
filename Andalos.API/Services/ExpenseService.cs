@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Expenses;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -162,6 +162,20 @@ namespace Andalos.API.Services
             expense.IsActive = false;
             expense.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            // 🔔 إذا كان مصروف محمل، نبه المستأجر بالإلغاء
+            if (expense.IsChargedToTenant && expense.TenantId.HasValue)
+            {
+                _ = _notification.SendToTenantAsync(
+                    expense.TenantId.Value,
+                    "تم إلغاء مصروف محمّل على حسابك 🗑️",
+                    $"تم إلغاء مصروف بقيمة {expense.Amount:N2} د.ل كان محمّلاً على حسابك. الوصف: {expense.Description}",
+                    NotificationType.System,
+                    "/portal/payments",
+                    expense.Id
+                );
+            }
+
             return true;
         }
 

@@ -387,18 +387,37 @@ namespace Andalos.API.Services
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                // 🔔 إشعار عند فسخ أو إنهاء العقد
-                if (newStatus == ContractStatus.Terminated)
+                // 🔔 إشعارات فورية حسب الحالة الجديدة
+                string title = newStatus switch
                 {
-                    _ = _notification.SendToTenantAsync(
-                        contract.TenantId,
-                        "تم إنهاء عقد الإيجار ⚠️",
-                        $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
-                        NotificationType.ContractTerminated,
-                        $"/tenant/contracts/{contract.Id}",
-                        contract.Id
-                    );
-                }
+                    ContractStatus.Terminated => "تم إنهاء عقد الإيجار ⚠️",
+                    ContractStatus.Expired => "انتهى عقد الإيجار ⏰",
+                    ContractStatus.Active => "تم تفعيل عقد الإيجار ✅",
+                    ContractStatus.Pending => "عقدك في حالة انتظار ⏳",
+                    _ => $"تحديث حالة العقد: {newStatus}"
+                };
+
+                string message = newStatus switch
+                {
+                    ContractStatus.Terminated => $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
+                    ContractStatus.Expired => $"انتهى عقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber}. يرجى مراجعة الإدارة للتجديد.",
+                    ContractStatus.Active => $"تم تفعيل عقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} بنجاح.",
+                    ContractStatus.Pending => $"عقدك رقم {contract.ContractNumber} أصبح في حالة انتظار.",
+                    _ => $"تم تحديث حالة عقدك {contract.ContractNumber} إلى {newStatus}"
+                };
+
+                NotificationType notifType = newStatus == ContractStatus.Terminated ? NotificationType.ContractTerminated :
+                                            newStatus == ContractStatus.Expired ? NotificationType.ContractExpiringSoon :
+                                            NotificationType.ContractRenewed;
+
+                _ = _notification.SendToTenantAsync(
+                    contract.TenantId,
+                    title,
+                    message,
+                    notifType,
+                    $"/tenant/contracts/{contract.Id}",
+                    contract.Id
+                );
 
                 return true;
             }
@@ -413,6 +432,7 @@ namespace Andalos.API.Services
         {
             var contract = await _db.Contracts
                 .Include(c => c.Unit)
+                .Include(c => c.Tenant)
                 .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
             if (contract == null) return false;
@@ -431,6 +451,20 @@ namespace Andalos.API.Services
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // 🔔 إشعار فوري بحذف العقد
+                if (contract.Tenant != null)
+                {
+                    _ = _notification.SendToTenantAsync(
+                        contract.TenantId,
+                        "تم حذف عقد الإيجار 🗑️",
+                        $"تم حذف العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} من النظام.",
+                        NotificationType.ContractTerminated,
+                        $"/tenant/contracts",
+                        contract.Id
+                    );
+                }
+
                 return true;
             }
             catch
@@ -870,6 +904,8 @@ namespace Andalos.API.Services
         {
             var contract = await _db.Contracts
                 .Include(c => c.ContractFees)
+                .Include(c => c.Tenant)
+                .Include(c => c.Unit)
                 .FirstOrDefaultAsync(c => c.Id == contractId && c.IsActive);
 
             if (contract == null) throw new KeyNotFoundException("العقد غير موجود");
@@ -891,6 +927,17 @@ namespace Andalos.API.Services
 
             int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
             decimal totalContractValue = contract.RentAmount * durationMonths;
+            decimal calcAmount = fee.CalculateActualAmount(contract.RentAmount, totalContractValue);
+
+            // 🔔 إشعار فوري للمستأجر بإضافة رسم جديد
+            _ = _notification.SendToTenantAsync(
+                contract.TenantId,
+                $"تمت إضافة رسم جديد لعقدك: {dto.FeeName} 💰",
+                $"تمت إضافة رسم '{dto.FeeName}' بقيمة {calcAmount:N2} د.ل ({(dto.Frequency == FeeFrequency.OneTime ? "مرة واحدة" : "شهري")}) لعقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber}",
+                NotificationType.PaymentReminder,
+                $"/tenant/contracts/{contract.Id}",
+                fee.Id
+            );
 
             return new ContractFeeResponseDto
             {
@@ -901,7 +948,7 @@ namespace Andalos.API.Services
                 Frequency = fee.Frequency,
                 FrequencyLabel = fee.Frequency == FeeFrequency.OneTime ? "مرة واحدة" : "شهرياً",
                 InputValue = fee.Value,
-                CalculatedAmount = fee.CalculateActualAmount(contract.RentAmount, totalContractValue),
+                CalculatedAmount = calcAmount,
                 Notes = fee.Notes
             };
         }
@@ -910,6 +957,8 @@ namespace Andalos.API.Services
         {
             var contract = await _db.Contracts
                 .Include(c => c.ContractFees)
+                .Include(c => c.Tenant)
+                .Include(c => c.Unit)
                 .FirstOrDefaultAsync(c => c.Id == contractId && c.IsActive);
 
             if (contract == null) throw new KeyNotFoundException("العقد غير موجود");
@@ -928,6 +977,16 @@ namespace Andalos.API.Services
 
             int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
             decimal totalContractValue = contract.RentAmount * durationMonths;
+            decimal calcAmount = fee.CalculateActualAmount(contract.RentAmount, totalContractValue);
+
+            _ = _notification.SendToTenantAsync(
+                contract.TenantId,
+                $"تم تعديل رسم في عقدك: {dto.FeeName} ✏️",
+                $"تم تعديل الرسم '{dto.FeeName}' إلى {calcAmount:N2} د.ل في عقدك {contract.ContractNumber}",
+                NotificationType.PaymentReminder,
+                $"/tenant/contracts/{contract.Id}",
+                fee.Id
+            );
 
             return new ContractFeeResponseDto
             {
@@ -938,21 +997,37 @@ namespace Andalos.API.Services
                 Frequency = fee.Frequency,
                 FrequencyLabel = fee.Frequency == FeeFrequency.OneTime ? "مرة واحدة" : "شهرياً",
                 InputValue = fee.Value,
-                CalculatedAmount = fee.CalculateActualAmount(contract.RentAmount, totalContractValue),
+                CalculatedAmount = calcAmount,
                 Notes = fee.Notes
             };
         }
 
         public async Task<bool> DeleteFeeAsync(int contractId, int feeId)
         {
+            var contract = await _db.Contracts
+                .Include(c => c.Tenant)
+                .Include(c => c.Unit)
+                .FirstOrDefaultAsync(c => c.Id == contractId && c.IsActive);
+
             var fee = await _db.ContractFees
                 .FirstOrDefaultAsync(f => f.Id == feeId && f.ContractId == contractId && f.IsActive);
 
-            if (fee == null) return false;
+            if (fee == null || contract == null) return false;
 
+            var feeName = fee.FeeName;
             fee.IsActive = false;
             fee.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            _ = _notification.SendToTenantAsync(
+                contract.TenantId,
+                $"تم حذف رسم من عقدك: {feeName} 🗑️",
+                $"تم حذف الرسم '{feeName}' من عقدك رقم {contract.ContractNumber}",
+                NotificationType.System,
+                $"/tenant/contracts/{contract.Id}",
+                contract.Id
+            );
+
             return true;
         }
 
@@ -1011,6 +1086,16 @@ namespace Andalos.API.Services
 
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
+
+            // 🔔 إشعار فوري للمستأجر بالخصم
+            _ = _notification.SendToTenantAsync(
+                tenant.Id,
+                $"تم خصم إيجار {today:MM/yyyy} تلقائياً ✅",
+                $"تم خصم {totalMonthlyDue:N2} د.ل من رصيدك لعقد {contract.ContractNumber} - المحل {contract.Unit?.UnitNumber}. رصيدك المتبقي: {tenant.CreditBalance:N2} د.ل",
+                NotificationType.AutomaticDeduction,
+                $"/tenant/payments/{payment.Id}",
+                payment.Id
+            );
 
             return new DTOs.Payments.PaymentResponseDto
             {

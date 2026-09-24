@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Units;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -11,10 +11,12 @@ namespace Andalos.API.Services
     public class UnitService : IUnitService
     {
         private readonly AppDbContext _db;
+        private readonly INotificationService _notification;
 
-        public UnitService(AppDbContext db)
+        public UnitService(AppDbContext db, INotificationService notification)
         {
             _db = db;
+            _notification = notification;
         }
 
         public async Task<List<UnitResponseDto>> GetAllAsync()
@@ -57,6 +59,16 @@ namespace Andalos.API.Services
             _db.Units.Add(unit);
             await _db.SaveChangesAsync();
 
+            // 🔔 إشعار للإدارة بإضافة محل جديد
+            _ = _notification.SendToAllAdminsAsync(
+                $"تمت إضافة محل جديد: {dto.UnitNumber} 🏬",
+                $"تمت إضافة المحل رقم {dto.UnitNumber} - المساحة {dto.Area} م² - {dto.Building} {dto.Floor}",
+                NotificationType.System,
+                NotificationPriority.Low,
+                $"/admin/units/{unit.Id}",
+                unit.Id
+            );
+
             return MapToDto(unit);
         }
 
@@ -67,6 +79,7 @@ namespace Andalos.API.Services
 
             if (unit == null) return null;
 
+            var oldStatus = unit.Status;
             unit.Status = dto.Status;
             unit.Area = dto.Area;
             unit.Floor = dto.Floor;
@@ -78,6 +91,45 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
 
+            // 🔔 إذا تغيرت حالة المحل والمحل مؤجر، نبه المستأجر
+            if (oldStatus != dto.Status)
+            {
+                var activeContract = await _db.Contracts
+                    .Include(c => c.Tenant)
+                    .FirstOrDefaultAsync(c => c.UnitId == id && c.Status == ContractStatus.Active && c.IsActive);
+
+                if (activeContract != null)
+                {
+                    string statusLabel = dto.Status switch
+                    {
+                        UnitStatus.Vacant => "شاغر",
+                        UnitStatus.Rented => "مؤجر",
+                        UnitStatus.Maintenance => "صيانة",
+                        UnitStatus.Reserved => "محجوز",
+                        _ => dto.Status.ToString()
+                    };
+
+                    _ = _notification.SendToTenantAsync(
+                        activeContract.TenantId,
+                        $"تحديث حالة محلك {unit.UnitNumber} إلى {statusLabel} 🏬",
+                        $"تم تغيير حالة المحل رقم {unit.UnitNumber} من {oldStatus} إلى {statusLabel}. {(dto.Status == UnitStatus.Maintenance ? "سيتم تنفيذ أعمال صيانة، قد يؤثر على النشاط." : "")}",
+                        dto.Status == UnitStatus.Maintenance ? NotificationType.MaintenanceStatusChanged : NotificationType.System,
+                        $"/tenant/units",
+                        unit.Id
+                    );
+                }
+
+                // إشعار للإدارة أيضاً
+                _ = _notification.SendToAllAdminsAsync(
+                    $"تغيير حالة المحل {unit.UnitNumber} 🔄",
+                    $"تم تغيير حالة المحل {unit.UnitNumber} من {oldStatus} إلى {dto.Status}",
+                    NotificationType.System,
+                    NotificationPriority.Medium,
+                    $"/admin/units/{unit.Id}",
+                    unit.Id
+                );
+            }
+
             return MapToDto(unit);
         }
 
@@ -88,9 +140,23 @@ namespace Andalos.API.Services
 
             if (unit == null) return false;
 
+            // تحقق هل لديه عقود نشطة
+            var hasActiveContract = await _db.Contracts.AnyAsync(c => c.UnitId == id && c.IsActive && c.Status == ContractStatus.Active);
+            if (hasActiveContract)
+                throw new InvalidOperationException("لا يمكن حذف محل لديه عقد نشط");
+
             unit.IsActive = false;
             unit.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            _ = _notification.SendToAllAdminsAsync(
+                $"تم حذف المحل {unit.UnitNumber} 🗑️",
+                $"تم حذف المحل رقم {unit.UnitNumber} من النظام",
+                NotificationType.System,
+                NotificationPriority.Medium,
+                $"/admin/units",
+                id
+            );
 
             return true;
         }

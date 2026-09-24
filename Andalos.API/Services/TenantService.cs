@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
@@ -16,10 +16,12 @@ namespace Andalos.API.Services
     public class TenantService : ITenantService
     {
         private readonly AppDbContext _db;
+        private readonly INotificationService _notification;
 
-        public TenantService(AppDbContext db)
+        public TenantService(AppDbContext db, INotificationService notification)
         {
             _db = db;
+            _notification = notification;
         }
 
         // ==================== CRUD الأساسي ====================
@@ -57,6 +59,26 @@ namespace Andalos.API.Services
 
             _db.Tenants.Add(tenant);
             await _db.SaveChangesAsync();
+
+            // 🔔 ترحيب بالمستأجر الجديد + إشعار للإدارة
+            _ = _notification.SendToTenantAsync(
+                tenant.Id,
+                "مرحباً بك في مجمع مارينا الأندلس 🏬",
+                $"أهلاً {tenant.FullName}، تم تسجيلك كمستأجر جديد في النظام. هاتف: {tenant.Phone} - يمكنك الآن تسجيل الدخول عبر بوابة المستأجرين.",
+                NotificationType.System,
+                $"/tenant/dashboard",
+                tenant.Id
+            );
+
+            _ = _notification.SendToAllAdminsAsync(
+                $"مستأجر جديد: {tenant.FullName} 👤",
+                $"تمت إضافة مستأجر جديد: {tenant.FullName} - هاتف {tenant.Phone} - هوية {tenant.NationalId}",
+                NotificationType.System,
+                NotificationPriority.Medium,
+                $"/admin/tenants/{tenant.Id}",
+                tenant.Id
+            );
+
             return MapToDto(tenant);
         }
 
@@ -75,10 +97,19 @@ namespace Andalos.API.Services
             tenant.ContactPerson = dto.ContactPerson;
             tenant.Notes = dto.Notes;
             tenant.UpdatedAt = DateTimeHelper.LibyaNow;
-            tenant.MaxAllowedEntriesPerPass = dto.MaxAllowedEntriesPerPass > 0 ? dto.MaxAllowedEntriesPerPass : 1; // 👈 تحديث القيمة
-
+            tenant.MaxAllowedEntriesPerPass = dto.MaxAllowedEntriesPerPass > 0 ? dto.MaxAllowedEntriesPerPass : 1;
 
             await _db.SaveChangesAsync();
+
+            _ = _notification.SendToTenantAsync(
+                tenant.Id,
+                "تم تحديث بياناتك الشخصية ✏️",
+                $"تم تحديث بياناتك في النظام: {tenant.FullName} - هاتف {tenant.Phone}",
+                NotificationType.System,
+                $"/tenant/profile",
+                tenant.Id
+            );
+
             return MapToDto(tenant);
         }
 
@@ -87,9 +118,24 @@ namespace Andalos.API.Services
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == id && t.IsActive);
             if (tenant == null) return false;
 
+            // تحقق هل لديه عقود نشطة
+            var hasActive = await _db.Contracts.AnyAsync(c => c.TenantId == id && c.IsActive && c.Status == ContractStatus.Active);
+            if (hasActive)
+                throw new InvalidOperationException("لا يمكن حذف مستأجر لديه عقود نشطة");
+
             tenant.IsActive = false;
             tenant.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            _ = _notification.SendToAllAdminsAsync(
+                $"تم حذف المستأجر {tenant.FullName} 🗑️",
+                $"تم حذف المستأجر {tenant.FullName} - هاتف {tenant.Phone}",
+                NotificationType.System,
+                NotificationPriority.Medium,
+                $"/admin/tenants",
+                id
+            );
+
             return true;
         }
 
