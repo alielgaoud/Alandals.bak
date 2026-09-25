@@ -22,17 +22,10 @@ namespace Andalos.API.Services
             var c = cycle.Trim().ToLower();
             return c switch
             {
-                "monthly" => "شهري",
-                "quarterly" => "ربع سنوي",
-                "semiannually" => "نصف سنوي",
-                "semi_annually" => "نصف سنوي",
-                "annually" => "سنوي",
-                "annual" => "سنوي",
-                "yearly" => "سنوي",
-                "1" => "شهري",
-                "2" => "ربع سنوي",
-                "3" => "نصف سنوي",
-                "4" => "سنوي",
+                "monthly" => "شهري", "quarterly" => "ربع سنوي",
+                "semiannually" => "نصف سنوي", "semi_annually" => "نصف سنوي",
+                "annually" => "سنوي", "annual" => "سنوي", "yearly" => "سنوي",
+                "1" => "شهري", "2" => "ربع سنوي", "3" => "نصف سنوي", "4" => "سنوي",
                 _ => cycle
             };
         }
@@ -41,26 +34,19 @@ namespace Andalos.API.Services
         {
             if (months <= 0) return "غير محددة";
             if (months < 12) return $"{months} شهر";
-            int years = months / 12;
-            int rem = months % 12;
-            string yLabel = years switch { 1 => "سنة", 2 => "سنتان", 3 => "ثلاث سنوات", _ => $"{years} سنوات" };
-            return rem == 0 ? yLabel : $"{yLabel} و {rem} شهر";
+            int y = months / 12; int r = months % 12;
+            string yl = y switch { 1 => "سنة", 2 => "سنتان", 3 => "ثلاث سنوات", _ => $"{y} سنوات" };
+            return r == 0 ? yl : $"{yl} و {r} شهر";
         }
 
-        private string TranslateActivity(string act, string tradeName)
+        private string TranslateActivity(string act, string trade)
         {
-            if (!string.IsNullOrWhiteSpace(tradeName)) return tradeName;
+            if (!string.IsNullOrWhiteSpace(trade)) return trade;
             if (string.IsNullOrWhiteSpace(act)) return "تجاري";
             var a = act.Trim();
             if (a.Equals("Other", StringComparison.OrdinalIgnoreCase)) return "تجاري";
             if (a.Equals("Restaurant", StringComparison.OrdinalIgnoreCase)) return "مطعم";
             if (a.Equals("Cafe", StringComparison.OrdinalIgnoreCase)) return "مقهى";
-            if (a.Equals("Clothing", StringComparison.OrdinalIgnoreCase)) return "ملابس";
-            if (a.Equals("Pharmacy", StringComparison.OrdinalIgnoreCase)) return "صيدلية";
-            if (a.Equals("Supermarket", StringComparison.OrdinalIgnoreCase)) return "سوبر ماركت";
-            if (a.Equals("Electronics", StringComparison.OrdinalIgnoreCase)) return "إلكترونيات";
-            if (a.Equals("Salon", StringComparison.OrdinalIgnoreCase)) return "صالون";
-            if (a.Equals("Office", StringComparison.OrdinalIgnoreCase)) return "مكتب";
             return a;
         }
 
@@ -83,7 +69,6 @@ namespace Andalos.API.Services
             var footerNote = await _settings.GetValueAsync(SettingKeys.ContractFooterNote) ?? "";
             var showWitnesses = await _settings.GetValueAsync<bool>(SettingKeys.ContractShowWitnesses, false);
             var dateStr = contract.StartDate.ToString("yyyy/MM/dd");
-
             var grace = await _settings.GetValueAsync(SettingKeys.RentGraceDays) ?? "5";
             clauses = clauses.Replace("{GraceDays}", grace);
 
@@ -92,20 +77,19 @@ namespace Andalos.API.Services
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(20);
-                    // لا نستخدم DirectionFromRightToLeft على مستوى الصفحة لتجنب انقلاب الأرقام
-                    page.DefaultTextStyle(x=>x.FontFamily("Arial").FontSize(10).FontColor("#111"));
+                    page.Margin(18); // هامش صغير لاستغلال المساحة
+                    page.DefaultTextStyle(x=>x.FontFamily("Arial").FontSize(11).FontColor("#000"));
 
-                    // إطار جمالي مزدوج
-                    page.Content().Border(1.5f).BorderColor("#000").Padding(2).Border(0.5f).BorderColor("#777").Padding(18)
-                        .Element(c=>Build(c, contract, intro, clauses, sigLandlord, sigTenant, footerNote, showWitnesses, title, dateStr));
+                    // إطار جمالي رفيع واحد فقط - بدون فراغات
+                    page.Content().Border(1f).BorderColor("#000").Padding(14)
+                        .Element(c=>BuildUX(c, contract, intro, clauses, sigLandlord, sigTenant, footerNote, showWitnesses, title, dateStr));
                 });
             });
 
             return document.GeneratePdf();
         }
 
-        private void Build(IContainer container, Contract contract, string intro, string clauses, string sigLandlord, string sigTenant, string footerNote, bool showWitnesses, string title, string dateStr)
+        private void BuildUX(IContainer container, Contract contract, string intro, string clauses, string sigLandlord, string sigTenant, string footerNote, bool showWitnesses, string title, string dateStr)
         {
             string rentAr = TranslateRentCycle(contract.RentCycle.ToString());
             int months = Math.Max(1,(int)((contract.EndDate-contract.StartDate).TotalDays/30));
@@ -115,168 +99,184 @@ namespace Andalos.API.Services
 
             container.Column(col=>
             {
-                col.Spacing(4);
+                col.Spacing(3); // بدون فراغات - 3 فقط
 
-                // Header: شركة يمين - عنوان وسط - تاريخ يسار لكن كله محاذاة يمين ل RTL
+                // ===== Header مضغوط بدون فراغات =====
                 col.Item().Row(row=>
                 {
                     row.RelativeItem().Column(c=>
                     {
-                        c.Item().AlignRight().Text(PdfMasterTemplate.CompanyName).FontSize(11).Bold().DirectionFromRightToLeft();
-                        c.Item().AlignRight().Text(PdfMasterTemplate.CompanyPhone).FontSize(8).FontColor("#333").DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text(PdfMasterTemplate.CompanyName).FontSize(12).Bold().DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"هاتف {PdfMasterTemplate.CompanyPhone} - {PdfMasterTemplate.CompanyEmail}").FontSize(8).FontColor("#333").DirectionFromRightToLeft();
                     });
-                    row.ConstantItem(100).AlignCenter().Column(c=>
+                    row.ConstantItem(140).AlignCenter().Column(c=>
                     {
-                        c.Item().AlignCenter().Text(title).FontSize(14).Bold().DirectionFromRightToLeft();
-                        c.Item().AlignCenter().Text(contract.ContractNumber).FontSize(9).Bold().DirectionFromRightToLeft();
+                        c.Item().AlignCenter().Text(title).FontSize(15).Bold().DirectionFromRightToLeft();
+                        c.Item().AlignCenter().Text(contract.ContractNumber).FontSize(10).Bold().FontColor("#222").DirectionFromRightToLeft();
+                        c.Item().AlignCenter().Text(dateStr).FontSize(8).FontColor("#555").DirectionFromRightToLeft();
                     });
                     row.RelativeItem().AlignLeft().Column(c=>
                     {
-                        c.Item().AlignLeft().Text(dateStr).FontSize(8).DirectionFromRightToLeft();
                         if(PdfMasterTemplate.ShowLogo)
                         {
                             try{
                                 string webRoot=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"wwwroot");
                                 if(!Directory.Exists(webRoot)) webRoot=Path.Combine(Directory.GetCurrentDirectory(),"wwwroot");
                                 string lp=PdfMasterTemplate.GetLogoPhysicalPath(webRoot);
-                                if(!string.IsNullOrWhiteSpace(lp)&&File.Exists(lp)) c.Item().AlignLeft().PaddingTop(2).Width(35).Image(lp).FitArea();
+                                if(!string.IsNullOrWhiteSpace(lp)&&File.Exists(lp)) c.Item().AlignLeft().Width(38).Image(lp).FitArea();
                             }catch{}
                         }
                     });
                 });
 
-                // مقدمة
+                // مقدمة مضغوطة
                 if(!string.IsNullOrWhiteSpace(intro))
                 {
-                    col.Item().PaddingTop(8).AlignRight().Text(intro).FontSize(9).LineHeight(1.4f).DirectionFromRightToLeft();
+                    col.Item().PaddingTop(4).AlignRight().Text(intro).FontSize(10).LineHeight(1.3f).DirectionFromRightToLeft();
                 }
 
-                // أطراف العقد - الأول يمين الثاني يسار بدون خطوط
-                col.Item().PaddingTop(10).AlignRight().Text("أطراف العقد").FontSize(11).Bold().DirectionFromRightToLeft();
+                // ===== أطراف العقد - مفصل وواضح بدون فراغات =====
+                col.Item().PaddingTop(6).Background("#F5F5F5").PaddingVertical(2).PaddingHorizontal(6).AlignRight().Text("أطراف العقد").FontSize(11).Bold().DirectionFromRightToLeft();
 
-                col.Item().PaddingTop(4).Row(row=>
+                col.Item().PaddingTop(3).Row(row=>
                 {
-                    // يمين: الطرف الأول
+                    // يمين: المؤجر
                     row.RelativeItem().Column(c=>
                     {
-                        c.Item().AlignRight().Text("الطرف الأول المؤجر").FontSize(8).Bold().FontColor("#000").DirectionFromRightToLeft();
-                        c.Item().AlignRight().Text(PdfMasterTemplate.CompanyName).FontSize(9).Bold().DirectionFromRightToLeft();
-                        c.Item().AlignRight().Text($"هاتف {PdfMasterTemplate.CompanyPhone}").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text("الطرف الأول - المؤجر").FontSize(9).Bold().FontColor("#000").DirectionFromRightToLeft();
+                        c.Spacing(1);
+                        c.Item().AlignRight().Text(PdfMasterTemplate.CompanyName).FontSize(10).Bold().DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"السجل التجاري: {PdfMasterTemplate.CompanyTaxNumber ?? "-"}").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"الهاتف: {PdfMasterTemplate.CompanyPhone}").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"العنوان: {PdfMasterTemplate.CompanyAddress}").FontSize(8).DirectionFromRightToLeft();
                     });
-                    // يسار: الطرف الثاني
+                    row.ConstantItem(10);
+                    // يسار: المستأجر
                     row.RelativeItem().Column(c=>
                     {
-                        c.Item().AlignRight().Text("الطرف الثاني المستأجر").FontSize(8).Bold().FontColor("#000").DirectionFromRightToLeft();
-                        c.Item().AlignRight().Text(contract.Tenant?.FullName ?? "-").FontSize(9).Bold().DirectionFromRightToLeft();
-                        c.Item().AlignRight().Text($"هوية {contract.Tenant?.NationalId ?? "-"}").FontSize(8).DirectionFromRightToLeft();
-                        c.Item().AlignRight().Text($"هاتف {contract.Tenant?.Phone ?? "-"}").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text("الطرف الثاني - المستأجر").FontSize(9).Bold().FontColor("#000").DirectionFromRightToLeft();
+                        c.Spacing(1);
+                        c.Item().AlignRight().Text(contract.Tenant?.FullName ?? "-").FontSize(10).Bold().DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"رقم الهوية: {contract.Tenant?.NationalId ?? "-"}").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"رقم الهاتف: {contract.Tenant?.Phone ?? "-"}").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().AlignRight().Text($"النشاط: {activity}").FontSize(8).DirectionFromRightToLeft();
                     });
                 });
 
-                // بيانات المحل: رقم المحل والنشاط فقط - بدون خطوط
-                col.Item().PaddingTop(10).AlignRight().Text("بيانات المحل").FontSize(11).Bold().DirectionFromRightToLeft();
-                col.Item().PaddingTop(2).Row(row=>
+                // ===== بيانات المحل: رقم ونشاط فقط - واضح ومفصل =====
+                col.Item().PaddingTop(6).Background("#F5F5F5").PaddingVertical(2).PaddingHorizontal(6).AlignRight().Text("بيانات المحل المؤجر").FontSize(11).Bold().DirectionFromRightToLeft();
+                col.Item().PaddingTop(3).Row(row=>
                 {
-                    row.ConstantItem(120).AlignRight().Text($"رقم المحل {unitNo}").FontSize(9).Bold().DirectionFromRightToLeft();
-                    row.RelativeItem().AlignRight().Text($"النشاط {activity}").FontSize(9).Bold().DirectionFromRightToLeft();
+                    row.RelativeItem().AlignRight().Column(c=>
+                    {
+                        c.Item().AlignRight().Text($"رقم المحل: {unitNo}").FontSize(10).Bold().DirectionFromRightToLeft();
+                    });
+                    row.RelativeItem().AlignRight().Column(c=>
+                    {
+                        c.Item().AlignRight().Text($"نوع النشاط: {activity}").FontSize(10).Bold().DirectionFromRightToLeft();
+                    });
                 });
 
-                // المدة
-                col.Item().PaddingTop(8).AlignRight().Text("مدة الإيجار").FontSize(11).Bold().DirectionFromRightToLeft();
-                col.Item().AlignRight().Text($"من {contract.StartDate:yyyy/MM/dd} إلى {contract.EndDate:yyyy/MM/dd}").FontSize(9).DirectionFromRightToLeft();
-                col.Item().AlignRight().Text($"المدة {duration} - السداد {rentAr}").FontSize(9).DirectionFromRightToLeft();
+                // ===== المدة والقيمة في سطرين واضحين =====
+                col.Item().PaddingTop(6).Background("#F5F5F5").PaddingVertical(2).PaddingHorizontal(6).AlignRight().Text("المدة والقيمة المالية").FontSize(11).Bold().DirectionFromRightToLeft();
 
-                // القيمة المالية
-                col.Item().PaddingTop(8).AlignRight().Text("القيمة المالية").FontSize(11).Bold().DirectionFromRightToLeft();
-                col.Item().AlignRight().Text($"الإيجار {contract.RentAmount:N2} {PdfMasterTemplate.CurrencySymbol} لكل {rentAr}").FontSize(10).Bold().DirectionFromRightToLeft();
-                col.Item().AlignRight().Text($"العربون {contract.DepositAmount:N2} {PdfMasterTemplate.CurrencySymbol}").FontSize(9).DirectionFromRightToLeft();
-                if(contract.AnnualIncreasePercentage.HasValue)
-                    col.Item().AlignRight().Text($"الزيادة السنوية {contract.AnnualIncreasePercentage}%").FontSize(8).DirectionFromRightToLeft();
+                col.Item().PaddingTop(3).Column(c=>
+                {
+                    c.Spacing(2);
+                    c.Item().AlignRight().Text($"يبدأ العقد بتاريخ {contract.StartDate:yyyy/MM/dd} وينتهي بتاريخ {contract.EndDate:yyyy/MM/dd}").FontSize(10).DirectionFromRightToLeft();
+                    c.Item().AlignRight().Text($"مدة العقد {duration} - دورة السداد {rentAr} - التجديد {(contract.AutoRenew?"تلقائي":"يدوي")}").FontSize(10).DirectionFromRightToLeft();
+                    c.Item().AlignRight().Text($"قيمة الإيجار {contract.RentAmount:N2} {PdfMasterTemplate.CurrencySymbol} لكل {rentAr} - العربون {contract.DepositAmount:N2} {PdfMasterTemplate.CurrencySymbol}" + (contract.AnnualIncreasePercentage.HasValue?$" - الزيادة {contract.AnnualIncreasePercentage}%":"")).FontSize(10).Bold().DirectionFromRightToLeft();
+                });
 
-                // بنود إضافية بدون أرقام لتجنب انقلاب
+                // بنود إضافية مضغوطة
                 if(contract.ContractItems.Any())
                 {
-                    col.Item().PaddingTop(6).AlignRight().Text("بنود إضافية").FontSize(10).Bold().DirectionFromRightToLeft();
-                    foreach(var item in contract.ContractItems)
+                    col.Item().PaddingTop(5).Background("#F5F5F5").PaddingVertical(2).PaddingHorizontal(6).AlignRight().Text("بنود إضافية").FontSize(10).Bold().DirectionFromRightToLeft();
+                    col.Item().PaddingTop(2).Column(c=>
                     {
-                        col.Item().AlignRight().Text($"- {item.ItemName} {item.Amount:N2} {PdfMasterTemplate.CurrencySymbol}").FontSize(8).DirectionFromRightToLeft();
-                    }
-                }
-
-                // رسوم - جدول بسيط بدون خطوط كثيرة
-                if(contract.ContractFees.Any())
-                {
-                    col.Item().PaddingTop(6).AlignRight().Text("الرسوم").FontSize(10).Bold().DirectionFromRightToLeft();
-                    col.Item().Table(t=>
-                    {
-                        t.ColumnsDefinition(c=>{ c.RelativeColumn(3); c.RelativeColumn(1); c.RelativeColumn(1); });
-                        t.Cell().Element(CellHeader).AlignRight().Text("البيان").FontSize(7).Bold().DirectionFromRightToLeft();
-                        t.Cell().Element(CellHeader).AlignRight().Text("النوع").FontSize(7).Bold().DirectionFromRightToLeft();
-                        t.Cell().Element(CellHeader).AlignRight().Text("المبلغ").FontSize(7).Bold().DirectionFromRightToLeft();
-                        foreach(var fee in contract.ContractFees)
+                        c.Spacing(1);
+                        foreach(var item in contract.ContractItems)
                         {
-                            decimal calc=fee.CalculateActualAmount(contract.RentAmount, contract.RentAmount*months);
-                            t.Cell().Element(CellBody).AlignRight().Text(fee.FeeName).FontSize(7).DirectionFromRightToLeft();
-                            t.Cell().Element(CellBody).AlignRight().Text(fee.Frequency==Enums.FeeFrequency.OneTime?"مرة واحدة":"شهري").FontSize(7).DirectionFromRightToLeft();
-                            t.Cell().Element(CellBody).AlignRight().Text($"{calc:N2} {PdfMasterTemplate.CurrencySymbol}").FontSize(7).DirectionFromRightToLeft();
+                            c.Item().AlignRight().Text($"{item.ItemName}: {item.Amount:N2} {PdfMasterTemplate.CurrencySymbol}" + (!string.IsNullOrWhiteSpace(item.Notes)?$" - {item.Notes}":"")).FontSize(9).DirectionFromRightToLeft();
                         }
                     });
                 }
 
-                // الشروط - بدون ترقيم رقمي لتجنب انقلاب، نستخدم شرطة
-                if(!string.IsNullOrWhiteSpace(clauses))
+                // رسوم مضغوطة
+                if(contract.ContractFees.Any())
                 {
-                    col.Item().PaddingTop(8).AlignRight().Text("الشروط والأحكام").FontSize(11).Bold().DirectionFromRightToLeft();
-                    var lines=clauses.Split('\n',StringSplitOptions.RemoveEmptyEntries).Take(10);
-                    foreach(var line in lines)
+                    col.Item().PaddingTop(5).Background("#F5F5F5").PaddingVertical(2).PaddingHorizontal(6).AlignRight().Text("الرسوم").FontSize(10).Bold().DirectionFromRightToLeft();
+                    col.Item().PaddingTop(2).Table(t=>
                     {
-                        var clean=line.Trim();
-                        if(string.IsNullOrWhiteSpace(clean)) continue;
-                        // إزالة الأرقام من البداية لتجنب انقلاب
-                        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"^\d+[\-\.\)]\s*", "");
-                        col.Item().PaddingTop(2).AlignRight().Text($"- {clean}").FontSize(8).LineHeight(1.3f).DirectionFromRightToLeft();
-                    }
+                        t.ColumnsDefinition(c=>{ c.RelativeColumn(3); c.RelativeColumn(1); c.RelativeColumn(1.5f); });
+                        t.Cell().Element(HCell).AlignRight().Text("البيان").FontSize(8).Bold().DirectionFromRightToLeft();
+                        t.Cell().Element(HCell).AlignRight().Text("الدورية").FontSize(8).Bold().DirectionFromRightToLeft();
+                        t.Cell().Element(HCell).AlignRight().Text("المبلغ").FontSize(8).Bold().DirectionFromRightToLeft();
+                        foreach(var fee in contract.ContractFees)
+                        {
+                            decimal calc=fee.CalculateActualAmount(contract.RentAmount, contract.RentAmount*months);
+                            t.Cell().Element(BCell).AlignRight().Text(fee.FeeName).FontSize(8).DirectionFromRightToLeft();
+                            t.Cell().Element(BCell).AlignRight().Text(fee.Frequency==Enums.FeeFrequency.OneTime?"مرة واحدة":"شهري").FontSize(8).DirectionFromRightToLeft();
+                            t.Cell().Element(BCell).AlignRight().Text($"{calc:N2} {PdfMasterTemplate.CurrencySymbol}").FontSize(8).Bold().DirectionFromRightToLeft();
+                        }
+                    });
                 }
 
-                // مسافة تدفع التوقيعات للأسفل ثابتة
-                col.Item().Extend();
+                // الشروط - بدون أرقام، نقط فقط، خط كبير وواضح
+                if(!string.IsNullOrWhiteSpace(clauses))
+                {
+                    col.Item().PaddingTop(6).Background("#F5F5F5").PaddingVertical(2).PaddingHorizontal(6).AlignRight().Text("الشروط والأحكام").FontSize(11).Bold().DirectionFromRightToLeft();
+                    col.Item().PaddingTop(2).Column(c=>
+                    {
+                        c.Spacing(2);
+                        var lines=clauses.Split('\n',StringSplitOptions.RemoveEmptyEntries).Take(10);
+                        foreach(var line in lines)
+                        {
+                            var clean=System.Text.RegularExpressions.Regex.Replace(line.Trim(), @"^\d+[\-\.\)]\s*", "");
+                            if(string.IsNullOrWhiteSpace(clean)) continue;
+                            c.Item().AlignRight().Text($"• {clean}").FontSize(9).LineHeight(1.3f).DirectionFromRightToLeft();
+                        }
+                    });
+                }
 
-                // التوقيعات ثابتة في الأسفل
-                col.Item().PaddingTop(25).Row(row=>
+                // ===== التوقيعات ثابتة في الأسفل بدون فراغات كبيرة =====
+                col.Item().PaddingTop(12).Row(row=>
                 {
                     row.RelativeItem().Column(c=>
                     {
-                        c.Item().AlignCenter().Text(sigLandlord).FontSize(9).Bold().DirectionFromRightToLeft();
-                        c.Item().PaddingTop(30).LineHorizontal(0.6f).LineColor("#000");
-                        c.Item().PaddingTop(4).AlignCenter().Text("التوقيع والختم").FontSize(7).FontColor("#666").DirectionFromRightToLeft();
+                        c.Item().AlignCenter().Text("الطرف الأول المؤجر").FontSize(10).Bold().DirectionFromRightToLeft();
+                        c.Item().PaddingTop(2).AlignCenter().Text(PdfMasterTemplate.CompanyName).FontSize(8).DirectionFromRightToLeft();
+                        c.Item().PaddingTop(18).LineHorizontal(0.7f).LineColor("#000");
+                        c.Item().PaddingTop(3).AlignCenter().Text("التوقيع والختم").FontSize(7).FontColor("#555").DirectionFromRightToLeft();
                     });
-                    row.ConstantItem(80);
+                    row.ConstantItem(40);
                     row.RelativeItem().Column(c=>
                     {
-                        c.Item().AlignCenter().Text(sigTenant).FontSize(9).Bold().DirectionFromRightToLeft();
-                        c.Item().PaddingTop(30).LineHorizontal(0.6f).LineColor("#000");
-                        c.Item().PaddingTop(4).AlignCenter().Text("التوقيع").FontSize(7).FontColor("#666").DirectionFromRightToLeft();
+                        c.Item().AlignCenter().Text("الطرف الثاني المستأجر").FontSize(10).Bold().DirectionFromRightToLeft();
+                        c.Item().PaddingTop(2).AlignCenter().Text(contract.Tenant?.FullName ?? "").FontSize(8).DirectionFromRightToLeft();
+                        c.Item().PaddingTop(18).LineHorizontal(0.7f).LineColor("#000");
+                        c.Item().PaddingTop(3).AlignCenter().Text("التوقيع").FontSize(7).FontColor("#555").DirectionFromRightToLeft();
                     });
                 });
 
                 if(showWitnesses)
                 {
-                    col.Item().PaddingTop(18).Row(row=>
+                    col.Item().PaddingTop(10).Row(row=>
                     {
-                        row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text("الشاهد الأول").FontSize(8).Bold().DirectionFromRightToLeft(); c.Item().PaddingTop(24).LineHorizontal(0.4f).LineColor("#000"); });
-                        row.ConstantItem(80);
-                        row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text("الشاهد الثاني").FontSize(8).Bold().DirectionFromRightToLeft(); c.Item().PaddingTop(24).LineHorizontal(0.4f).LineColor("#000"); });
+                        row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text("الشاهد الأول").FontSize(9).Bold().DirectionFromRightToLeft(); c.Item().PaddingTop(16).LineHorizontal(0.5f).LineColor("#000"); c.Item().PaddingTop(2).AlignCenter().Text("الاسم والتوقيع").FontSize(6).FontColor("#666").DirectionFromRightToLeft(); });
+                        row.ConstantItem(40);
+                        row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text("الشاهد الثاني").FontSize(9).Bold().DirectionFromRightToLeft(); c.Item().PaddingTop(16).LineHorizontal(0.5f).LineColor("#000"); c.Item().PaddingTop(2).AlignCenter().Text("الاسم والتوقيع").FontSize(6).FontColor("#666").DirectionFromRightToLeft(); });
                     });
                 }
 
                 if(!string.IsNullOrWhiteSpace(footerNote))
                 {
-                    col.Item().PaddingTop(10).AlignCenter().Text(footerNote).FontSize(6.5f).FontColor("#666").DirectionFromRightToLeft();
+                    col.Item().PaddingTop(6).AlignCenter().Text(footerNote).FontSize(7).FontColor("#666").DirectionFromRightToLeft();
                 }
             });
         }
 
-        private IContainer CellHeader(IContainer c)=>c.BorderBottom(0.6f).BorderColor("#000").PaddingVertical(3).PaddingHorizontal(4).Background("#EEE");
-        private IContainer CellBody(IContainer c)=>c.BorderBottom(0.2f).BorderColor("#DDD").PaddingVertical(3).PaddingHorizontal(4);
+        private IContainer HCell(IContainer c)=>c.BorderBottom(0.6f).BorderColor("#000").PaddingVertical(2).PaddingHorizontal(4).Background("#EEE");
+        private IContainer BCell(IContainer c)=>c.BorderBottom(0.2f).BorderColor("#DDD").PaddingVertical(2).PaddingHorizontal(4);
     }
 }
