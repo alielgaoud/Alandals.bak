@@ -25,16 +25,34 @@ namespace Andalos.API.Services
                 "monthly" => "شهري",
                 "quarterly" => "ربع سنوي",
                 "semiannually" => "نصف سنوي",
-                "semiannually" => "نصف سنوي",
                 "semi_annually" => "نصف سنوي",
                 "annually" => "سنوي",
                 "annual" => "سنوي",
+                "yearly" => "سنوي",
                 "1" => "شهري",
                 "2" => "ربع سنوي",
                 "3" => "نصف سنوي",
                 "4" => "سنوي",
                 _ => cycle // لو عربي أصلاً يبقى كما هو
             };
+        }
+
+        private string FormatDuration(int months)
+        {
+            if (months <= 0) return "غير محددة";
+            if (months < 12) return $"{months} شهر";
+            int years = months / 12;
+            int remMonths = months % 12;
+            // دعم سنتان و 3 سنين
+            string yearLabel = years switch
+            {
+                1 => "سنة واحدة",
+                2 => "سنتان",
+                3 => "3 سنوات",
+                _ => $"{years} سنوات"
+            };
+            if (remMonths == 0) return yearLabel;
+            return $"{yearLabel} و {remMonths} شهر";
         }
 
         private string TranslateRentCycle(object cycleObj)
@@ -193,8 +211,11 @@ namespace Andalos.API.Services
                         c.Item().AlignRight().Text(tenantLabel).FontSize(8).Bold().FontColor("#000").DirectionFromRightToLeft();
                         c.Item().PaddingTop(2).AlignRight().Text(contract.Tenant?.FullName??"-").FontSize(9).Bold().DirectionFromRightToLeft();
                         c.Item().AlignRight().Text($"الهوية: {contract.Tenant?.NationalId??"-"} | الهاتف: {contract.Tenant?.Phone??"-"}").FontSize(8).FontColor("#333").DirectionFromRightToLeft();
+                        var actDisplay = contract.ActivityType.ToString();
                         if(!string.IsNullOrWhiteSpace(contract.TradeName))
-                            c.Item().AlignRight().Text($"الاسم التجاري: {contract.TradeName} | النشاط: {contract.ActivityType}").FontSize(8).FontColor("#333").DirectionFromRightToLeft();
+                            c.Item().AlignRight().Text($"الاسم التجاري: {contract.TradeName} | النشاط: {actDisplay}").FontSize(8).FontColor("#333").DirectionFromRightToLeft();
+                        else
+                            c.Item().AlignRight().Text($"النشاط: {actDisplay}").FontSize(8).FontColor("#333").DirectionFromRightToLeft();
                     });
                 });
 
@@ -202,11 +223,12 @@ namespace Andalos.API.Services
 
                 // بيانات المحل - سطر واحد RTL
                 col.Item().Element(c=>CleanSectionTitle(c,unitTitle));
-                col.Item().AlignRight().Text($"رقم المحل: {contract.Unit?.UnitNumber??"-"} | المساحة: {contract.Unit?.Area??0:N0} م² | المبنى: {contract.Unit?.Building??"-"} - الطابق: {contract.Unit?.Floor??"-"} | النشاط: {contract.TradeName??contract.ActivityType??"-"}").FontSize(8.5f).LineHeight(1.4f).DirectionFromRightToLeft();
+                var activityDisplay = !string.IsNullOrWhiteSpace(contract.TradeName) ? contract.TradeName : contract.ActivityType.ToString();
+                col.Item().AlignRight().Text($"رقم المحل: {contract.Unit?.UnitNumber??"-"} | المساحة: {contract.Unit?.Area??0:N0} م² | المبنى: {contract.Unit?.Building??"-"} - الطابق: {contract.Unit?.Floor??"-"} | النشاط: {activityDisplay}").FontSize(8.5f).LineHeight(1.4f).DirectionFromRightToLeft();
 
-                // المدة - مترجم
+                // المدة - مترجم مع دعم سنتان و 3 سنوات
                 var durationMonths=Math.Max(1,(int)((contract.EndDate-contract.StartDate).TotalDays/30));
-                var durationText=durationMonths>=12?$"{durationMonths/12} سنة"+(durationMonths%12>0?$" و {durationMonths%12} شهر":""):$"{durationMonths} شهر";
+                var durationText=FormatDuration(durationMonths);
                 col.Item().Element(c=>CleanSectionTitle(c,termsTitle));
                 col.Item().AlignRight().Text($"من تاريخ: {contract.StartDate:yyyy/MM/dd} إلى تاريخ: {contract.EndDate:yyyy/MM/dd} | المدة: {durationText} | دورة السداد: {rentCycleAr} | التجديد التلقائي: {(contract.AutoRenew?"نعم":"لا")}").FontSize(8.5f).DirectionFromRightToLeft();
 
