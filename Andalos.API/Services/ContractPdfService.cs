@@ -13,18 +13,9 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly ISettingService _settings;
-
-        public ContractPdfService(
-            AppDbContext db,
-            ISettingService settings)
-        {
-            _db = db;
-            _settings = settings;
-        }
-
+        public ContractPdfService(AppDbContext db, ISettingService settings){ _db=db; _settings=settings; }
         public async Task<byte[]> GenerateContractPdfAsync(int contractId)
         {
-            // تحميل بيانات الشركة والشعار وكل الإعدادات المترابطة
             var companyInfo = await _settings.GetCompanyInfoAsync();
             var allSettings = await _settings.GetAllSettingsDictionaryAsync();
             var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
@@ -33,658 +24,92 @@ namespace Andalos.API.Services
             var companyInfoInHeader = await _settings.GetValueAsync<bool>(SettingKeys.PdfCompanyInfoInHeader, true);
             PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled, companyInfoInHeader);
             PdfMasterTemplate.ConfigureFromSettingsDictionary(allSettings);
-
-            var contract = await _db.Contracts
-                .Include(c => c.Tenant)
-                .Include(c => c.Unit)
-                .Include(c => c.ContractItems.Where(i => i.IsActive))
-                .Include(c => c.ContractFees.Where(f => f.IsActive))
-                .FirstOrDefaultAsync(c => c.Id == contractId);
-
-            if (contract == null)
-                throw new KeyNotFoundException("العقد غير موجود");
-
-            // =====================================================
-            // إعدادات قالب العقد
-            // =====================================================
-
-            var templateTitle =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractTemplateTitle)
-                ?? "عقد إيجار";
-
-            var intro =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractTemplateIntro)
-                ?? "";
-
-            var landlordLabel =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractLandlordLabel)
-                ?? "المؤجر";
-
-            var tenantLabel =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractTenantLabel)
-                ?? "المستأجر";
-
-            var unitSectionTitle =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractUnitSectionTitle)
-                ?? "بيانات المحل";
-
-            var termsSectionTitle =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractTermsSectionTitle)
-                ?? "شروط الإيجار";
-
-            var paymentSectionTitle =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractPaymentSectionTitle)
-                ?? "قيمة الإيجار";
-
-            var clauses =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractClauses)
-                ?? "";
-
-            var signatureLandlord =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractSignatureLandlord)
-                ?? "المؤجر";
-
-            var signatureTenant =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractSignatureTenant)
-                ?? "المستأجر";
-
-            var footerNote =
-                await _settings.GetValueAsync(
-                    SettingKeys.ContractFooterNote)
-                ?? "";
-
-            var showWitnesses =
-                await _settings.GetValueAsync<bool>(
-                    SettingKeys.ContractShowWitnesses,
-                    false);
-
-            var showHijriDate =
-                await _settings.GetValueAsync<bool>(
-                    SettingKeys.ContractShowHijriDate,
-                    false);
-
-            // قراءة إضافية لإعدادات النظام والتاريخ - مترابطة
+            var contract = await _db.Contracts.Include(c=>c.Tenant).Include(c=>c.Unit).Include(c=>c.ContractItems.Where(i=>i.IsActive)).Include(c=>c.ContractFees.Where(f=>f.IsActive)).FirstOrDefaultAsync(c=>c.Id==contractId);
+            if(contract==null) throw new KeyNotFoundException("العقد غير موجود");
+            var templateTitle = await _settings.GetValueAsync(SettingKeys.ContractTemplateTitle) ?? "عقد إيجار";
+            var intro = await _settings.GetValueAsync(SettingKeys.ContractTemplateIntro) ?? "";
+            var landlordLabel = await _settings.GetValueAsync(SettingKeys.ContractLandlordLabel) ?? "الطرف الأول (المؤجر)";
+            var tenantLabel = await _settings.GetValueAsync(SettingKeys.ContractTenantLabel) ?? "الطرف الثاني (المستأجر)";
+            var unitSectionTitle = await _settings.GetValueAsync(SettingKeys.ContractUnitSectionTitle) ?? "بيانات المحل";
+            var termsSectionTitle = await _settings.GetValueAsync(SettingKeys.ContractTermsSectionTitle) ?? "مدة الإيجار";
+            var paymentSectionTitle = await _settings.GetValueAsync(SettingKeys.ContractPaymentSectionTitle) ?? "القيمة المالية";
+            var clauses = await _settings.GetValueAsync(SettingKeys.ContractClauses) ?? "";
+            var signatureLandlord = await _settings.GetValueAsync(SettingKeys.ContractSignatureLandlord) ?? "الطرف الأول";
+            var signatureTenant = await _settings.GetValueAsync(SettingKeys.ContractSignatureTenant) ?? "الطرف الثاني";
+            var footerNote = await _settings.GetValueAsync(SettingKeys.ContractFooterNote) ?? "";
+            var showWitnesses = await _settings.GetValueAsync<bool>(SettingKeys.ContractShowWitnesses, false);
+            var showHijriDate = await _settings.GetValueAsync<bool>(SettingKeys.ContractShowHijriDate, false);
             var dateFormat = await _settings.GetValueAsync(SettingKeys.SystemDateFormat, "DD/MM/YYYY");
-            var language = await _settings.GetValueAsync(SettingKeys.SystemLanguage, "ar");
-
-            // =====================================================
-            // استبدال الرموز
-            // =====================================================
-
-            string formattedDate = dateFormat.ToUpper() switch
-            {
-                "DD/MM/YYYY" => contract.StartDate.ToString("dd/MM/yyyy"),
-                "MM/DD/YYYY" => contract.StartDate.ToString("MM/dd/yyyy"),
-                "YYYY-MM-DD" => contract.StartDate.ToString("yyyy-MM-dd"),
-                _ => contract.StartDate.ToString("yyyy/MM/dd")
-            };
-
-            string hijriDate = "";
-            if (showHijriDate)
-            {
-                try
-                {
-                    var hijri = new System.Globalization.HijriCalendar();
-                    hijriDate = $"{hijri.GetDayOfMonth(contract.StartDate):00}/{hijri.GetMonth(contract.StartDate):00}/{hijri.GetYear(contract.StartDate)} هـ";
-                }
-                catch { hijriDate = ""; }
-            }
-
-            intro = intro
-                .Replace("{Date}", formattedDate)
-                .Replace("{HijriDate}", hijriDate);
-
-            var graceDays =
-                await _settings.GetValueAsync(
-                    SettingKeys.RentGraceDays)
-                ?? "5";
-
-            clauses = clauses.Replace(
-                "{GraceDays}",
-                graceDays);
-
-            // =====================================================
-            // إنشاء المستند
-            // =====================================================
-
-            var document = Document.Create(container =>
-            {
-                PdfMasterTemplate.BuildPage(
-                    container,
-                    templateTitle,
-                    contract.ContractNumber,
-                    content => BuildContractContent(
-                        content,
-                        contract,
-                        intro,
-                        landlordLabel,
-                        tenantLabel,
-                        unitSectionTitle,
-                        termsSectionTitle,
-                        paymentSectionTitle,
-                        clauses,
-                        signatureLandlord,
-                        signatureTenant,
-                        footerNote,
-                        showWitnesses
-                    )
-                );
-            });
-
+            string formattedDate = dateFormat.ToUpper() switch { "DD/MM/YYYY" => contract.StartDate.ToString("dd/MM/yyyy"), "MM/DD/YYYY" => contract.StartDate.ToString("MM/dd/yyyy"), "YYYY-MM-DD" => contract.StartDate.ToString("yyyy-MM-dd"), _ => contract.StartDate.ToString("yyyy/MM/dd") };
+            string hijriDate = ""; if(showHijriDate){ try{ var hijri=new System.Globalization.HijriCalendar(); hijriDate=$"{hijri.GetDayOfMonth(contract.StartDate):00}/{hijri.GetMonth(contract.StartDate):00}/{hijri.GetYear(contract.StartDate)} هـ"; }catch{ hijriDate=""; } }
+            intro = intro.Replace("{Date}", formattedDate).Replace("{HijriDate}", hijriDate);
+            var graceDays = await _settings.GetValueAsync(SettingKeys.RentGraceDays) ?? "5"; clauses = clauses.Replace("{GraceDays}", graceDays);
+            var document = Document.Create(container => { container.Page(page => { page.Size(PageSizes.A4); page.Margin(35); page.DefaultTextStyle(x=>x.FontFamily("Arial").FontSize(9.5f).FontColor("#111").DirectionFromRightToLeft()); page.Header().Element(c=>BuildCleanHeader(c, templateTitle, contract.ContractNumber, formattedDate, hijriDate)); page.Content().PaddingTop(10).Element(content=>BuildCleanContent(content, contract, intro, landlordLabel, tenantLabel, unitSectionTitle, termsSectionTitle, paymentSectionTitle, clauses, signatureLandlord, signatureTenant, footerNote, showWitnesses)); page.Footer().PaddingTop(6).Element(BuildCleanFooter); }); });
             return document.GeneratePdf();
         }
-
-        // =========================================================
-        // محتوى العقد
-        // =========================================================
-
-        private void BuildContractContent(
-            IContainer container,
-            Contract contract,
-            string intro,
-            string landlordLabel,
-            string tenantLabel,
-            string unitSectionTitle,
-            string termsSectionTitle,
-            string paymentSectionTitle,
-            string clauses,
-            string signatureLandlord,
-            string signatureTenant,
-            string footerNote,
-            bool showWitnesses)
+        private void BuildCleanHeader(IContainer container, string title, string number, string date, string hijri)
         {
-            container.Column(col =>
-            {
-                col.Spacing(12);
-
-                // =================================================
-                // المقدمة
-                // =================================================
-
-                if (!string.IsNullOrWhiteSpace(intro))
-                {
-                    col.Item()
-                        .PaddingBottom(5)
-                        .Text(intro)
-                        .FontSize(11)
-                        .LineHeight(1.7f)
-                        .FontColor(PdfMasterTemplate.DarkGray);
-                }
-
-                // =================================================
-                // أطراف العقد
-                // =================================================
-
-                PdfMasterTemplate.SectionTitle(
-                    col.Item(),
-                    "أطراف العقد");
-
-                col.Item()
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    landlordLabel,
-                                    $"{PdfMasterTemplate.CompanyName}\n" +
-                                    $"هاتف: {PdfMasterTemplate.CompanyPhone}"
-                                ));
-
-                        row.ConstantItem(10);
-
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    tenantLabel,
-                                    $"{contract.Tenant?.FullName ?? "-"}\n" +
-                                    $"هوية: {contract.Tenant?.NationalId ?? "-"}\n" +
-                                    $"هاتف: {contract.Tenant?.Phone ?? "-"}"
-                                ));
-                    });
-
-                // =================================================
-                // بيانات المحل
-                // =================================================
-
-                PdfMasterTemplate.SectionTitle(
-                    col.Item(),
-                    unitSectionTitle);
-
-                col.Item()
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "رقم المحل",
-                                    contract.Unit?.UnitNumber ?? "-"
-                                ));
-
-                        row.ConstantItem(10);
-
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "الاسم التجاري / النشاط",
-                                    contract.TradeName ?? "-" // 👈 تم التصحيح هنا
-                                ));
-                    });
-
-                col.Item()
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "المساحة",
-                                    $"{contract.Unit?.Area ?? 0:N2} م²"
-                                ));
-
-                        row.ConstantItem(10);
-
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "الموقع",
-                                    $"{contract.Unit?.Building ?? "-"} - " +
-                                    $"{contract.Unit?.Floor ?? "-"}"
-                                ));
-                    });
-
-                // =================================================
-                // شروط الإيجار
-                // =================================================
-
-                PdfMasterTemplate.SectionTitle(
-                    col.Item(),
-                    termsSectionTitle);
-
-                col.Item()
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "تاريخ البدء",
-                                    contract.StartDate
-                                        .ToString("yyyy/MM/dd")
-                                ));
-
-                        row.ConstantItem(10);
-
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "تاريخ الانتهاء",
-                                    contract.EndDate
-                                        .ToString("yyyy/MM/dd")
-                                ));
-                    });
-
-                // =================================================
-                // القيمة المالية
-                // =================================================
-
-                PdfMasterTemplate.SectionTitle(
-                    col.Item(),
-                    paymentSectionTitle);
-
-                col.Item()
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "قيمة الإيجار",
-                                    $"{contract.RentAmount:N2} د.ل / {contract.RentCycle}"
-                                ));
-
-                        row.ConstantItem(10);
-
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "العربون",
-                                    $"{contract.DepositAmount:N2} د.ل"
-                                ));
-                    });
-
-                col.Item()
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "التجديد التلقائي",
-                                    contract.AutoRenew
-                                        ? "نعم"
-                                        : "لا"
-                                ));
-
-                        row.ConstantItem(10);
-
-                        row.RelativeItem()
-                            .Element(c =>
-                                InfoBox(
-                                    c,
-                                    "حالة العقد",
-                                    contract.Status.ToString()
-                                ));
-                    });
-
-                // =================================================
-                // البنود الإضافية
-                // =================================================
-
-                if (contract.ContractItems.Any())
-                {
-                    PdfMasterTemplate.SectionTitle(
-                        col.Item(),
-                        "البنود الإضافية");
-
-                    var headers = new[]
-                    {
-                        "#",
-                        "البند",
-                        "المبلغ",
-                        "ملاحظات"
-                    };
-
-                    var rows =
-                        contract.ContractItems
-                            .Select((item, i) => new[]
-                            {
-                                (i + 1).ToString(),
-                                item.ItemName,
-                                $"{item.Amount:N2} د.ل",
-                                item.Notes ?? "-"
-                            });
-
-                    col.Item()
-                        .Element(c =>
-                            PdfMasterTemplate.BuildTable(
-                                c,
-                                headers,
-                                rows));
-                }
-
-                // =================================================
-                // الرسوم والعمولات (جديد)
-                // =================================================
-
-                if (contract.ContractFees.Any())
-                {
-                    PdfMasterTemplate.SectionTitle(
-                        col.Item(),
-                        "الرسوم والعمولات");
-
-                    int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
-                    decimal totalContractValue = contract.RentAmount * durationMonths;
-
-                    var feeHeaders = new[]
-                    {
-                        "#",
-                        "اسم الرسم",
-                        "النوع",
-                        "الدورية",
-                        "القيمة المدخلة",
-                        "المبلغ المحسوب"
-                    };
-
-                    var feeRows = contract.ContractFees
-                        .Select((fee, i) =>
-                        {
-                            string valueTypeLabel = fee.ValueType == Enums.FeeValueType.Fixed ? "ثابت" : "نسبة %";
-                            string freqLabel = fee.Frequency == Enums.FeeFrequency.OneTime ? "مرة واحدة" : "شهري";
-                            string inputValue = fee.ValueType == Enums.FeeValueType.Percentage ? $"{fee.Value}%" : $"{fee.Value:N2} د.ل";
-                            decimal calc = fee.CalculateActualAmount(contract.RentAmount, totalContractValue);
-                            return new[]
-                            {
-                                (i + 1).ToString(),
-                                fee.FeeName,
-                                valueTypeLabel,
-                                freqLabel,
-                                inputValue,
-                                $"{calc:N2} د.ل"
-                            };
-                        });
-
-                    col.Item()
-                        .Element(c =>
-                            PdfMasterTemplate.BuildTable(
-                                c,
-                                feeHeaders,
-                                feeRows));
-
-                    // ملخص إجمالي
-                    decimal totalOneTime = contract.ContractFees
-                        .Where(f => f.Frequency == Enums.FeeFrequency.OneTime)
-                        .Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
-                    decimal totalMonthly = contract.ContractFees
-                        .Where(f => f.Frequency == Enums.FeeFrequency.Monthly)
-                        .Sum(f => f.CalculateActualAmount(contract.RentAmount, totalContractValue));
-
-                    col.Item()
-                        .PaddingTop(8)
-                        .Row(row =>
-                        {
-                            row.RelativeItem().Element(c =>
-                                InfoBox(c, "إجمالي الرسوم لمرة واحدة", $"{totalOneTime:N2} د.ل"));
-                            row.ConstantItem(10);
-                            row.RelativeItem().Element(c =>
-                                InfoBox(c, "إجمالي الرسوم الشهرية", $"{totalMonthly:N2} د.ل / شهر"));
-                        });
-                }
-
-                // =================================================
-                // البنود القانونية
-                // =================================================
-
-                if (!string.IsNullOrWhiteSpace(clauses))
-                {
-                    PdfMasterTemplate.SectionTitle(
-                        col.Item(),
-                        "البنود والشروط");
-
-                    var lines = clauses.Split(
-                        '\n',
-                        StringSplitOptions.RemoveEmptyEntries);
-
-                    foreach (var line in lines)
-                    {
-                        col.Item()
-                            .PaddingBottom(4)
-                            .Text(line.Trim())
-                            .FontSize(10)
-                            .LineHeight(1.6f)
-                            .FontColor(PdfMasterTemplate.DarkGray);
+            container.Column(col=>{ col.Item().Row(row=>{ row.RelativeItem().Column(c=>{ c.Item().Row(r=>{ if(PdfMasterTemplate.ShowLogo){ try{ string webRoot=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"wwwroot"); if(!Directory.Exists(webRoot)) webRoot=Path.Combine(Directory.GetCurrentDirectory(),"wwwroot"); string logoPath=PdfMasterTemplate.GetLogoPhysicalPath(webRoot); if(!string.IsNullOrWhiteSpace(logoPath)&&File.Exists(logoPath)){ r.ConstantItem(42).Image(logoPath).FitArea(); r.ConstantItem(8); } }catch{} } r.RelativeItem().Column(info=>{ info.Item().Text(PdfMasterTemplate.CompanyName).FontSize(13).Bold().FontColor("#000"); info.Item().PaddingTop(2).Text($"{PdfMasterTemplate.CompanyPhone} | {PdfMasterTemplate.CompanyEmail}").FontSize(7.5f).FontColor("#444"); info.Item().Text(PdfMasterTemplate.CompanyAddress).FontSize(7).FontColor("#666"); }); }); }); row.ConstantItem(180).AlignLeft().Column(c=>{ c.Item().AlignLeft().Text(title).FontSize(16).Bold().FontColor("#000"); c.Item().PaddingTop(2).AlignLeft().Text($"رقم: {number}").FontSize(9).Bold().FontColor("#222"); c.Item().AlignLeft().Text($"التاريخ: {date}"+(!string.IsNullOrWhiteSpace(hijri)?$" - {hijri}":"")).FontSize(7.5f).FontColor("#555"); }); }); col.Item().PaddingTop(8).LineHorizontal(0.7f).LineColor("#000"); });
+        }
+        private void BuildCleanFooter(IContainer container){ if(!PdfMasterTemplate.FooterEnabled){ container.Height(0); return; } container.Column(col=>{ col.Item().LineHorizontal(0.5f).LineColor("#999"); col.Item().PaddingTop(4).Row(row=>{ row.RelativeItem().Text($"{PdfMasterTemplate.CompanyPhone} | {PdfMasterTemplate.CompanyEmail} | {PdfMasterTemplate.CompanyAddress}").FontSize(6.5f).FontColor("#777"); row.ConstantItem(80).AlignLeft().Text(t=>{ t.Span("صفحة ").FontSize(6.5f); t.CurrentPageNumber().FontSize(6.5f).Bold(); t.Span(" من ").FontSize(6.5f); t.TotalPages().FontSize(6.5f).Bold(); }); }); }); }
+        private void BuildCleanContent(IContainer container, Contract contract, string intro, string landlordLabel, string tenantLabel, string unitTitle, string termsTitle, string paymentTitle, string clauses, string sigLandlord, string sigTenant, string footerNote, bool showWitnesses)
+        {
+            container.Column(col=>{
+                col.Spacing(6);
+                if(!string.IsNullOrWhiteSpace(intro)){ col.Item().Text(intro).FontSize(9).LineHeight(1.5f).FontColor("#222").AlignRight(); }
+                col.Item().PaddingTop(4).Element(c=>CleanSectionTitle(c,"أطراف العقد"));
+                col.Item().Row(row=>{
+                    row.RelativeItem().Column(c=>{ c.Item().Text(landlordLabel).FontSize(8).Bold().FontColor("#000"); c.Item().PaddingTop(2).Text(PdfMasterTemplate.CompanyName).FontSize(9).Bold(); c.Item().Text($"هاتف: {PdfMasterTemplate.CompanyPhone}").FontSize(8).FontColor("#333"); if(!string.IsNullOrWhiteSpace(PdfMasterTemplate.CompanyTaxNumber)) c.Item().Text($"الرقم الضريبي: {PdfMasterTemplate.CompanyTaxNumber}").FontSize(7.5f).FontColor("#555"); });
+                    row.ConstantItem(20);
+                    row.RelativeItem().Column(c=>{ c.Item().Text(tenantLabel).FontSize(8).Bold().FontColor("#000"); c.Item().PaddingTop(2).Text(contract.Tenant?.FullName??"-").FontSize(9).Bold(); c.Item().Text($"هوية: {contract.Tenant?.NationalId??"-"} | هاتف: {contract.Tenant?.Phone??"-"}").FontSize(8).FontColor("#333"); if(!string.IsNullOrWhiteSpace(contract.TradeName)) c.Item().Text($"الاسم التجاري: {contract.TradeName} - النشاط: {contract.ActivityType}").FontSize(8).FontColor("#333"); });
+                });
+                col.Item().PaddingTop(2).LineHorizontal(0.3f).LineColor("#DDD");
+                col.Item().Element(c=>CleanSectionTitle(c,unitTitle));
+                col.Item().Text($"المحل رقم: {contract.Unit?.UnitNumber??"-"} | المساحة: {contract.Unit?.Area??0:N0} م² | المبنى: {contract.Unit?.Building??"-"} - الطابق: {contract.Unit?.Floor??"-"} | الاسم التجاري: {contract.TradeName??"-"}").FontSize(8.5f).LineHeight(1.4f);
+                var durationMonths=Math.Max(1,(int)((contract.EndDate-contract.StartDate).TotalDays/30)); var durationText=durationMonths>=12?$"{durationMonths/12} سنة"+(durationMonths%12>0?$" و {durationMonths%12} شهر":""):$"{durationMonths} شهر";
+                col.Item().Element(c=>CleanSectionTitle(c,termsTitle));
+                col.Item().Text($"من: {contract.StartDate:yyyy/MM/dd} إلى: {contract.EndDate:yyyy/MM/dd} | المدة: {durationText} | دورة الدفع: {contract.RentCycle} | التجديد التلقائي: {(contract.AutoRenew?"نعم":"لا")} | الحالة: {contract.Status}").FontSize(8.5f);
+                col.Item().Element(c=>CleanSectionTitle(c,paymentTitle));
+                col.Item().Text($"الإيجار: {contract.RentAmount:N2} {PdfMasterTemplate.CurrencySymbol} / {contract.RentCycle} | العربون: {contract.DepositAmount:N2} {PdfMasterTemplate.CurrencySymbol}"+(contract.AnnualIncreasePercentage.HasValue?$" | الزيادة السنوية: {contract.AnnualIncreasePercentage}% ":"")).FontSize(8.5f).Bold();
+                if(contract.ContractItems.Any()){
+                    col.Item().Element(c=>CleanSectionTitle(c,"البنود الإضافية"));
+                    foreach(var (item,idx) in contract.ContractItems.Select((v,i)=>(v,i))){
+                        col.Item().Text($"{idx+1}. {item.ItemName} - {item.Amount:N2} {PdfMasterTemplate.CurrencySymbol}"+(!string.IsNullOrWhiteSpace(item.Notes)?$" ({item.Notes})":"")).FontSize(8).FontColor("#222");
                     }
                 }
-
-                // =================================================
-                // التوقيعات
-                // =================================================
-
-                col.Item()
-                    .PaddingTop(25)
-                    .Row(row =>
-                    {
-                        row.RelativeItem()
-                            .Column(c =>
-                            {
-                                c.Item()
-                                    .Text(signatureLandlord)
-                                    .Bold()
-                                    .AlignCenter()
-                                    .FontColor(PdfMasterTemplate.Black);
-
-                                c.Item()
-                                    .PaddingTop(45)
-                                    .LineHorizontal(0.8f)
-                                    .LineColor(PdfMasterTemplate.BorderGray);
-
-                                c.Item()
-                                    .PaddingTop(5)
-                                    .Text("التوقيع والختم")
-                                    .FontSize(8)
-                                    .FontColor(PdfMasterTemplate.Gray)
-                                    .AlignCenter();
-                            });
-
-                        row.ConstantItem(40);
-
-                        row.RelativeItem()
-                            .Column(c =>
-                            {
-                                c.Item()
-                                    .Text(signatureTenant)
-                                    .Bold()
-                                    .AlignCenter()
-                                    .FontColor(PdfMasterTemplate.Black);
-
-                                c.Item()
-                                    .PaddingTop(45)
-                                    .LineHorizontal(0.8f)
-                                    .LineColor(PdfMasterTemplate.BorderGray);
-
-                                c.Item()
-                                    .PaddingTop(5)
-                                    .Text("التوقيع")
-                                    .FontSize(8)
-                                    .FontColor(PdfMasterTemplate.Gray)
-                                    .AlignCenter();
-                            });
+                if(contract.ContractFees.Any()){
+                    col.Item().Element(c=>CleanSectionTitle(c,"الرسوم والعمولات"));
+                    int totalMonths=Math.Max(1,(int)((contract.EndDate-contract.StartDate).TotalDays/30)); decimal totalValue=contract.RentAmount*totalMonths;
+                    col.Item().Table(table=>{
+                        table.ColumnsDefinition(cols=>{ cols.ConstantColumn(20); cols.RelativeColumn(3); cols.RelativeColumn(1.2f); cols.RelativeColumn(1.2f); cols.RelativeColumn(1.5f); cols.RelativeColumn(1.5f); });
+                        table.Cell().Element(CleanHeaderCell).Text("#").FontSize(7).Bold(); table.Cell().Element(CleanHeaderCell).Text("اسم الرسم").FontSize(7).Bold(); table.Cell().Element(CleanHeaderCell).Text("النوع").FontSize(7).Bold(); table.Cell().Element(CleanHeaderCell).Text("الدورية").FontSize(7).Bold(); table.Cell().Element(CleanHeaderCell).Text("القيمة").FontSize(7).Bold(); table.Cell().Element(CleanHeaderCell).Text("المبلغ").FontSize(7).Bold();
+                        foreach(var (fee,i) in contract.ContractFees.Select((v,idx)=>(v,idx))){
+                            string vt=fee.ValueType==Enums.FeeValueType.Fixed?"ثابت":"نسبة"; string fr=fee.Frequency==Enums.FeeFrequency.OneTime?"مرة واحدة":"شهري"; string input=fee.ValueType==Enums.FeeValueType.Percentage?$"{fee.Value}%":$"{fee.Value:N2}"; decimal calc=fee.CalculateActualAmount(contract.RentAmount,totalValue);
+                            table.Cell().Element(CleanDataCell).Text($"{i+1}").FontSize(7); table.Cell().Element(CleanDataCell).Text(fee.FeeName).FontSize(7); table.Cell().Element(CleanDataCell).Text(vt).FontSize(7); table.Cell().Element(CleanDataCell).Text(fr).FontSize(7); table.Cell().Element(CleanDataCell).Text(input).FontSize(7); table.Cell().Element(CleanDataCell).Text($"{calc:N2}").FontSize(7).Bold();
+                        }
                     });
-
-                // =================================================
-                // الشهود
-                // =================================================
-
-                if (showWitnesses)
-                {
-                    var witnessLabel =
-                        awaitWitnessLabel();
-
-                    col.Item()
-                        .PaddingTop(20)
-                        .Row(row =>
-                        {
-                            row.RelativeItem()
-                                .Column(c =>
-                                {
-                                    c.Item()
-                                        .Text($"{witnessLabel} - الأول")
-                                        .Bold()
-                                        .AlignCenter();
-
-                                    c.Item()
-                                        .PaddingTop(35)
-                                        .LineHorizontal(0.8f)
-                                        .LineColor(PdfMasterTemplate.BorderGray);
-                                });
-
-                            row.ConstantItem(40);
-
-                            row.RelativeItem()
-                                .Column(c =>
-                                {
-                                    c.Item()
-                                        .Text($"{witnessLabel} - الثاني")
-                                        .Bold()
-                                        .AlignCenter();
-
-                                    c.Item()
-                                        .PaddingTop(35)
-                                        .LineHorizontal(0.8f)
-                                        .LineColor(PdfMasterTemplate.BorderGray);
-                                });
-                        });
+                    var totalOne=contract.ContractFees.Where(f=>f.Frequency==Enums.FeeFrequency.OneTime).Sum(f=>f.CalculateActualAmount(contract.RentAmount,totalValue));
+                    var totalMonthly=contract.ContractFees.Where(f=>f.Frequency==Enums.FeeFrequency.Monthly).Sum(f=>f.CalculateActualAmount(contract.RentAmount,totalValue));
+                    col.Item().PaddingTop(2).Text($"الإجمالي: لمرة واحدة {totalOne:N2} {PdfMasterTemplate.CurrencySymbol} | شهري {totalMonthly:N2} {PdfMasterTemplate.CurrencySymbol}").FontSize(7.5f).Bold().FontColor("#000");
                 }
-
-                // =================================================
-                // ملاحظة العقد
-                // =================================================
-
-                if (!string.IsNullOrWhiteSpace(footerNote))
-                {
-                    col.Item()
-                        .PaddingTop(15)
-                        .Background(PdfMasterTemplate.LightGray)
-                        .Border(0.5f)
-                        .BorderColor(PdfMasterTemplate.BorderGray)
-                        .Padding(10)
-                        .Text(footerNote)
-                        .FontSize(9)
-                        .Italic()
-                        .FontColor(PdfMasterTemplate.Gray);
+                if(!string.IsNullOrWhiteSpace(clauses)){
+                    col.Item().Element(c=>CleanSectionTitle(c,"البنود والشروط"));
+                    var lines=clauses.Split('\n',StringSplitOptions.RemoveEmptyEntries); int num=1;
+                    foreach(var line in lines){ var trimmed=line.Trim(); if(string.IsNullOrWhiteSpace(trimmed)) continue; col.Item().Text($"{num}. {trimmed}").FontSize(8).LineHeight(1.4f).FontColor("#222"); num++; if(num>12) break; }
                 }
+                col.Item().PaddingTop(12).Row(row=>{
+                    row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text(sigLandlord).FontSize(9).Bold(); c.Item().PaddingTop(28).LineHorizontal(0.5f).LineColor("#000"); c.Item().PaddingTop(3).AlignCenter().Text("التوقيع والختم").FontSize(7).FontColor("#666"); });
+                    row.ConstantItem(50);
+                    row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text(sigTenant).FontSize(9).Bold(); c.Item().PaddingTop(28).LineHorizontal(0.5f).LineColor("#000"); c.Item().PaddingTop(3).AlignCenter().Text("التوقيع").FontSize(7).FontColor("#666"); });
+                });
+                if(showWitnesses){
+                    col.Item().PaddingTop(10).Row(row=>{ row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text("الشاهد الأول").FontSize(8).Bold(); c.Item().PaddingTop(20).LineHorizontal(0.5f).LineColor("#000"); }); row.ConstantItem(50); row.RelativeItem().Column(c=>{ c.Item().AlignCenter().Text("الشاهد الثاني").FontSize(8).Bold(); c.Item().PaddingTop(20).LineHorizontal(0.5f).LineColor("#000"); }); });
+                }
+                if(!string.IsNullOrWhiteSpace(footerNote)){ col.Item().PaddingTop(8).BorderTop(0.3f).BorderColor("#CCC").PaddingTop(4).Text(footerNote).FontSize(7).Italic().FontColor("#666").AlignCenter(); }
             });
         }
-
-        // =========================================================
-        // الحصول على تسمية الشهود
-        // =========================================================
-
-        private string awaitWitnessLabel()
-        {
-            return _settings
-                .GetValueAsync(
-                    SettingKeys.ContractWitnessLabel)
-                .GetAwaiter()
-                .GetResult()
-                ?? "الشهود";
-        }
-
-        // =========================================================
-        // Info Box
-        // =========================================================
-
-        private static void InfoBox(
-            IContainer container,
-            string label,
-            string value)
-        {
-            container
-                .Background(PdfMasterTemplate.LightGray)
-                .Border(0.7f)
-                .BorderColor(PdfMasterTemplate.BorderGray)
-                .Padding(9)
-                .Column(c =>
-                {
-                    c.Item()
-                        .Text(label)
-                        .FontSize(8)
-                        .FontColor(PdfMasterTemplate.Gray);
-
-                    c.Item()
-                        .PaddingTop(3)
-                        .Text(value)
-                        .FontSize(10)
-                        .Bold()
-                        .FontColor(PdfMasterTemplate.DarkGray)
-                        .LineHeight(1.4f);
-                });
-        }
+        private void CleanSectionTitle(IContainer container, string title){ container.PaddingTop(6).PaddingBottom(2).Column(col=>{ col.Item().Text(title).FontSize(9.5f).Bold().FontColor("#000"); col.Item().PaddingTop(1).LineHorizontal(0.5f).LineColor("#000"); }); }
+        private IContainer CleanHeaderCell(IContainer container){ return container.BorderBottom(0.7f).BorderColor("#000").PaddingVertical(3).PaddingHorizontal(3).AlignRight(); }
+        private IContainer CleanDataCell(IContainer container){ return container.BorderBottom(0.2f).BorderColor("#DDD").PaddingVertical(2.5f).PaddingHorizontal(3).AlignRight(); }
     }
 }
