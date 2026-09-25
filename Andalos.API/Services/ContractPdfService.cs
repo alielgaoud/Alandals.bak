@@ -126,12 +126,12 @@ namespace Andalos.API.Services
 
         private void BuildContent(IContainer container, Contract contract, string intro, string landlordLabel, string tenantLabel, string clauses, string sigLandlord, string sigTenant, string footerNote, bool showWitnesses, string mainTitle, string formattedDate, string hijriDate)
         {
-            string rentCycleAr = TranslateRentCycle(contract.RentCycle?.ToString() ?? "");
+            string rentCycleAr = TranslateRentCycle(contract.RentCycle.ToString());
             var durationMonths=Math.Max(1,(int)((contract.EndDate-contract.StartDate).TotalDays/30));
             var durationText=FormatDuration(durationMonths);
 
-            // تنظيف النشاط - عربي فقط
-            string activityClean = !string.IsNullOrWhiteSpace(contract.TradeName) ? contract.TradeName : CleanArabic(contract.ActivityType?.ToString() ?? "تجاري");
+            // تنظيف النشاط - عربي فقط - ActivityType enum غير nullable
+            string activityClean = !string.IsNullOrWhiteSpace(contract.TradeName) ? contract.TradeName : CleanArabic(contract.ActivityType.ToString());
             // إزالة كلمة Other الإنجليزية
             if(activityClean.Equals("Other", StringComparison.OrdinalIgnoreCase)) activityClean = "نشاط تجاري";
             if(activityClean.Equals("Restaurant", StringComparison.OrdinalIgnoreCase)) activityClean = "مطعم";
