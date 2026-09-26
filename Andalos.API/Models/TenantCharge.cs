@@ -1,4 +1,5 @@
 using Andalos.API.Common;
+using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
