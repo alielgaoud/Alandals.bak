@@ -31,6 +31,9 @@
         // إشعارات الصيانة
         NewMaintenanceRequest = 50,     // للإدارة: طلب صيانة جديد
         MaintenanceStatusChanged = 51,  // للمستأجر: تحديث طلب الصيانة
+        MaintenanceChargeOffer = 52,    // 👈 للمستأجر: عرض صيانة يحتاج قبول/رفض
+        MaintenanceChargeApproved = 53, // 👈 للإدارة: المستأجر وافق على العرض
+        MaintenanceChargeRejected = 54, // 👈 للإدارة: المستأجر رفض العرض
 
         // إشعارات الزوار
         VisitorRejected = 60,           // للإدارة: محاولة دخول مرفوضة

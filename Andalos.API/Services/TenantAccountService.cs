@@ -333,9 +333,11 @@ namespace Andalos.API.Services
             }
 
             // --- 2.5 👈 جديد: تحميلات الصيانة والخدمات (Debit) ---
+            // فقط المؤكد أو المسدد يدخل المديونية — المعلق (عرض بانتظار الموافقة) والمرفوض مستثنيان
             var tenantCharges = await _db.TenantCharges
                 .Include(c => c.Unit)
                 .Where(c => c.TenantId == tenantId && c.IsActive
+                         && (c.ChargeStatus == ChargeStatus.Approved || c.ChargeStatus == ChargeStatus.Paid)
                          && c.ChargeDate >= fromDate && c.ChargeDate <= actualToDate)
                 .ToListAsync();
 
@@ -511,6 +513,14 @@ namespace Andalos.API.Services
                     .SumAsync(e => e.Amount);
 
                 totalDebit += totalChargedExpenses;
+
+                // 👈 جديد: التحميلات المؤكدة فقط تدخل المديونية (بدون العروض المعلقة والمرفوضة)
+                decimal totalCharges = await _db.TenantCharges
+                    .Where(ct => ct.TenantId == tenant.Id && ct.IsActive
+                             && (ct.ChargeStatus == ChargeStatus.Approved || ct.ChargeStatus == ChargeStatus.Paid))
+                    .SumAsync(ct => ct.Amount);
+
+                totalDebit += totalCharges;
 
                 decimal totalCredit = payments.Where(p => p.PaymentMethod != PaymentMethod.FromBalance).Sum(p => p.Amount);
 

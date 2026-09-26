@@ -370,6 +370,7 @@ namespace Andalos.API.Data
                       .OnDelete(DeleteBehavior.SetNull);
 
                 entity.Property(m => m.BilledAmount).HasColumnType("decimal(18,2)");
+                entity.Property(m => m.BillingType).HasConversion<int>();
             });
 
             // Refund
@@ -419,6 +420,8 @@ namespace Andalos.API.Data
                 entity.HasIndex(e => e.ChargeNumber).IsUnique();
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.SettledAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.ChargeStatus).HasConversion<int>();
+                entity.HasIndex(e => e.ChargeStatus);
 
                 entity.HasOne(c => c.Tenant)
                       .WithMany()

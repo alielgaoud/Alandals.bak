@@ -19,6 +19,10 @@ namespace Andalos.API.Interfaces
         Task<List<MaintenanceResponseDto>> GetMyMaintenanceAsync(int tenantId);
         Task<MaintenanceResponseDto> GetMaintenanceByIdAsync(int tenantId, int requestId);
 
+        // 👈 جديد: عروض الصيانة المعلقة + القبول/الرفض
+        Task<List<TenantChargeDto>> GetMyPendingChargesAsync(int tenantId);
+        Task<TenantChargeDto> RespondToChargeAsync(int tenantId, int chargeId, RespondChargeDto dto);
+
         // 👈 موظفي المستأجر (تم التوحيد والاعتماد على DTO المنسق والآمن)
         Task<List<TenantStaffResponseDto>> GetMyStaffAsync(int tenantId);
         Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto);

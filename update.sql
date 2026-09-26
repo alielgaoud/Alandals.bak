@@ -2035,3 +2035,56 @@ BEGIN
     VALUES (N'20260926210000_AddMaintenanceBillingAndTenantCharges', N'8.0.26');
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926230000_AddChargeApprovalWorkflow'
+)
+BEGIN
+    -- 👈 1. نوع فوترة الصيانة (على الإدارة / عرض / إجبارية)
+    ALTER TABLE [MaintenanceRequests] ADD [BillingType] int NOT NULL DEFAULT 1;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926230000_AddChargeApprovalWorkflow'
+)
+BEGIN
+    -- 👈 2. حالة التحميل + رد المستأجر
+    ALTER TABLE [TenantCharges] ADD [ChargeStatus] int NOT NULL DEFAULT 1;
+    ALTER TABLE [TenantCharges] ADD [RespondedAt] datetime2 NULL;
+    ALTER TABLE [TenantCharges] ADD [RejectionReason] nvarchar(500) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926230000_AddChargeApprovalWorkflow'
+)
+BEGIN
+    -- ترحيل البيانات القديمة: المسدد = Paid (4) والباقي = مؤكد Approved (2)
+    UPDATE [TenantCharges]
+    SET [ChargeStatus] = CASE WHEN [IsSettled] = CAST(1 AS bit) THEN 4 ELSE 2 END
+    WHERE [ChargeStatus] = 1;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926230000_AddChargeApprovalWorkflow'
+)
+BEGIN
+    CREATE INDEX [IX_TenantCharges_ChargeStatus] ON [TenantCharges] ([ChargeStatus]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926230000_AddChargeApprovalWorkflow'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260926230000_AddChargeApprovalWorkflow', N'8.0.26');
+END;
+GO

@@ -33,6 +33,9 @@ namespace Andalos.API.Models
         public bool BilledToTenant { get; set; } = false; // هل تم تحميل المستأجر؟
         public decimal BilledAmount { get; set; } = 0; // المبلغ المحمّل على المستأجر (قد يشمل هامشاً فوق التكلفة)
 
+        // 👈 نوع الفوترة: على الإدارة / عرض بموافقة المستأجر / إجبارية
+        public MaintenanceBillingType BillingType { get; set; } = MaintenanceBillingType.None;
+
         public DateTime RequestDate { get; set; } = DateTime.Now;
 
         public DateTime? CompletionDate { get; set; }

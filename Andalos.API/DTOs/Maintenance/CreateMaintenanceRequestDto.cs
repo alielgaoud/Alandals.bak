@@ -36,6 +36,17 @@ namespace Andalos.API.DTOs.Maintenance
         public bool BilledToTenant { get; set; } = false; // تحميل المستأجر بمبلغ؟
         public decimal BilledAmount { get; set; } = 0; // المبلغ المحمّل (مثلاً 1500 بينما التكلفة 1000)
         public bool RecordCostExpense { get; set; } = true; // تسجيل تكلفة الصيانة (1000) كمصروف تلقائياً
+        public MaintenanceBillingType BillingType { get; set; } = MaintenanceBillingType.Mandatory; // إجبارية افتراضياً عند الإكمال (العمل منجز) — أو Offer لعرض الموافقة
+    }
+
+    // 👈 جديد: رد المستأجر على عرض الصيانة (قبول / رفض)
+    public class RespondChargeDto
+    {
+        [Required]
+        public bool Accept { get; set; } // true = قبول العرض / false = رفضه
+
+        [MaxLength(500)]
+        public string? Reason { get; set; } // سبب الرفض (اختياري)
     }
 
     // 👈 جديد: تحميل المستأجر يدوياً (إجراء مستقل في أي وقت)
@@ -46,6 +57,9 @@ namespace Andalos.API.DTOs.Maintenance
         public decimal BilledAmount { get; set; } // المبلغ المحمّل على المستأجر (مثلاً 1500)
 
         public bool RecordCostExpense { get; set; } = true; // تسجيل تكلفة الصيانة (Cost) كمصروف تلقائياً
+
+        // 👈 نوع الفوترة: Offer = عرض يحتاج موافقة المستأجر / Mandatory = إجبارية تحميل مباشر
+        public MaintenanceBillingType BillingType { get; set; } = MaintenanceBillingType.Mandatory;
 
         public string? Notes { get; set; }
     }
@@ -77,6 +91,12 @@ namespace Andalos.API.DTOs.Maintenance
         public decimal SettledAmount { get; set; } // المسدد
         public decimal RemainingAmount => Amount - SettledAmount; // المتبقي
         public bool IsSettled { get; set; }
+
+        // 👈 حالة العرض/التحميل
+        public ChargeStatus ChargeStatus { get; set; } = ChargeStatus.PendingApproval;
+        public string ChargeStatusLabel { get; set; } = string.Empty; // بالعربي للعرض
+        public DateTime? RespondedAt { get; set; }
+        public string? RejectionReason { get; set; }
         public string? SettlementReceiptNumber { get; set; }
         public DateTime ChargeDate { get; set; }
         public string Description { get; set; } = string.Empty;
@@ -104,6 +124,8 @@ namespace Andalos.API.DTOs.Maintenance
         // 👈 جديد: معلومات التحميل على المستأجر
         public bool BilledToTenant { get; set; } = false;
         public decimal BilledAmount { get; set; } = 0;
+        public MaintenanceBillingType BillingType { get; set; } = MaintenanceBillingType.None;
+        public ChargeStatus ChargeStatus { get; set; } = ChargeStatus.PendingApproval; // حالة العرض المرتبط
         public decimal? ChargeSettledAmount { get; set; } // الجزء المسدد من التحميل
         public bool ChargeIsSettled { get; set; } = false; // هل سُدد التحميل بالكامل
         public decimal? ProfitAmount { get; set; } // الربح (المحمّل - التكلفة) — للعرض فقط

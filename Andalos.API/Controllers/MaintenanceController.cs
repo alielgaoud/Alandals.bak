@@ -1,4 +1,5 @@
 using Andalos.API.DTOs.Common;
+using Andalos.API.Enums;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -105,9 +106,9 @@ namespace Andalos.API.Controllers
 
         // 👈 جديد: قائمة التحميلات (اختياري: تصفية بالمستأجر / غير المسدد فقط)
         [HttpGet("charges")]
-        public async Task<IActionResult> GetCharges([FromQuery] int? tenantId, [FromQuery] bool? unsettledOnly)
+        public async Task<IActionResult> GetCharges([FromQuery] int? tenantId, [FromQuery] bool? unsettledOnly, [FromQuery] ChargeStatus? status)
         {
-            var list = await _service.GetChargesAsync(tenantId, unsettledOnly);
+            var list = await _service.GetChargesAsync(tenantId, unsettledOnly, status);
             return Ok(ApiResponseDto<List<TenantChargeDto>>.SuccessResponse(list));
         }
 

@@ -15,6 +15,14 @@ namespace Andalos.API.Models
         [MaxLength(50)]
         public string ChargeNumber { get; set; } = string.Empty; // رقم التحميل (مثال: CHG-2026-00001)
 
+        // 👈 حالة التحميل: عرض معلق / مؤكد / مرفوض / مسدد
+        public ChargeStatus ChargeStatus { get; set; } = ChargeStatus.PendingApproval;
+
+        public DateTime? RespondedAt { get; set; } // تاريخ رد المستأجر (قبول/رفض)
+
+        [MaxLength(500)]
+        public string? RejectionReason { get; set; } // سبب الرفض إن وجد
+
         [Required]
         public int TenantId { get; set; }
         public Tenant? Tenant { get; set; }

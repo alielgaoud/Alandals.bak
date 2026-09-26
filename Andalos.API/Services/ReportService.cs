@@ -401,9 +401,11 @@ namespace Andalos.API.Services
                 .Where(e => e.IsActive && e.ExpenseDate >= from && e.ExpenseDate <= to)
                 .SumAsync(e => e.Amount);
 
-            // تحميلات الصيانة غير المحصلة (مستحقات قادمة)
+            // تحميلات غير محصلة (مستحقات قادمة) — المؤكد فقط (بدون العروض المعلقة والمرفوضة)
             var unsettledCharges = await _db.TenantCharges
-                .Where(c => c.IsActive && !c.IsSettled && c.ChargeDate >= from && c.ChargeDate <= to)
+                .Where(c => c.IsActive && !c.IsSettled
+                         && c.ChargeStatus == ChargeStatus.Approved
+                         && c.ChargeDate >= from && c.ChargeDate <= to)
                 .ToListAsync();
 
             return new IncomeSummaryDto

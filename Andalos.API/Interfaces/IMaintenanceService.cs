@@ -1,4 +1,5 @@
 using Andalos.API.DTOs.Maintenance;
+using Andalos.API.Enums;
 
 namespace Andalos.API.Interfaces
 {
@@ -14,7 +15,8 @@ namespace Andalos.API.Interfaces
         // 👈 جديد: نظام تحميل المستأجر (الفوترة) وتحصيل الإيرادات
         Task<MaintenanceResponseDto> ChargeTenantAsync(int id, ChargeMaintenanceDto dto);
         Task<TenantChargeDto?> GetChargeAsync(int chargeId);
-        Task<List<TenantChargeDto>> GetChargesAsync(int? tenantId, bool? unsettledOnly);
+        Task<List<TenantChargeDto>> GetChargesAsync(int? tenantId, bool? unsettledOnly, ChargeStatus? status = null);
         Task<TenantChargeDto> SettleChargeAsync(int chargeId, SettleChargeDto dto);
+        Task<TenantChargeDto> RespondToChargeAsync(int chargeId, int tenantId, RespondChargeDto dto);
     }
 }

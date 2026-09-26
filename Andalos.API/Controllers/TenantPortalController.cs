@@ -169,6 +169,71 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<List<MaintenanceResponseDto>>.SuccessResponse(data));
         }
 
+        // 👈 جديد: العروض المعلقة التي تنتظر رد المستأجر (قبول/رفض)
+        [HttpGet("maintenance/{tenantId}/charges/pending")]
+        public async Task<IActionResult> GetMyPendingCharges(int tenantId)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<List<TenantChargeDto>>.FailResponse("غير مصرح"));
+
+            var data = await _portalService.GetMyPendingChargesAsync(tenantId);
+            return Ok(ApiResponseDto<List<TenantChargeDto>>.SuccessResponse(data));
+        }
+
+        // 👈 جديد: قبول المستأجر لعرض الصيانة
+        [HttpPost("maintenance/{tenantId}/charges/{chargeId}/accept")]
+        public async Task<IActionResult> AcceptCharge(int tenantId, int chargeId)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<TenantChargeDto>.FailResponse("غير مصرح"));
+
+            try
+            {
+                var result = await _portalService.RespondToChargeAsync(tenantId, chargeId,
+                    new RespondChargeDto { Accept = true });
+                return Ok(ApiResponseDto<TenantChargeDto>.SuccessResponse(result, "تم قبول عرض الصيانة بنجاح"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponseDto<TenantChargeDto>.FailResponse(ex.Message));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return StatusCode(403, ApiResponseDto<TenantChargeDto>.FailResponse("غير مصرح"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponseDto<TenantChargeDto>.FailResponse(ex.Message));
+            }
+        }
+
+        // 👈 جديد: رفض المستأجر لعرض الصيانة (مع سبب اختياري)
+        [HttpPost("maintenance/{tenantId}/charges/{chargeId}/reject")]
+        public async Task<IActionResult> RejectCharge(int tenantId, int chargeId, [FromBody] RespondChargeDto dto)
+        {
+            if (!ValidateCurrentUserTenant(tenantId))
+                return StatusCode(403, ApiResponseDto<TenantChargeDto>.FailResponse("غير مصرح"));
+
+            try
+            {
+                var result = await _portalService.RespondToChargeAsync(tenantId, chargeId,
+                    new RespondChargeDto { Accept = false, Reason = dto?.Reason });
+                return Ok(ApiResponseDto<TenantChargeDto>.SuccessResponse(result, "تم رفض عرض الصيانة"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponseDto<TenantChargeDto>.FailResponse(ex.Message));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return StatusCode(403, ApiResponseDto<TenantChargeDto>.FailResponse("غير مصرح"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponseDto<TenantChargeDto>.FailResponse(ex.Message));
+            }
+        }
+
         // جلب طلب واحد
         [HttpGet("maintenance/{tenantId}/{requestId}")]
         public async Task<IActionResult> GetMaintenanceById(int tenantId, int requestId)

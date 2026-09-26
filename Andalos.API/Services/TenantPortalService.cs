@@ -331,6 +331,18 @@ namespace Andalos.API.Services
                 Notes = m.Notes
             };
         }
+
+        // 👈 جديد: العروض المعلقة التي تنتظر رد المستأجر (قبول/رفض)
+        public async Task<List<TenantChargeDto>> GetMyPendingChargesAsync(int tenantId)
+        {
+            return await _maintenanceService.GetChargesAsync(tenantId, null, ChargeStatus.PendingApproval);
+        }
+
+        // 👈 جديد: رد المستأجر على عرض الصيانة
+        public async Task<TenantChargeDto> RespondToChargeAsync(int tenantId, int chargeId, RespondChargeDto dto)
+        {
+            return await _maintenanceService.RespondToChargeAsync(chargeId, tenantId, dto);
+        }
         private static string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();
