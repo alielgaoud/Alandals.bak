@@ -534,7 +534,7 @@ namespace Andalos.API.Services
                     {
                         ContractId = activeContract.Id,
                         TenantId = tenantId,
-                        UnitId = charge.UnitId,
+                        UnitId = charge.UnitId ?? activeContract.UnitId,
                         Amount = amountToDeduct,
                         PaymentDate = DateTimeHelper.LibyaNow,
                         PaymentType = PaymentType.Maintenance,
