@@ -1,5 +1,7 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Constants;
+using Andalos.API.Data;
 using Andalos.API.Helpers;
+using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -10,14 +12,25 @@ namespace Andalos.API.Services
     public class ReceiptPdfService
     {
         private readonly AppDbContext _db;
+        private readonly ISettingService _settings;
 
-        public ReceiptPdfService(AppDbContext db)
+        public ReceiptPdfService(AppDbContext db, ISettingService settings)
         {
             _db = db;
+            _settings = settings;
         }
 
         public async Task<byte[]> GenerateReceiptPdfAsync(int paymentId)
         {
+            var companyInfo = await _settings.GetCompanyInfoAsync();
+            var allSettings = await _settings.GetAllSettingsDictionaryAsync();
+            var showLogo = await _settings.GetValueAsync<bool>(SettingKeys.PdfShowLogo, true);
+            var headerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfHeaderEnabled, true);
+            var footerEnabled = await _settings.GetValueAsync<bool>(SettingKeys.PdfFooterEnabled, true);
+            var companyInfoInHeader = await _settings.GetValueAsync<bool>(SettingKeys.PdfCompanyInfoInHeader, true);
+            PdfMasterTemplate.ConfigureFromCompanyInfo(companyInfo, showLogo, headerEnabled, footerEnabled, companyInfoInHeader);
+            PdfMasterTemplate.ConfigureFromSettingsDictionary(allSettings);
+            {
             var payment = await _db.Payments
                 .Include(p => p.Contract)
                     .ThenInclude(c => c!.Tenant)

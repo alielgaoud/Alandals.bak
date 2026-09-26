@@ -239,6 +239,44 @@ app.UseCors("AllowSpecificOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ===== وضع الصيانة - مترابط مع إعدادات النظام =====
+app.Use(async (context, next) =>
+{
+    // السماح لـ SuperAdmin و endpoints الإعدادات و swagger و static files
+    var path = context.Request.Path.Value?.ToLower() ?? "";
+    if (path.Contains("/swagger") || path.Contains("/settings") || path.StartsWith("/uploads") || path.StartsWith("/assets") || path == "/" || path.Contains(".ico") || path.Contains(".png") || path.Contains(".jpg"))
+    {
+        await next();
+        return;
+    }
+
+    try
+    {
+        using var scope = context.RequestServices.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var setting = await db.Settings.AsNoTracking().FirstOrDefaultAsync(s => s.SettingKey == "System.MaintenanceMode");
+        if (setting != null && (setting.SettingValue?.Equals("True", StringComparison.OrdinalIgnoreCase) == true || setting.SettingValue == "1"))
+        {
+            // تحقق هل المستخدم SuperAdmin؟
+            var user = context.User;
+            var isSuperAdmin = user.IsInRole("SuperAdmin");
+            if (!isSuperAdmin)
+            {
+                context.Response.StatusCode = 503;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("{\"success\":false,\"message\":\"النظام في وضع الصيانة حالياً، يرجى المحاولة لاحقاً\"}");
+                return;
+            }
+        }
+    }
+    catch
+    {
+        // في حال فشل قراءة الإعدادات، نسمح بالمرور
+    }
+
+    await next();
+});
+
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 

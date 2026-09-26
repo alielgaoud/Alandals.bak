@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -12,12 +12,16 @@ namespace Andalos.API.Services
     public class VisitorPassService : IVisitorPassService
     {
         private readonly AppDbContext _db;
-        private readonly INotificationService _notification; // 👈 حقن الإشعارات
+        private readonly INotificationService _notification;
+        private readonly INumberGeneratorService _numberGen;
+        private readonly ISettingService _settings;
 
-        public VisitorPassService(AppDbContext db, INotificationService notification)
+        public VisitorPassService(AppDbContext db, INotificationService notification, INumberGeneratorService numberGen, ISettingService settings)
         {
             _db = db;
             _notification = notification;
+            _numberGen = numberGen;
+            _settings = settings;
         }
 
         public async Task<VisitorPassResponseDto> CreatePassAsync(CreateVisitorPassDto dto, string createdBy)
@@ -27,6 +31,17 @@ namespace Andalos.API.Services
                 var unitExists = await _db.Units.AnyAsync(u => u.Id == dto.UnitId.Value && u.IsActive);
                 if (!unitExists)
                     throw new KeyNotFoundException("المحل المحدد غير موجود");
+            }
+
+            // قراءة إعدادات الزوار - مترابطة
+            var familyOnly = await _settings.GetValueAsync<bool>(Constants.SettingKeys.VisitorFamilyOnly, false);
+            var entryStart = await _settings.GetValueAsync(Constants.SettingKeys.VisitorEntryStart, "09:00");
+            var entryEnd = await _settings.GetValueAsync(Constants.SettingKeys.VisitorEntryEnd, "23:00");
+            var defaultValidity = await _settings.GetValueAsync(Constants.SettingKeys.VisitorDefaultValidity, "SingleDay");
+
+            if (familyOnly && dto.VisitorType != VisitorType.Family)
+            {
+                throw new InvalidOperationException("النظام مضبوط على دخول العائلات فقط حالياً");
             }
 
             string passCode = await GenerateUniquePassCodeAsync();
@@ -101,6 +116,23 @@ namespace Andalos.API.Services
                 .FirstOrDefaultAsync(p => p.PassCode == dto.PassCode && p.IsActive);
 
             var today = DateTime.Today;
+
+            // قراءة إعدادات ساعات الدخول - مترابطة
+            var entryStartStr = await _settings.GetValueAsync(Constants.SettingKeys.VisitorEntryStart, "09:00");
+            var entryEndStr = await _settings.GetValueAsync(Constants.SettingKeys.VisitorEntryEnd, "23:00");
+            if (TimeSpan.TryParse(entryStartStr, out var entryStart) && TimeSpan.TryParse(entryEndStr, out var entryEnd))
+            {
+                var nowTime = DateTimeHelper.LibyaNow.TimeOfDay;
+                if (nowTime < entryStart || nowTime > entryEnd)
+                {
+                    await LogEntryAsync(pass?.Id ?? 0, dto.GateName, scannedBy, false, $"خارج ساعات الدخول المسموحة {entryStartStr} - {entryEndStr}");
+                    return new ScanResultDto
+                    {
+                        IsSuccess = false,
+                        Message = $"❌ خارج ساعات الدخول المسموحة ({entryStartStr} - {entryEndStr})"
+                    };
+                }
+            }
 
             if (pass == null)
             {
@@ -195,12 +227,33 @@ namespace Andalos.API.Services
 
         public async Task<bool> RevokePassAsync(int id)
         {
-            var pass = await _db.VisitorPasses.FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+            var pass = await _db.VisitorPasses
+                .Include(p => p.Unit)
+                .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
             if (pass == null) return false;
 
             pass.Status = PassStatus.Revoked;
             pass.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            // 🔔 إشعار للمستأجر بإلغاء التصريح
+            if (pass.UnitId.HasValue)
+            {
+                var activeContract = await _db.Contracts
+                    .FirstOrDefaultAsync(c => c.UnitId == pass.UnitId.Value && c.Status == ContractStatus.Active && c.IsActive);
+                if (activeContract != null)
+                {
+                    _ = _notification.SendToTenantAsync(
+                        activeContract.TenantId,
+                        "تم إلغاء تصريح زائر ❌",
+                        $"تم إلغاء تصريح الزائر {pass.VisitorName} للمحل {pass.Unit?.UnitNumber} من قبل الإدارة.",
+                        NotificationType.VisitorRejected,
+                        "/tenant/visitors",
+                        pass.Id
+                    );
+                }
+            }
+
             return true;
         }
 
@@ -266,17 +319,35 @@ namespace Andalos.API.Services
 
         private async Task<string> GenerateUniquePassCodeAsync()
         {
+            // الآن يحاول استخدام الإعدادات المترابطة {PREFIX}-{SEQ:6} أولاً
+            // إذا فشل أو كان هناك تضارب، يرجع للطريقة العشوائية الآمنة كـ fallback
+            try
+            {
+                // يستخدم NumberGeneratorService الذي يقرأ من Numbering.PassCodeFormat و Prefix
+                var sequentialCode = await _numberGen.GeneratePassCodeAsync();
+                
+                // تحقق من عدم التكرار (نادر لكن للاحتياط)
+                bool exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == sequentialCode);
+                if (!exists)
+                    return sequentialCode;
+            }
+            catch
+            {
+                // في حال فشل التوليد من الإعدادات، نستخدم الطريقة العشوائية
+            }
+
+            // Fallback: توليد عشوائي آمن مع احترام البادئة من الإعدادات إن وجدت
             string passCode;
-            bool exists;
+            bool existsFallback;
             string datePrefix = DateTimeHelper.LibyaNow.ToString("yyyyMMdd");
 
             do
             {
                 string randomHex = Convert.ToHexString(RandomNumberGenerator.GetBytes(6));
                 passCode = $"PASS-{datePrefix}-{randomHex}";
-                exists = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
+                existsFallback = await _db.VisitorPasses.AnyAsync(p => p.PassCode == passCode);
             }
-            while (exists);
+            while (existsFallback);
 
             return passCode;
         }

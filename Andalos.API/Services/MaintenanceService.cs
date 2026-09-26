@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -11,10 +11,14 @@ namespace Andalos.API.Services
     public class MaintenanceService : IMaintenanceService
     {
         private readonly AppDbContext _db;
+        private readonly INotificationService _notification;
+        private readonly INumberGeneratorService _numberGen;
 
-        public MaintenanceService(AppDbContext db)
+        public MaintenanceService(AppDbContext db, INotificationService notification, INumberGeneratorService numberGen)
         {
             _db = db;
+            _notification = notification;
+            _numberGen = numberGen;
         }
 
         public async Task<List<MaintenanceResponseDto>> GetAllAsync()
@@ -55,7 +59,8 @@ namespace Andalos.API.Services
             if (unit == null)
                 throw new KeyNotFoundException("المحل المحدد غير موجود");
 
-            string requestNumber = await GenerateRequestNumberAsync();
+            // الآن يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:4}
+            string requestNumber = await _numberGen.GenerateMaintenanceNumberAsync();
 
             var request = new MaintenanceRequest
             {
@@ -78,14 +83,41 @@ namespace Andalos.API.Services
                 .Include(m => m.Tenant)
                 .FirstAsync(m => m.Id == request.Id);
 
+            // 🔔 إشعار فوري للإدارة
+            _ = _notification.SendToAllAdminsAsync(
+                "طلب صيانة جديد 🛠️",
+                $"طلب صيانة جديد رقم {requestNumber} للمحل {unit.UnitNumber} - النوع: {dto.Type} - الأولوية: {dto.Priority}",
+                NotificationType.NewMaintenanceRequest,
+                dto.Priority == MaintenancePriority.Urgent || dto.Priority == MaintenancePriority.High ? NotificationPriority.High : NotificationPriority.Medium,
+                $"/admin/maintenance/{saved.Id}",
+                saved.Id
+            );
+
+            // 🔔 تأكيد للمستأجر إذا الطلب منه
+            if (dto.TenantId.HasValue)
+            {
+                _ = _notification.SendToTenantAsync(
+                    dto.TenantId.Value,
+                    "تم استلام طلب الصيانة بنجاح ✅",
+                    $"تم استلام طلب الصيانة رقم {requestNumber} للمحل {unit.UnitNumber} وسنقوم بمعالجته قريباً.",
+                    NotificationType.NewMaintenanceRequest,
+                    $"/tenant/maintenance/{saved.Id}",
+                    saved.Id
+                );
+            }
+
             return MapToDto(saved);
         }
 
         public async Task<bool> UpdateStatusAsync(int id, UpdateMaintenanceStatusDto dto)
         {
-            var request = await _db.MaintenanceRequests.FirstOrDefaultAsync(m => m.Id == id && m.IsActive);
+            var request = await _db.MaintenanceRequests
+                .Include(m => m.Unit)
+                .Include(m => m.Tenant)
+                .FirstOrDefaultAsync(m => m.Id == id && m.IsActive);
             if (request == null) return false;
 
+            var oldStatus = request.Status;
             request.Status = dto.Status;
             request.Cost = dto.Cost > 0 ? dto.Cost : request.Cost;
             if (dto.Notes != null) request.Notes = dto.Notes;
@@ -95,6 +127,28 @@ namespace Andalos.API.Services
                 request.CompletionDate = DateTimeHelper.LibyaNow;
 
             await _db.SaveChangesAsync();
+
+            // 🔔 إشعار فوري للمستأجر بتغيير الحالة
+            if (request.TenantId.HasValue)
+            {
+                string statusLabel = dto.Status switch
+                {
+                    MaintenanceStatus.InProgress => "قيد المعالجة",
+                    MaintenanceStatus.Completed => "مكتمل",
+                    MaintenanceStatus.Cancelled => "ملغى",
+                    _ => dto.Status.ToString()
+                };
+
+                _ = _notification.SendToTenantAsync(
+                    request.TenantId.Value,
+                    $"تحديث حالة طلب الصيانة: {statusLabel} 🔧",
+                    $"تم تحديث حالة طلب الصيانة رقم {request.RequestNumber} للمحل {request.Unit?.UnitNumber} إلى: {statusLabel}. {(dto.Status == MaintenanceStatus.Completed ? $"التكلفة: {request.Cost:N2} د.ل" : "")}",
+                    NotificationType.MaintenanceStatusChanged,
+                    $"/tenant/maintenance/{request.Id}",
+                    request.Id
+                );
+            }
+
             return true;
         }
 
@@ -107,13 +161,6 @@ namespace Andalos.API.Services
             request.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
             return true;
-        }
-
-        private async Task<string> GenerateRequestNumberAsync()
-        {
-            int year = DateTime.Now.Year;
-            int count = await _db.MaintenanceRequests.CountAsync(m => m.RequestDate.Year == year);
-            return $"MNT-{year}-{(count + 1):D4}";
         }
 
         private static MaintenanceResponseDto MapToDto(MaintenanceRequest m)

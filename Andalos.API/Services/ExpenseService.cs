@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Expenses;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -77,7 +77,8 @@ namespace Andalos.API.Services
                     throw new KeyNotFoundException("المستأجر المحدد غير موجود");
             }
 
-            string expenseNumber = await _numberGen.GenerateAsync("Expense");
+            // الآن يقرأ الصيغة مباشرة من الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:5}
+            string expenseNumber = await _numberGen.GenerateExpenseNumberAsync();
 
             string? attachmentPath = null;
             if (dto.Attachment != null && dto.Attachment.Length > 0)
@@ -107,7 +108,7 @@ namespace Andalos.API.Services
                 decimal amountToDeduct = Math.Min(tenant.CreditBalance, dto.Amount);
                 tenant.CreditBalance -= amountToDeduct;
 
-                string receiptNo = await _numberGen.GenerateAsync("Receipt");
+                string receiptNo = await _numberGen.GenerateReceiptNumberAsync();
 
                 var activeContract = await _db.Contracts
                     .FirstOrDefaultAsync(c => c.TenantId == tenant.Id && c.Status == ContractStatus.Active && c.IsActive);
@@ -162,6 +163,20 @@ namespace Andalos.API.Services
             expense.IsActive = false;
             expense.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
+
+            // 🔔 إذا كان مصروف محمل، نبه المستأجر بالإلغاء
+            if (expense.IsChargedToTenant && expense.TenantId.HasValue)
+            {
+                _ = _notification.SendToTenantAsync(
+                    expense.TenantId.Value,
+                    "تم إلغاء مصروف محمّل على حسابك 🗑️",
+                    $"تم إلغاء مصروف بقيمة {expense.Amount:N2} د.ل كان محمّلاً على حسابك. الوصف: {expense.Description}",
+                    NotificationType.System,
+                    "/portal/payments",
+                    expense.Id
+                );
+            }
+
             return true;
         }
 

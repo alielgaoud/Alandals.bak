@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -75,9 +75,39 @@ namespace Andalos.API.Services
                     return;
                 }
 
-                // 💡 تصحيح حرج: بناء روابط مطلقة كاملة للأيقونات بصيغة PNG حصرياً لـ iOS
-                string domain = "https://tenant.marinaalandalus.com"; // رابط الفرونت اند الرئيسي الخاص بك
-                string iconUrl = $"{domain}/assets/gold_logo-removebg.png"; // 👈 استخدام الـ PNG بدلاً من SVG
+                // بناء روابط الأيقونات من الإعدادات المتكاملة
+                var frontendTenantUrl = await _settings.GetValueAsync(SettingKeys.SystemFrontendTenantUrl, "https://tenant.marinaalandalus.com");
+                var iconSetting = await _settings.GetValueAsync(SettingKeys.NotificationIconUrl, "/assets/gold_logo-removebg.png");
+                var badgeSetting = await _settings.GetValueAsync(SettingKeys.NotificationBadgeUrl, "/assets/gold_logo-removebg.png");
+                var logoUrlSetting = await _settings.GetValueAsync(SettingKeys.CompanyLogoUrl, "");
+
+                // بناء رابط كامل للأيقونة
+                string iconUrl;
+                if (!string.IsNullOrWhiteSpace(logoUrlSetting) && logoUrlSetting.StartsWith("http"))
+                {
+                    iconUrl = logoUrlSetting;
+                }
+                else if (!string.IsNullOrWhiteSpace(iconSetting))
+                {
+                    if (iconSetting.StartsWith("http"))
+                        iconUrl = iconSetting;
+                    else
+                        iconUrl = $"{frontendTenantUrl.TrimEnd('/')}/{iconSetting.TrimStart('/')}";
+                }
+                else
+                {
+                    iconUrl = $"{frontendTenantUrl.TrimEnd('/')}/assets/gold_logo-removebg.png";
+                }
+
+                string badgeUrl;
+                if (!string.IsNullOrWhiteSpace(badgeSetting))
+                {
+                    badgeUrl = badgeSetting.StartsWith("http") ? badgeSetting : $"{frontendTenantUrl.TrimEnd('/')}/{badgeSetting.TrimStart('/')}";
+                }
+                else
+                {
+                    badgeUrl = iconUrl;
+                }
 
                 var payload = JsonSerializer.Serialize(new
                 {
@@ -85,8 +115,8 @@ namespace Andalos.API.Services
                     {
                         title = title,
                         body = body,
-                        icon = iconUrl,          // 👈 رابط كامل PNG
-                        badge = iconUrl,         // 👈 رابط كامل PNG
+                        icon = iconUrl,
+                        badge = badgeUrl,
                         vibrate = new[] { 200, 100, 200 },
                         data = new { url = url ?? "/portal/dashboard" }
                     }
