@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -27,7 +27,11 @@ namespace Andalos.API.Models
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty; // وصف العطل
 
-        public decimal Cost { get; set; } = 0; // تكلفة الصيانة
+        public decimal Cost { get; set; } = 0; // التكلفة الفعلية للصيانة (ما دفعته الإدارة فعلاً)
+
+        // 👈 جديد: تحميل المستأجر (الفوترة)
+        public bool BilledToTenant { get; set; } = false; // هل تم تحميل المستأجر؟
+        public decimal BilledAmount { get; set; } = 0; // المبلغ المحمّل على المستأجر (قد يشمل هامشاً فوق التكلفة)
 
         public DateTime RequestDate { get; set; } = DateTime.Now;
 

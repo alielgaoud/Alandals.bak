@@ -1,4 +1,4 @@
-﻿namespace Andalos.API.Constants
+namespace Andalos.API.Constants
 {
     public static class SettingKeys
     {
@@ -35,6 +35,8 @@
         public const string ExpenseNumberPrefix = "Numbering.ExpensePrefix";
         public const string PassCodeFormat = "Numbering.PassCodeFormat";
         public const string PassCodePrefix = "Numbering.PassCodePrefix";
+        public const string ChargeNumberFormat = "Numbering.ChargeFormat"; // 👈 جديد: ترقيم تحميلات المستأجر
+        public const string ChargeNumberPrefix = "Numbering.ChargePrefix";
 
         // ===== العقود =====
         public const string ContractDefaultDuration = "Contract.DefaultDurationMonths";

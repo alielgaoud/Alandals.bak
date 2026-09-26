@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -73,6 +73,8 @@ New("ContractTemplate", "Contract.ShowHijriDate", "False", "Boolean", "إظها�
                 New("Financial", SettingKeys.TaxEnabled, "False", "Boolean", "تفعيل الضريبة", "", 5),
                 New("Numbering", "Numbering.RefundFormat", "RFD-{YYYY}-{SEQ:5}", "String", "صيغة رقم سند المرتجع", "", 11, true),
                 New("Numbering", "Numbering.RefundPrefix", "RFD", "String", "بادئة سند المرتجع", "", 12),
+                New("Numbering", SettingKeys.ChargeNumberFormat, "CHG-{YYYY}-{SEQ:5}", "String", "صيغة رقم تحميل المستأجر", "", 13, true),
+                New("Numbering", SettingKeys.ChargeNumberPrefix, "CHG", "String", "بادئة التحميلات", "", 14),
 
                 // ===== الترقيم التسلسلي (الأهم!) =====
                 New("Numbering", SettingKeys.ContractNumberFormat, "CTR-{YYYY}-{SEQ:4}", "String", "صيغة رقم العقد", "الرموز: {YYYY} سنة, {SEQ:4} تسلسل 4 أرقام", 1, true),

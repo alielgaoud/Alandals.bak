@@ -1900,3 +1900,138 @@ GO
 COMMIT;
 GO
 
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    -- 👈 1. أعمدة تحميل المستأجر على طلبات الصيانة
+    ALTER TABLE [MaintenanceRequests] ADD [BilledAmount] decimal(18,2) NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    ALTER TABLE [MaintenanceRequests] ADD [BilledToTenant] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    -- 👈 2. ربط المصروف بطلب الصيانة (تكلفة الصيانة المسجلة تلقائياً)
+    ALTER TABLE [Expenses] ADD [MaintenanceRequestId] int NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    -- 👈 3. جدول متعلقات المستأجر (التحميلات المالية)
+    CREATE TABLE [TenantCharges] (
+        [Id] int NOT NULL IDENTITY,
+        [ChargeNumber] nvarchar(50) NOT NULL,
+        [TenantId] int NOT NULL,
+        [UnitId] int NULL,
+        [ContractId] int NULL,
+        [MaintenanceRequestId] int NULL,
+        [Amount] decimal(18,2) NOT NULL,
+        [SettledAmount] decimal(18,2) NOT NULL,
+        [Description] nvarchar(500) NOT NULL,
+        [ChargeDate] datetime2 NOT NULL,
+        [IsSettled] bit NOT NULL,
+        [SettlementReceiptNumber] nvarchar(50) NULL,
+        [Notes] nvarchar(300) NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        [UpdatedAt] datetime2 NULL,
+        [CreatedBy] nvarchar(max) NULL,
+        [UpdatedBy] nvarchar(max) NULL,
+        [IsActive] bit NOT NULL,
+        CONSTRAINT [PK_TenantCharges] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_TenantCharges_MaintenanceRequests_MaintenanceRequestId] FOREIGN KEY ([MaintenanceRequestId]) REFERENCES [MaintenanceRequests] ([Id]) ON DELETE SET NULL,
+        CONSTRAINT [FK_TenantCharges_Tenants_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_TenantCharges_Units_UnitId] FOREIGN KEY ([UnitId]) REFERENCES [Units] ([Id]) ON DELETE SET NULL
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_TenantCharges_ChargeNumber] ON [TenantCharges] ([ChargeNumber]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    CREATE INDEX [IX_TenantCharges_IsSettled] ON [TenantCharges] ([IsSettled]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    CREATE INDEX [IX_TenantCharges_MaintenanceRequestId] ON [TenantCharges] ([MaintenanceRequestId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    CREATE INDEX [IX_TenantCharges_TenantId] ON [TenantCharges] ([TenantId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    CREATE INDEX [IX_TenantCharges_UnitId] ON [TenantCharges] ([UnitId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    CREATE INDEX [IX_Expenses_MaintenanceRequestId] ON [Expenses] ([MaintenanceRequestId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    ALTER TABLE [Expenses] ADD CONSTRAINT [FK_Expenses_MaintenanceRequests_MaintenanceRequestId] FOREIGN KEY ([MaintenanceRequestId]) REFERENCES [MaintenanceRequests] ([Id]) ON DELETE SET NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260926210000_AddMaintenanceBillingAndTenantCharges'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260926210000_AddMaintenanceBillingAndTenantCharges', N'8.0.26');
+END;
+GO

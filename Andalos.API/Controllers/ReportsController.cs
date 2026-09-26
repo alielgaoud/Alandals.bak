@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Reports;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -80,6 +80,16 @@ namespace Andalos.API.Controllers
         {
             var data = await _reportService.GetExpensesReportAsync(unitId, tenantId, from, to);
             return Ok(ApiResponseDto<List<ExpenseReportItemDto>>.SuccessResponse(data));
+        }
+
+        // 8. 👈 جديد: ملخص الإيرادات المنفصلة (إيجار / أخرى) + صافي الربح
+        [HttpGet("income-summary")]
+        public async Task<IActionResult> GetIncomeSummary(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to)
+        {
+            var data = await _reportService.GetIncomeSummaryAsync(from, to);
+            return Ok(ApiResponseDto<IncomeSummaryDto>.SuccessResponse(data));
         }
     }
 }

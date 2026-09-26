@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
@@ -329,6 +329,38 @@ namespace Andalos.API.Services
                     ContractId = null,
                     ContractNumber = null,
                     UnitNumber = exp.Unit?.UnitNumber
+                });
+            }
+
+            // --- 2.5 👈 جديد: تحميلات الصيانة والخدمات (Debit) ---
+            var tenantCharges = await _db.TenantCharges
+                .Include(c => c.Unit)
+                .Where(c => c.TenantId == tenantId && c.IsActive
+                         && c.ChargeDate >= fromDate && c.ChargeDate <= actualToDate)
+                .ToListAsync();
+
+            foreach (var charge in tenantCharges)
+            {
+                string statusSuffix = charge.IsSettled
+                    ? " [مسدد ✅]"
+                    : charge.SettledAmount > 0
+                        ? $" [سُدد {charge.SettledAmount:N2} من {charge.Amount:N2}]"
+                        : "";
+
+                transactions.Add(new AccountTransactionDto
+                {
+                    Id = -charge.Id * 300000,
+                    ReferenceNumber = charge.ChargeNumber,
+                    TransactionDate = charge.ChargeDate,
+                    TransactionType = "Debit",
+                    Category = "Charge",
+                    CategoryLabel = "تحميل صيانة وخدمات",
+                    Description = $"{charge.Description}{statusSuffix}",
+                    Debit = charge.Amount,
+                    Credit = 0,
+                    ContractId = charge.ContractId,
+                    ContractNumber = null,
+                    UnitNumber = charge.Unit?.UnitNumber
                 });
             }
 

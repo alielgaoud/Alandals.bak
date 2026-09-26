@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -40,5 +40,8 @@ namespace Andalos.API.Models
         // 👈 حقل حفظ مسار صورة/ملف الفاتورة المرفقة
         [MaxLength(500)]
         public string? AttachmentUrl { get; set; }
+
+        // 👈 جديد: ربط اختياري بطلب الصيانة (لتسجيل تكلفة الصيانة تلقائياً عند التحميل)
+        public int? MaintenanceRequestId { get; set; }
     }
 }

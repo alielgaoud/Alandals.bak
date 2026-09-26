@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Reports;
+using Andalos.API.DTOs.Reports;
 
 namespace Andalos.API.Interfaces
 {
@@ -13,5 +13,8 @@ namespace Andalos.API.Interfaces
         // 👈 تقارير مفلترة حية للإيرادات والمصروفات
         Task<List<RevenueReportItemDto>> GetRevenueReportAsync(int? unitId, int? tenantId, DateTime? fromDate, DateTime? toDate);
         Task<List<ExpenseReportItemDto>> GetExpensesReportAsync(int? unitId, int? tenantId, DateTime? fromDate, DateTime? toDate);
+
+        // 👈 جديد: ملخص الإيرادات المنفصلة (إيجار / أخرى)
+        Task<IncomeSummaryDto> GetIncomeSummaryAsync(DateTime? fromDate, DateTime? toDate);
     }
 }

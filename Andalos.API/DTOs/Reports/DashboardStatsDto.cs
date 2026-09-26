@@ -1,4 +1,4 @@
-﻿namespace Andalos.API.DTOs.Reports
+namespace Andalos.API.DTOs.Reports
 {
     public class DashboardStatsDto
     {
@@ -43,6 +43,11 @@
         public int Month { get; set; }
         public string MonthName { get; set; } = string.Empty;
         public decimal Revenue { get; set; }
+
+        // 👈 جديد: فصل الإيرادات الشهرية
+        public decimal RentRevenue { get; set; } // إيراد الإيجار
+        public decimal OtherRevenue { get; set; } // إيرادات أخرى (صيانة، خدمات...)
+
         public decimal Expenses { get; set; }
         public decimal NetProfit { get; set; }
     }
@@ -91,6 +96,10 @@
         public string TenantName { get; set; } = string.Empty;
         public string UnitNumber { get; set; } = string.Empty;
         public string PaymentType { get; set; } = string.Empty; // إيجار، كهرباء، إلخ...
+
+        // 👈 جديد: تصنيف الإيراد (Rent = إيجار / Other = أخرى) لتسهيل الفلترة في الواجهة
+        public string RevenueCategory { get; set; } = "Other";
+
         public decimal Amount { get; set; }
         public string PaymentMethod { get; set; } = string.Empty; // نقدي، تحويل، شيك...
         public string? ReferenceNumber { get; set; }
@@ -114,5 +123,40 @@
         public string Description { get; set; } = string.Empty;
         public string? InvoiceNumber { get; set; }
         public string? AttachmentUrl { get; set; }
+    }
+}
+// =========================================================================
+// 👈 جديد: ملخص الإيرادات المنفصلة (إيجار / أخرى) + قائمة الإيرادات حسب النوع
+// =========================================================================
+namespace Andalos.API.DTOs.Reports
+{
+    public class IncomeSummaryDto
+    {
+        public DateTime FromDate { get; set; }
+        public DateTime ToDate { get; set; }
+
+        // تفصيل الإيرادات حسب النوع
+        public List<RevenueLineDto> RevenueLines { get; set; } = new();
+
+        // الإجماليات المنفصلة
+        public decimal RentRevenue { get; set; } // 🏠 إيرادات الإيجار
+        public decimal OtherRevenue { get; set; } // 🛠️ إيرادات أخرى (صيانة محمّلة، كهرباء، مياه، رسوم...)
+        public decimal TotalRevenue { get; set; } // إجمالي الإيرادات
+
+        public decimal TotalExpenses { get; set; } // إجمالي المصروفات
+        public decimal NetProfit { get; set; } // صافي الربح
+
+        // معلومات تحميلات الصيانة غير المحصلة (مستحقات قادمة)
+        public decimal UnsettledChargesAmount { get; set; } // تحميلات لم تُحصّل بعد
+        public int UnsettledChargesCount { get; set; }
+    }
+
+    public class RevenueLineDto
+    {
+        public string PaymentType { get; set; } = string.Empty; // Rent / Maintenance / ...
+        public string Label { get; set; } = string.Empty; // التسمية العربية
+        public string Category { get; set; } = "Other"; // Rent أو Other
+        public decimal Amount { get; set; }
+        public int Count { get; set; } // عدد الدفعات
     }
 }

@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Reports;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -38,14 +38,28 @@ namespace Andalos.API.Services
                 && c.EndDate >= today
                 && c.EndDate <= thirtyDaysFromNow);
 
-            // 3. الإيرادات
-            var thisMonthRevenue = await _db.Payments
+            // 3. الإيرادات (مع الفصل بين إيراد الإيجار والإيرادات الأخرى)
+            var thisMonthPayments = await _db.Payments
                 .Where(p => p.IsActive && p.PaymentDate >= startOfMonth)
-                .SumAsync(p => p.Amount);
+                .Select(p => new { p.Amount, p.PaymentType })
+                .ToListAsync();
 
-            var ytdRevenue = await _db.Payments
+            var thisMonthRevenue = thisMonthPayments.Sum(p => p.Amount);
+            var thisMonthRentRevenue = thisMonthPayments
+                .Where(p => p.PaymentType == PaymentType.Rent)
+                .Sum(p => p.Amount);
+            var thisMonthOtherRevenue = thisMonthRevenue - thisMonthRentRevenue;
+
+            var ytdPayments = await _db.Payments
                 .Where(p => p.IsActive && p.PaymentDate >= startOfYear)
-                .SumAsync(p => p.Amount);
+                .Select(p => new { p.Amount, p.PaymentType })
+                .ToListAsync();
+
+            var ytdRevenue = ytdPayments.Sum(p => p.Amount);
+            var ytdRentRevenue = ytdPayments
+                .Where(p => p.PaymentType == PaymentType.Rent)
+                .Sum(p => p.Amount);
+            var ytdOtherRevenue = ytdRevenue - ytdRentRevenue;
 
             // 4. المصروفات
             var thisMonthExpenses = await _db.Expenses
@@ -296,6 +310,7 @@ namespace Andalos.API.Services
                     TenantName = p.Contract != null && p.Contract.Tenant != null ? p.Contract.Tenant.FullName : "مستأجر محذوف",
                     UnitNumber = p.Contract != null && p.Contract.Unit != null ? p.Contract.Unit.UnitNumber : "",
                     PaymentType = p.PaymentType.ToString(),
+                    RevenueCategory = p.PaymentType == PaymentType.Rent ? "Rent" : "Other", // 👈 جديد
                     Amount = p.Amount,
                     PaymentMethod = p.PaymentMethod.ToString(),
                     ReferenceNumber = p.ReferenceNumber,
@@ -352,5 +367,71 @@ namespace Andalos.API.Services
           })
                 .ToListAsync();
         }
+
+        // =========================================================================
+        // 👈 جديد: ملخص الإيرادات المنفصلة (إيجار / أخرى) حسب فترة
+        // =========================================================================
+        public async Task<IncomeSummaryDto> GetIncomeSummaryAsync(DateTime? fromDate, DateTime? toDate)
+        {
+            var from = (fromDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1)).Date;
+            var to = (toDate ?? DateTime.Today).Date;
+
+            var payments = await _db.Payments
+                .Where(p => p.IsActive && p.PaymentDate >= from && p.PaymentDate <= to)
+                .GroupBy(p => p.PaymentType)
+                .Select(g => new { Type = g.Key, Amount = g.Sum(x => x.Amount), Count = g.Count() })
+                .ToListAsync();
+
+            var lines = payments.Select(p => new RevenueLineDto
+            {
+                PaymentType = p.Type.ToString(),
+                Label = GetPaymentTypeLabel(p.Type),
+                Category = p.Type == PaymentType.Rent ? "Rent" : "Other",
+                Amount = p.Amount,
+                Count = p.Count
+            })
+            .OrderBy(l => l.Category)
+            .ThenByDescending(l => l.Amount)
+            .ToList();
+
+            decimal totalRevenue = lines.Sum(l => l.Amount);
+            decimal rentRevenue = lines.Where(l => l.Category == "Rent").Sum(l => l.Amount);
+
+            decimal totalExpenses = await _db.Expenses
+                .Where(e => e.IsActive && e.ExpenseDate >= from && e.ExpenseDate <= to)
+                .SumAsync(e => e.Amount);
+
+            // تحميلات الصيانة غير المحصلة (مستحقات قادمة)
+            var unsettledCharges = await _db.TenantCharges
+                .Where(c => c.IsActive && !c.IsSettled && c.ChargeDate >= from && c.ChargeDate <= to)
+                .ToListAsync();
+
+            return new IncomeSummaryDto
+            {
+                FromDate = from,
+                ToDate = to,
+                RevenueLines = lines,
+                RentRevenue = rentRevenue,
+                OtherRevenue = totalRevenue - rentRevenue,
+                TotalRevenue = totalRevenue,
+                TotalExpenses = totalExpenses,
+                NetProfit = totalRevenue - totalExpenses,
+                UnsettledChargesAmount = unsettledCharges.Sum(c => c.Amount - c.SettledAmount),
+                UnsettledChargesCount = unsettledCharges.Count
+            };
+        }
+
+        private static string GetPaymentTypeLabel(PaymentType type) => type switch
+        {
+            PaymentType.Rent => "إيجار",
+            PaymentType.Electricity => "فاتورة كهرباء",
+            PaymentType.Water => "فاتورة مياه",
+            PaymentType.Fees => "رسوم إضافية / غرامات",
+            PaymentType.Deposit => "عربون / ضمان",
+            PaymentType.Maintenance => "صيانة محمّلة على المستأجرين",
+            PaymentType.AdvancePayment => "دفعات مقدمة",
+            PaymentType.Other => "إيرادات أخرى",
+            _ => "غير محدد"
+        };
     }
 }

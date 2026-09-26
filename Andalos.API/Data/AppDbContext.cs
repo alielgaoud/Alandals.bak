@@ -1,4 +1,4 @@
-﻿using Andalos.API.Enums;
+using Andalos.API.Enums;
 using Andalos.API.Helpers;
 using Andalos.API.Models;
 using Microsoft.AspNetCore.Http;
@@ -50,6 +50,7 @@ namespace Andalos.API.Data
         public DbSet<PermissionPackageItem> PermissionPackageItems { get; set; }
         public DbSet<UserPermissionPackage> UserPermissionPackages { get; set; }
         public DbSet<Circular> Circulars { get; set; }
+        public DbSet<TenantCharge> TenantCharges { get; set; } // 👈 جديد: متعلقات المستأجر (تحميلات الصيانة والخدمات)
 
         // ===== 2. التكوينات والعلاقات (OnModelCreating) =====
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -367,6 +368,8 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(m => m.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
+
+                entity.Property(m => m.BilledAmount).HasColumnType("decimal(18,2)");
             });
 
             // Refund
@@ -401,6 +404,41 @@ namespace Andalos.API.Data
                       .WithMany()
                       .HasForeignKey(e => e.TenantId)
                       .OnDelete(DeleteBehavior.SetNull);
+
+                // 👈 جديد: ربط المصروف بطلب الصيانة (تكلفة الصيانة المسجلة تلقائياً)
+                entity.HasOne<MaintenanceRequest>()
+                      .WithMany()
+                      .HasForeignKey(e => e.MaintenanceRequestId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // 👈 جديد: متعلقات المستأجر (تحميلات الصيانة والخدمات)
+            modelBuilder.Entity<TenantCharge>(entity =>
+            {
+                entity.ToTable("TenantCharges");
+                entity.HasIndex(e => e.ChargeNumber).IsUnique();
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.SettledAmount).HasColumnType("decimal(18,2)");
+
+                entity.HasOne(c => c.Tenant)
+                      .WithMany()
+                      .HasForeignKey(c => c.TenantId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(c => c.Unit)
+                      .WithMany()
+                      .HasForeignKey(c => c.UnitId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                // 👈 ربط بطلب الصيانة (التحميل الناتج عن صيانة)
+                entity.HasOne(c => c.MaintenanceRequest)
+                      .WithMany()
+                      .HasForeignKey(c => c.MaintenanceRequestId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(c => c.MaintenanceRequestId);
+                entity.HasIndex(c => c.TenantId);
+                entity.HasIndex(c => c.IsSettled);
             });
 
             // VisitorPass
