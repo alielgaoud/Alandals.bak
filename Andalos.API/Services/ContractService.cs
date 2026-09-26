@@ -64,113 +64,107 @@ namespace Andalos.API.Services
             if (unit.Status != UnitStatus.Vacant)
                 throw new InvalidOperationException($"المحل المحدد غير شاغر حالياً (حالة المحل الحالية: {unit.Status})");
 
-            // يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:4}
             string contractNumber = await _numberGen.GenerateContractNumberAsync();
-
-            // قراءة الإعدادات الافتراضية للعقود والإيجارات - مترابطة
             var defaultDuration = await _settings.GetValueAsync<int>(Constants.SettingKeys.ContractDefaultDuration, 12);
             var defaultCycleStr = await _settings.GetValueAsync(Constants.SettingKeys.RentDefaultCycle, "Monthly");
             var defaultAutoRenew = await _settings.GetValueAsync<bool>(Constants.SettingKeys.ContractAutoRenew, true);
-            var rentDueDay = await _settings.GetValueAsync<int>(Constants.SettingKeys.RentDueDay, 1);
-            var graceDays = await _settings.GetValueAsync<int>(Constants.SettingKeys.RentGraceDays, 5);
 
-            // إذا لم يحدد EndDate، نحسبه من DefaultDuration
             DateTime endDate = dto.EndDate;
             if (endDate <= dto.StartDate)
             {
                 endDate = dto.StartDate.AddMonths(defaultDuration);
             }
 
-            // إذا لم يحدد RentCycle، نستخدم الافتراضي من الإعدادات
             var rentCycle = dto.RentCycle;
             if (!Enum.TryParse<RentCycle>(defaultCycleStr, true, out var parsedCycle))
                 parsedCycle = RentCycle.Monthly;
-            // نحترم ما أرسله المستخدم، لكن لو كان القيمة الافتراضية للـ DTO هي Monthly ونريد تطبيق الإعدادات، يمكن تجاوزه
-            // هنا نحتفظ بقيمة المستخدم إذا كانت محددة، وإلا نستخدم الإعدادات
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                var contract = new Contract
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    ContractNumber = contractNumber,
-                    TenantId = dto.TenantId,
-                    UnitId = dto.UnitId,
-                    StartDate = dto.StartDate,
-                    EndDate = endDate,
-                    RentAmount = dto.RentAmount,
-                    RentCycle = rentCycle,
-                    DepositAmount = dto.DepositAmount,
-                    Status = ContractStatus.Active,
-                    ActivityType = dto.ActivityType,
-                    TradeName = dto.TradeName,
-                    AutoRenew = dto.AutoRenew || defaultAutoRenew, // إذا الإعدادات تفعّل التجديد التلقائي
-                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage,
-                    Notes = dto.Notes
-                };
-
-                if (dto.ExtraItems != null && dto.ExtraItems.Any())
-                {
-                    foreach (var item in dto.ExtraItems)
+                    var contract = new Contract
                     {
-                        contract.ContractItems.Add(new ContractItem
-                        {
-                            ItemName = item.ItemName,
-                            Amount = item.Amount,
-                            Notes = item.Notes
-                        });
-                    }
-                }
+                        ContractNumber = contractNumber,
+                        TenantId = dto.TenantId,
+                        UnitId = dto.UnitId,
+                        StartDate = dto.StartDate,
+                        EndDate = endDate,
+                        RentAmount = dto.RentAmount,
+                        RentCycle = rentCycle,
+                        DepositAmount = dto.DepositAmount,
+                        Status = ContractStatus.Active,
+                        ActivityType = dto.ActivityType,
+                        TradeName = dto.TradeName,
+                        AutoRenew = dto.AutoRenew || defaultAutoRenew,
+                        AnnualIncreasePercentage = dto.AnnualIncreasePercentage,
+                        Notes = dto.Notes
+                    };
 
-                if (dto.ContractFees != null && dto.ContractFees.Any())
-                {
-                    foreach (var fee in dto.ContractFees)
+                    if (dto.ExtraItems != null && dto.ExtraItems.Any())
                     {
-                        contract.ContractFees.Add(new ContractFee
+                        foreach (var item in dto.ExtraItems)
                         {
-                            FeeName = fee.FeeName,
-                            ValueType = fee.ValueType,
-                            Frequency = fee.Frequency,
-                            Value = fee.Value,
-                            Notes = fee.Notes
-                        });
+                            contract.ContractItems.Add(new ContractItem
+                            {
+                                ItemName = item.ItemName,
+                                Amount = item.Amount,
+                                Notes = item.Notes
+                            });
+                        }
                     }
+
+                    if (dto.ContractFees != null && dto.ContractFees.Any())
+                    {
+                        foreach (var fee in dto.ContractFees)
+                        {
+                            contract.ContractFees.Add(new ContractFee
+                            {
+                                FeeName = fee.FeeName,
+                                ValueType = fee.ValueType,
+                                Frequency = fee.Frequency,
+                                Value = fee.Value,
+                                Notes = fee.Notes
+                            });
+                        }
+                    }
+
+                    _db.Contracts.Add(contract);
+
+                    unit.Status = UnitStatus.Rented;
+                    unit.UpdatedAt = DateTime.UtcNow;
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var savedContract = await _db.Contracts
+                        .Include(c => c.Tenant)
+                        .Include(c => c.Unit)
+                        .Include(c => c.ContractItems)
+                        .Include(c => c.ContractDocuments)
+                        .Include(c => c.ContractFees)
+                        .Include(c => c.ParentContract)
+                        .FirstAsync(c => c.Id == contract.Id);
+
+                    _ = _notification.SendToTenantAsync(
+                        savedContract.TenantId,
+                        "تفعيل عقد إيجار جديد 📜",
+                        $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
+                        NotificationType.ContractRenewed,
+                        $"/tenant/contracts/{savedContract.Id}",
+                        savedContract.Id
+                    );
+
+                    return MapToDto(savedContract);
                 }
-
-                _db.Contracts.Add(contract);
-
-                unit.Status = UnitStatus.Rented;
-                unit.UpdatedAt = DateTime.UtcNow;
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var savedContract = await _db.Contracts
-                    .Include(c => c.Tenant)
-                    .Include(c => c.Unit)
-                    .Include(c => c.ContractItems)
-                    .Include(c => c.ContractDocuments)
-                    .Include(c => c.ContractFees)
-                    .Include(c => c.ParentContract)
-                    .FirstAsync(c => c.Id == contract.Id);
-
-                // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
-                _ = _notification.SendToTenantAsync(
-                    savedContract.TenantId,
-                    "تفعيل عقد إيجار جديد 📜",
-                    $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
-                    NotificationType.ContractRenewed,
-                    $"/tenant/contracts/{savedContract.Id}",
-                    savedContract.Id
-                );
-
-                return MapToDto(savedContract);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
         }
 
         public async Task<ContractResponseDto> UpdateAsync(int id, UpdateContractDto dto)
@@ -178,324 +172,321 @@ namespace Andalos.API.Services
             if (dto.EndDate <= dto.StartDate)
                 throw new InvalidOperationException("تاريخ انتهاء العقد يجب أن يكون بعد تاريخ البداية");
 
-            var contract = await _db.Contracts
-                .Include(c => c.ContractFees)
-                .Include(c => c.ContractItems)
-                .Include(c => c.Unit)
-                .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
-
-            if (contract == null)
-                throw new KeyNotFoundException("العقد غير موجود");
-
-            if (contract.Status == ContractStatus.Terminated || contract.Status == ContractStatus.Renewed)
-                throw new InvalidOperationException($"لا يمكن تعديل عقد بحالة {contract.Status}");
-
-            // تحقق المستأجر
             var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == dto.TenantId && t.IsActive);
             if (!tenantExists) throw new KeyNotFoundException("المستأجر المحدد غير موجود");
 
-            // تحقق المحل - منطق تغيير الوحدة
-            Unit? newUnit = null;
-            Unit? oldUnit = contract.Unit;
-
-            if (dto.UnitId != contract.UnitId)
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                newUnit = await _db.Units.FirstOrDefaultAsync(u => u.Id == dto.UnitId && u.IsActive);
-                if (newUnit == null) throw new KeyNotFoundException("المحل الجديد غير موجود");
-
-                if (newUnit.Status != UnitStatus.Vacant)
-                    throw new InvalidOperationException($"المحل الجديد غير شاغر (حالة: {newUnit.Status})");
-
-                // تحقق عدم وجود عقود نشطة أخرى لنفس المحل الجديد
-                var hasActiveContractOnNewUnit = await _db.Contracts
-                    .AnyAsync(c => c.UnitId == dto.UnitId && c.Id != id && c.IsActive && c.Status == ContractStatus.Active);
-                if (hasActiveContractOnNewUnit)
-                    throw new InvalidOperationException("المحل الجديد لديه عقد نشط آخر");
-            }
-            else
-            {
-                // نفس المحل - تحقق عدم تداخل مع عقود أخرى لنفس المحل (باستثناء الحالي)
-                var overlapping = await _db.Contracts
-                    .AnyAsync(c => c.UnitId == dto.UnitId && c.Id != id && c.IsActive && c.Status == ContractStatus.Active
-                        && c.StartDate < dto.EndDate && dto.StartDate < c.EndDate);
-                if (overlapping)
-                    throw new InvalidOperationException("يوجد تداخل تواريخ مع عقد نشط آخر لنفس المحل");
-            }
-
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                // تتبع التغييرات المهمة للإشعار
-                var oldRent = contract.RentAmount;
-                var oldUnitId = contract.UnitId;
-
-                // تحديث الحقول الأساسية
-                contract.TenantId = dto.TenantId;
-                contract.UnitId = dto.UnitId;
-                contract.StartDate = dto.StartDate;
-                contract.EndDate = dto.EndDate;
-                contract.RentAmount = dto.RentAmount;
-                contract.RentCycle = dto.RentCycle;
-                contract.DepositAmount = dto.DepositAmount;
-                contract.AnnualIncreasePercentage = dto.AnnualIncreasePercentage;
-                contract.ActivityType = dto.ActivityType;
-                contract.TradeName = dto.TradeName;
-                contract.AutoRenew = dto.AutoRenew;
-                contract.Notes = dto.Notes;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
-
-                // معالجة تغيير الوحدة: القديم -> Vacant, الجديد -> Rented
-                if (dto.UnitId != oldUnitId)
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    if (oldUnit != null)
-                    {
-                        oldUnit.Status = UnitStatus.Vacant;
-                        oldUnit.UpdatedAt = DateTimeHelper.LibyaNow;
-                    }
-                    if (newUnit != null)
-                    {
-                        newUnit.Status = UnitStatus.Rented;
-                        newUnit.UpdatedAt = DateTimeHelper.LibyaNow;
-                    }
-                }
+                    var contract = await _db.Contracts
+                        .Include(c => c.ContractFees)
+                        .Include(c => c.ContractItems)
+                        .Include(c => c.Unit)
+                        .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
-                // ===== مزامنة الرسوم ContractFees =====
-                if (dto.ContractFees != null)
-                {
-                    var existingFees = contract.ContractFees.Where(f => f.IsActive).ToList();
-                    var dtoFeesById = dto.ContractFees.Where(f => f.Id.HasValue && f.Id.Value > 0)
-                                                      .ToDictionary(f => f.Id!.Value, f => f);
+                    if (contract == null)
+                        throw new KeyNotFoundException("العقد غير موجود");
 
-                    // حذف الرسوم غير الموجودة في DTO
-                    foreach (var existing in existingFees)
+                    if (contract.Status == ContractStatus.Terminated || contract.Status == ContractStatus.Renewed)
+                        throw new InvalidOperationException($"لا يمكن تعديل عقد بحالة {contract.Status}");
+
+                    Unit? newUnit = null;
+                    Unit? oldUnit = contract.Unit;
+
+                    if (dto.UnitId != contract.UnitId)
                     {
-                        if (!dtoFeesById.ContainsKey(existing.Id))
+                        newUnit = await _db.Units.FirstOrDefaultAsync(u => u.Id == dto.UnitId && u.IsActive);
+                        if (newUnit == null) throw new KeyNotFoundException("المحل الجديد غير موجود");
+
+                        if (newUnit.Status != UnitStatus.Vacant)
+                            throw new InvalidOperationException($"المحل الجديد غير شاغر (حالة: {newUnit.Status})");
+
+                        var hasActiveContractOnNewUnit = await _db.Contracts
+                            .AnyAsync(c => c.UnitId == dto.UnitId && c.Id != id && c.IsActive && c.Status == ContractStatus.Active);
+                        if (hasActiveContractOnNewUnit)
+                            throw new InvalidOperationException("المحل الجديد لديه عقد نشط آخر");
+                    }
+                    else
+                    {
+                        var overlapping = await _db.Contracts
+                            .AnyAsync(c => c.UnitId == dto.UnitId && c.Id != id && c.IsActive && c.Status == ContractStatus.Active
+                                && c.StartDate < dto.EndDate && dto.StartDate < c.EndDate);
+                        if (overlapping)
+                            throw new InvalidOperationException("يوجد تداخل تواريخ مع عقد نشط آخر لنفس المحل");
+                    }
+
+                    var oldRent = contract.RentAmount;
+                    var oldUnitId = contract.UnitId;
+
+                    contract.TenantId = dto.TenantId;
+                    contract.UnitId = dto.UnitId;
+                    contract.StartDate = dto.StartDate;
+                    contract.EndDate = dto.EndDate;
+                    contract.RentAmount = dto.RentAmount;
+                    contract.RentCycle = dto.RentCycle;
+                    contract.DepositAmount = dto.DepositAmount;
+                    contract.AnnualIncreasePercentage = dto.AnnualIncreasePercentage;
+                    contract.ActivityType = dto.ActivityType;
+                    contract.TradeName = dto.TradeName;
+                    contract.AutoRenew = dto.AutoRenew;
+                    contract.Notes = dto.Notes;
+                    contract.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                    if (dto.UnitId != oldUnitId)
+                    {
+                        if (oldUnit != null)
                         {
-                            existing.IsActive = false;
-                            existing.UpdatedAt = DateTimeHelper.LibyaNow;
+                            oldUnit.Status = UnitStatus.Vacant;
+                            oldUnit.UpdatedAt = DateTimeHelper.LibyaNow;
+                        }
+                        if (newUnit != null)
+                        {
+                            newUnit.Status = UnitStatus.Rented;
+                            newUnit.UpdatedAt = DateTimeHelper.LibyaNow;
                         }
                     }
 
-                    // تحديث الموجود + إضافة الجديد
-                    foreach (var feeDto in dto.ContractFees)
+                    if (dto.ContractFees != null)
                     {
-                        if (feeDto.Id.HasValue && feeDto.Id.Value > 0)
+                        var existingFees = contract.ContractFees.Where(f => f.IsActive).ToList();
+                        var dtoFeesById = dto.ContractFees.Where(f => f.Id.HasValue && f.Id.Value > 0)
+                                                          .ToDictionary(f => f.Id!.Value, f => f);
+
+                        foreach (var existing in existingFees)
                         {
-                            var existing = existingFees.FirstOrDefault(f => f.Id == feeDto.Id.Value);
-                            if (existing != null)
+                            if (!dtoFeesById.ContainsKey(existing.Id))
                             {
-                                existing.FeeName = feeDto.FeeName;
-                                existing.ValueType = feeDto.ValueType;
-                                existing.Frequency = feeDto.Frequency;
-                                existing.Value = feeDto.Value;
-                                existing.Notes = feeDto.Notes;
+                                existing.IsActive = false;
                                 existing.UpdatedAt = DateTimeHelper.LibyaNow;
                             }
                         }
-                        else
+
+                        foreach (var feeDto in dto.ContractFees)
                         {
-                            contract.ContractFees.Add(new ContractFee
+                            if (feeDto.Id.HasValue && feeDto.Id.Value > 0)
                             {
-                                FeeName = feeDto.FeeName,
-                                ValueType = feeDto.ValueType,
-                                Frequency = feeDto.Frequency,
-                                Value = feeDto.Value,
-                                Notes = feeDto.Notes
-                            });
+                                var existing = existingFees.FirstOrDefault(f => f.Id == feeDto.Id.Value);
+                                if (existing != null)
+                                {
+                                    existing.FeeName = feeDto.FeeName;
+                                    existing.ValueType = feeDto.ValueType;
+                                    existing.Frequency = feeDto.Frequency;
+                                    existing.Value = feeDto.Value;
+                                    existing.Notes = feeDto.Notes;
+                                    existing.UpdatedAt = DateTimeHelper.LibyaNow;
+                                }
+                            }
+                            else
+                            {
+                                contract.ContractFees.Add(new ContractFee
+                                {
+                                    FeeName = feeDto.FeeName,
+                                    ValueType = feeDto.ValueType,
+                                    Frequency = feeDto.Frequency,
+                                    Value = feeDto.Value,
+                                    Notes = feeDto.Notes
+                                });
+                            }
                         }
                     }
-                }
 
-                // ===== مزامنة البنود ExtraItems =====
-                if (dto.ExtraItems != null)
-                {
-                    var existingItems = contract.ContractItems.Where(i => i.IsActive).ToList();
-                    var dtoItemsById = dto.ExtraItems.Where(i => i.Id.HasValue && i.Id.Value > 0)
-                                                     .ToDictionary(i => i.Id!.Value, i => i);
-
-                    foreach (var existing in existingItems)
+                    if (dto.ExtraItems != null)
                     {
-                        if (!dtoItemsById.ContainsKey(existing.Id))
-                        {
-                            existing.IsActive = false;
-                            existing.UpdatedAt = DateTimeHelper.LibyaNow;
-                        }
-                    }
+                        var existingItems = contract.ContractItems.Where(i => i.IsActive).ToList();
+                        var dtoItemsById = dto.ExtraItems.Where(i => i.Id.HasValue && i.Id.Value > 0)
+                                                         .ToDictionary(i => i.Id!.Value, i => i);
 
-                    foreach (var itemDto in dto.ExtraItems)
-                    {
-                        if (itemDto.Id.HasValue && itemDto.Id.Value > 0)
+                        foreach (var existing in existingItems)
                         {
-                            var existing = existingItems.FirstOrDefault(i => i.Id == itemDto.Id.Value);
-                            if (existing != null)
+                            if (!dtoItemsById.ContainsKey(existing.Id))
                             {
-                                existing.ItemName = itemDto.ItemName;
-                                existing.Amount = itemDto.Amount;
-                                existing.Notes = itemDto.Notes;
+                                existing.IsActive = false;
                                 existing.UpdatedAt = DateTimeHelper.LibyaNow;
                             }
                         }
-                        else
+
+                        foreach (var itemDto in dto.ExtraItems)
                         {
-                            contract.ContractItems.Add(new ContractItem
+                            if (itemDto.Id.HasValue && itemDto.Id.Value > 0)
                             {
-                                ItemName = itemDto.ItemName,
-                                Amount = itemDto.Amount,
-                                Notes = itemDto.Notes
-                            });
+                                var existing = existingItems.FirstOrDefault(i => i.Id == itemDto.Id.Value);
+                                if (existing != null)
+                                {
+                                    existing.ItemName = itemDto.ItemName;
+                                    existing.Amount = itemDto.Amount;
+                                    existing.Notes = itemDto.Notes;
+                                    existing.UpdatedAt = DateTimeHelper.LibyaNow;
+                                }
+                            }
+                            else
+                            {
+                                contract.ContractItems.Add(new ContractItem
+                                {
+                                    ItemName = itemDto.ItemName,
+                                    Amount = itemDto.Amount,
+                                    Notes = itemDto.Notes
+                                });
+                            }
                         }
                     }
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var saved = await _db.Contracts
+                        .Include(c => c.Tenant)
+                        .Include(c => c.Unit)
+                        .Include(c => c.ContractItems.Where(i => i.IsActive))
+                        .Include(c => c.ContractDocuments.Where(d => d.IsActive))
+                        .Include(c => c.ContractFees.Where(f => f.IsActive))
+                        .Include(c => c.ParentContract)
+                        .FirstAsync(c => c.Id == id);
+
+                    if (oldRent != dto.RentAmount || oldUnitId != dto.UnitId)
+                    {
+                        _ = _notification.SendToTenantAsync(
+                            saved.TenantId,
+                            "تم تحديث بيانات عقد الإيجار ✏️",
+                            $"تم تعديل عقدك رقم {saved.ContractNumber}. الإيجار الجديد: {saved.RentAmount:N2} د.ل للمحل {saved.Unit?.UnitNumber}.",
+                            NotificationType.ContractRenewed,
+                            $"/tenant/contracts/{saved.Id}",
+                            saved.Id
+                        );
+                    }
+
+                    return MapToDto(saved);
                 }
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var saved = await _db.Contracts
-                    .Include(c => c.Tenant)
-                    .Include(c => c.Unit)
-                    .Include(c => c.ContractItems.Where(i => i.IsActive))
-                    .Include(c => c.ContractDocuments.Where(d => d.IsActive))
-                    .Include(c => c.ContractFees.Where(f => f.IsActive))
-                    .Include(c => c.ParentContract)
-                    .FirstAsync(c => c.Id == id);
-
-                // إشعار عند تغيير جوهري
-                if (oldRent != dto.RentAmount || oldUnitId != dto.UnitId)
+                catch
                 {
-                    _ = _notification.SendToTenantAsync(
-                        saved.TenantId,
-                        "تم تحديث بيانات عقد الإيجار ✏️",
-                        $"تم تعديل عقدك رقم {saved.ContractNumber}. الإيجار الجديد: {saved.RentAmount:N2} د.ل للمحل {saved.Unit?.UnitNumber}.",
-                        NotificationType.ContractRenewed,
-                        $"/tenant/contracts/{saved.Id}",
-                        saved.Id
-                    );
+                    await transaction.RollbackAsync();
+                    throw;
                 }
-
-                return MapToDto(saved);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            });
         }
 
         public async Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus)
         {
-            var contract = await _db.Contracts
-                .Include(c => c.Unit)
-                .Include(c => c.Tenant)
-                .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
-
-            if (contract == null) return false;
-
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                var oldStatus = contract.Status;
-                contract.Status = newStatus;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
-
-                if (contract.Unit != null && (newStatus == ContractStatus.Expired || newStatus == ContractStatus.Terminated))
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    contract.Unit.Status = UnitStatus.Vacant;
+                    var contract = await _db.Contracts
+                        .Include(c => c.Unit)
+                        .Include(c => c.Tenant)
+                        .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
+
+                    if (contract == null) return false;
+
+                    contract.Status = newStatus;
                     contract.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                    if (contract.Unit != null && (newStatus == ContractStatus.Expired || newStatus == ContractStatus.Terminated))
+                    {
+                        contract.Unit.Status = UnitStatus.Vacant;
+                        contract.UpdatedAt = DateTimeHelper.LibyaNow;
+                    }
+                    else if (contract.Unit != null && newStatus == ContractStatus.Active)
+                    {
+                        contract.Unit.Status = UnitStatus.Rented;
+                        contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    }
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    string title = newStatus switch
+                    {
+                        ContractStatus.Terminated => "تم إنهاء عقد الإيجار ⚠️",
+                        ContractStatus.Expired => "انتهى عقد الإيجار ⏰",
+                        ContractStatus.Active => "تم تفعيل عقد الإيجار ✅",
+                        ContractStatus.Pending => "عقدك في حالة انتظار ⏳",
+                        _ => $"تحديث حالة العقد: {newStatus}"
+                    };
+
+                    string message = newStatus switch
+                    {
+                        ContractStatus.Terminated => $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
+                        ContractStatus.Expired => $"انتهى عقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber}. يرجى مراجعة الإدارة للتجديد.",
+                        ContractStatus.Active => $"تم تفعيل عقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} بنجاح.",
+                        ContractStatus.Pending => $"عقدك رقم {contract.ContractNumber} أصبح في حالة انتظار.",
+                        _ => $"تم تحديث حالة عقدك {contract.ContractNumber} إلى {newStatus}"
+                    };
+
+                    NotificationType notifType = newStatus == ContractStatus.Terminated ? NotificationType.ContractTerminated :
+                                                newStatus == ContractStatus.Expired ? NotificationType.ContractExpiringSoon :
+                                                NotificationType.ContractRenewed;
+
+                    _ = _notification.SendToTenantAsync(
+                        contract.TenantId,
+                        title,
+                        message,
+                        notifType,
+                        $"/tenant/contracts/{contract.Id}",
+                        contract.Id
+                    );
+
+                    return true;
                 }
-                else if (contract.Unit != null && newStatus == ContractStatus.Active)
+                catch
                 {
-                    contract.Unit.Status = UnitStatus.Rented;
-                    contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    await transaction.RollbackAsync();
+                    return false;
                 }
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // 🔔 إشعارات فورية حسب الحالة الجديدة
-                string title = newStatus switch
-                {
-                    ContractStatus.Terminated => "تم إنهاء عقد الإيجار ⚠️",
-                    ContractStatus.Expired => "انتهى عقد الإيجار ⏰",
-                    ContractStatus.Active => "تم تفعيل عقد الإيجار ✅",
-                    ContractStatus.Pending => "عقدك في حالة انتظار ⏳",
-                    _ => $"تحديث حالة العقد: {newStatus}"
-                };
-
-                string message = newStatus switch
-                {
-                    ContractStatus.Terminated => $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
-                    ContractStatus.Expired => $"انتهى عقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber}. يرجى مراجعة الإدارة للتجديد.",
-                    ContractStatus.Active => $"تم تفعيل عقدك رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} بنجاح.",
-                    ContractStatus.Pending => $"عقدك رقم {contract.ContractNumber} أصبح في حالة انتظار.",
-                    _ => $"تم تحديث حالة عقدك {contract.ContractNumber} إلى {newStatus}"
-                };
-
-                NotificationType notifType = newStatus == ContractStatus.Terminated ? NotificationType.ContractTerminated :
-                                            newStatus == ContractStatus.Expired ? NotificationType.ContractExpiringSoon :
-                                            NotificationType.ContractRenewed;
-
-                _ = _notification.SendToTenantAsync(
-                    contract.TenantId,
-                    title,
-                    message,
-                    notifType,
-                    $"/tenant/contracts/{contract.Id}",
-                    contract.Id
-                );
-
-                return true;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                return false;
-            }
+            });
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var contract = await _db.Contracts
-                .Include(c => c.Unit)
-                .Include(c => c.Tenant)
-                .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
-
-            if (contract == null) return false;
-
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                contract.IsActive = false;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
-
-                if (contract.Unit != null && contract.Status == ContractStatus.Active)
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    contract.Unit.Status = UnitStatus.Vacant;
-                    contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    var contract = await _db.Contracts
+                        .Include(c => c.Unit)
+                        .Include(c => c.Tenant)
+                        .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
+
+                    if (contract == null) return false;
+
+                    contract.IsActive = false;
+                    contract.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                    if (contract.Unit != null && contract.Status == ContractStatus.Active)
+                    {
+                        contract.Unit.Status = UnitStatus.Vacant;
+                        contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    }
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    if (contract.Tenant != null)
+                    {
+                        _ = _notification.SendToTenantAsync(
+                            contract.TenantId,
+                            "تم حذف عقد الإيجار 🗑️",
+                            $"تم حذف العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} من النظام.",
+                            NotificationType.ContractTerminated,
+                            $"/tenant/contracts",
+                            contract.Id
+                        );
+                    }
+
+                    return true;
                 }
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // 🔔 إشعار فوري بحذف العقد
-                if (contract.Tenant != null)
+                catch
                 {
-                    _ = _notification.SendToTenantAsync(
-                        contract.TenantId,
-                        "تم حذف عقد الإيجار 🗑️",
-                        $"تم حذف العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} من النظام.",
-                        NotificationType.ContractTerminated,
-                        $"/tenant/contracts",
-                        contract.Id
-                    );
+                    await transaction.RollbackAsync();
+                    return false;
                 }
-
-                return true;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                return false;
-            }
+            });
         }
 
         public async Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto)
@@ -518,98 +509,99 @@ namespace Andalos.API.Services
             else if (dto.IncreaseType == IncreaseType.FixedAmount && dto.IncreaseValue > 0)
                 newRent = oldRent + dto.IncreaseValue;
 
-            // يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:4}
             string newContractNumber = await _numberGen.GenerateContractNumberAsync();
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                var newContract = new Contract
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    ContractNumber = newContractNumber,
-                    TenantId = oldContract.TenantId,
-                    UnitId = oldContract.UnitId,
-                    StartDate = dto.NewStartDate,
-                    EndDate = dto.NewEndDate,
-                    RentAmount = newRent,
-                    RentCycle = oldContract.RentCycle,
-                    DepositAmount = oldContract.DepositAmount,
-                    Status = ContractStatus.Active,
-                    ActivityType = oldContract.ActivityType,
-                    TradeName = oldContract.TradeName,
-                    AutoRenew = dto.AutoRenew,
-                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
-                    ParentContractId = oldContract.Id,
-                    Notes = dto.Notes ?? $"تجديد للعقد السابق رقم {oldContract.ContractNumber} بزيادة ({dto.IncreaseValue})"
-                };
-
-                if (dto.CopyFeesFromPreviousContract && oldContract.ContractFees.Any())
-                {
-                    foreach (var fee in oldContract.ContractFees.Where(f => f.IsActive))
+                    var newContract = new Contract
                     {
-                        newContract.ContractFees.Add(new ContractFee
-                        {
-                            FeeName = fee.FeeName,
-                            ValueType = fee.ValueType,
-                            Frequency = fee.Frequency,
-                            Value = fee.Value,
-                            Notes = fee.Notes
-                        });
-                    }
-                }
+                        ContractNumber = newContractNumber,
+                        TenantId = oldContract.TenantId,
+                        UnitId = oldContract.UnitId,
+                        StartDate = dto.NewStartDate,
+                        EndDate = dto.NewEndDate,
+                        RentAmount = newRent,
+                        RentCycle = oldContract.RentCycle,
+                        DepositAmount = oldContract.DepositAmount,
+                        Status = ContractStatus.Active,
+                        ActivityType = oldContract.ActivityType,
+                        TradeName = oldContract.TradeName,
+                        AutoRenew = dto.AutoRenew,
+                        AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
+                        ParentContractId = oldContract.Id,
+                        Notes = dto.Notes ?? $"تجديد للعقد السابق رقم {oldContract.ContractNumber} بزيادة ({dto.IncreaseValue})"
+                    };
 
-                if (dto.NewFees != null && dto.NewFees.Any())
-                {
-                    foreach (var feeDto in dto.NewFees)
+                    if (dto.CopyFeesFromPreviousContract && oldContract.ContractFees.Any())
                     {
-                        newContract.ContractFees.Add(new ContractFee
+                        foreach (var fee in oldContract.ContractFees.Where(f => f.IsActive))
                         {
-                            FeeName = feeDto.FeeName,
-                            ValueType = feeDto.ValueType,
-                            Frequency = feeDto.Frequency,
-                            Value = feeDto.Value,
-                            Notes = feeDto.Notes
-                        });
+                            newContract.ContractFees.Add(new ContractFee
+                            {
+                                FeeName = fee.FeeName,
+                                ValueType = fee.ValueType,
+                                Frequency = fee.Frequency,
+                                Value = fee.Value,
+                                Notes = fee.Notes
+                            });
+                        }
                     }
+
+                    if (dto.NewFees != null && dto.NewFees.Any())
+                    {
+                        foreach (var feeDto in dto.NewFees)
+                        {
+                            newContract.ContractFees.Add(new ContractFee
+                            {
+                                FeeName = feeDto.FeeName,
+                                ValueType = feeDto.ValueType,
+                                Frequency = feeDto.Frequency,
+                                Value = feeDto.Value,
+                                Notes = feeDto.Notes
+                            });
+                        }
+                    }
+
+                    _db.Contracts.Add(newContract);
+
+                    oldContract.Status = ContractStatus.Renewed;
+                    oldContract.UpdatedAt = DateTime.UtcNow;
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var savedContract = await _db.Contracts
+                        .Include(c => c.Tenant)
+                        .Include(c => c.Unit)
+                        .Include(c => c.ContractItems)
+                        .Include(c => c.ContractDocuments)
+                        .Include(c => c.ContractFees)
+                        .Include(c => c.ParentContract)
+                        .FirstAsync(c => c.Id == newContract.Id);
+
+                    _ = _notification.SendToTenantAsync(
+                        savedContract.TenantId,
+                        "تم تجديد عقد الإيجار بنجاح 🔄",
+                        $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
+                        NotificationType.ContractRenewed,
+                        $"/tenant/contracts/{savedContract.Id}",
+                        savedContract.Id
+                    );
+
+                    return MapToDto(savedContract);
                 }
-
-                _db.Contracts.Add(newContract);
-
-                oldContract.Status = ContractStatus.Renewed;
-                oldContract.UpdatedAt = DateTime.UtcNow;
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var savedContract = await _db.Contracts
-                    .Include(c => c.Tenant)
-                    .Include(c => c.Unit)
-                    .Include(c => c.ContractItems)
-                    .Include(c => c.ContractDocuments)
-                    .Include(c => c.ContractFees)
-                    .Include(c => c.ParentContract)
-                    .FirstAsync(c => c.Id == newContract.Id);
-
-                // 🔔 إشعار بتجديد العقد بنجاح
-                _ = _notification.SendToTenantAsync(
-                    savedContract.TenantId,
-                    "تم تجديد عقد الإيجار بنجاح 🔄",
-                    $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
-                    NotificationType.ContractRenewed,
-                    $"/tenant/contracts/{savedContract.Id}",
-                    savedContract.Id
-                );
-
-                return MapToDto(savedContract);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
         }
 
-        // ===== Additional Endpoints لزيادة الترابط =====
         public async Task<List<ContractResponseDto>> GetByTenantAsync(int tenantId)
         {
             var contracts = await _db.Contracts
@@ -662,7 +654,6 @@ namespace Andalos.API.Services
             var contract = await _db.Contracts.FirstOrDefaultAsync(c => c.Id == contractId && c.IsActive);
             if (contract == null) return null;
 
-            // الصعود للجذر
             var root = contract;
             while (root.ParentContractId != null)
             {
@@ -671,12 +662,10 @@ namespace Andalos.API.Services
                 root = parent;
             }
 
-            // النزول لكل السلسلة
             var chain = new List<Contract>();
             var current = root;
             chain.Add(current);
 
-            // BFS لجلب كل الأبناء
             var queue = new Queue<Contract>();
             queue.Enqueue(current);
             var visited = new HashSet<int> { current.Id };
@@ -705,10 +694,6 @@ namespace Andalos.API.Services
                 }
             }
 
-            // ترتيب زمني
-            chain = chain.OrderBy(c => c.StartDate).ToList();
-
-            // جلب البيانات الكاملة للسلسلة إذا لم تكن محملة
             var chainIds = chain.Select(c => c.Id).ToList();
             var fullChain = await _db.Contracts
                 .Include(c => c.Tenant)
@@ -786,7 +771,6 @@ namespace Andalos.API.Services
             };
         }
 
-        // ===== المجموعة المالية الجديدة =====
         public async Task<List<DTOs.Payments.PaymentResponseDto>> GetPaymentsAsync(int contractId)
         {
             var contractExists = await _db.Contracts.AnyAsync(c => c.Id == contractId && c.IsActive);
@@ -856,7 +840,6 @@ namespace Andalos.API.Services
             decimal oneTimeFees = fees.Where(f => f.Frequency == FeeFrequency.OneTime).Sum(f => f.CalculatedAmount);
             decimal monthlyFeePerMonth = fees.Where(f => f.Frequency == FeeFrequency.Monthly).Sum(f => f.CalculatedAmount);
 
-            // حساب المستحق حتى toDate
             var endForCalc = contract.EndDate < toDate ? contract.EndDate : toDate.Value;
             var startForCalc = contract.StartDate > fromDate ? contract.StartDate : fromDate.Value;
             int monthsToCalc = Math.Max(0, (int)((endForCalc - startForCalc).TotalDays / 30)) + 1;
@@ -867,7 +850,6 @@ namespace Andalos.API.Services
 
             decimal totalPaid = payments.Sum(p => p.Amount);
 
-            // Monthly breakdown
             var monthlyBreakdown = new List<ContractMonthlyDueDto>();
             var current = new DateTime(startForCalc.Year, startForCalc.Month, 1);
             var endMonth = new DateTime(endForCalc.Year, endForCalc.Month, 1);
@@ -954,7 +936,6 @@ namespace Andalos.API.Services
             decimal totalContractValue = contract.RentAmount * durationMonths;
             decimal calcAmount = fee.CalculateActualAmount(contract.RentAmount, totalContractValue);
 
-            // 🔔 إشعار فوري للمستأجر بإضافة رسم جديد
             _ = _notification.SendToTenantAsync(
                 contract.TenantId,
                 $"تمت إضافة رسم جديد لعقدك: {dto.FeeName} 💰",
@@ -1092,8 +1073,6 @@ namespace Andalos.API.Services
                 throw new InvalidOperationException($"رصيد المستأجر ({tenant.CreditBalance:N2}) أقل من المستحق ({totalMonthlyDue:N2})");
 
             tenant.CreditBalance -= totalMonthlyDue;
-
-            // الآن يستخدم الإعدادات المترابطة {PREFIX}-{YYYY}-{SEQ:5}
             var receiptNo = await _numberGen.GenerateReceiptNumberAsync();
 
             var payment = new Payment
@@ -1113,7 +1092,6 @@ namespace Andalos.API.Services
             _db.Payments.Add(payment);
             await _db.SaveChangesAsync();
 
-            // 🔔 إشعار فوري للمستأجر بالخصم
             _ = _notification.SendToTenantAsync(
                 tenant.Id,
                 $"تم خصم إيجار {today:MM/yyyy} تلقائياً ✅",
