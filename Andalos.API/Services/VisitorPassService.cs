@@ -29,33 +29,53 @@ namespace Andalos.API.Services
                     throw new KeyNotFoundException("المحل المحدد غير موجود");
             }
 
-            string passCode = await GenerateUniquePassCodeAsync();
-
-            var pass = new VisitorPass
+            // 🛡️ حماية تصادم الكود تحت الضغط: لو ولّد مستخدمان متزامنان نفس الكود العشوائي
+            // نلتقط انتهاك الفهرس الفريد ونعيد التوليد والمحاولة (حتى 5 محاولات)
+            for (int attempt = 1; ; attempt++)
             {
-                PassCode = passCode,
-                VisitorName = dto.VisitorName,
-                VisitorPhone = dto.VisitorPhone,
-                NationalId = dto.NationalId,
-                VisitorType = dto.VisitorType,
-                UnitId = dto.UnitId,
-                ValidDate = dto.ValidDate.Date,
-                MaxEntries = dto.MaxEntries > 0 ? dto.MaxEntries : 1,
-                UsedCount = 0,
-                Status = PassStatus.Active,
-                Purpose = dto.Purpose,
-                Notes = dto.Notes,
-                CreatedBy = createdBy
-            };
+                string passCode = await GenerateUniquePassCodeAsync();
 
-            _db.VisitorPasses.Add(pass);
-            await _db.SaveChangesAsync();
+                var pass = new VisitorPass
+                {
+                    PassCode = passCode,
+                    VisitorName = dto.VisitorName,
+                    VisitorPhone = dto.VisitorPhone,
+                    NationalId = dto.NationalId,
+                    VisitorType = dto.VisitorType,
+                    UnitId = dto.UnitId,
+                    ValidDate = dto.ValidDate.Date,
+                    MaxEntries = dto.MaxEntries > 0 ? dto.MaxEntries : 1,
+                    UsedCount = 0,
+                    Status = PassStatus.Active,
+                    Purpose = dto.Purpose,
+                    Notes = dto.Notes,
+                    CreatedBy = createdBy
+                };
 
-            var saved = await _db.VisitorPasses
-                .Include(p => p.Unit)
-                .FirstAsync(p => p.Id == pass.Id);
+                try
+                {
+                    _db.VisitorPasses.Add(pass);
+                    await _db.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex) && attempt < 5)
+                {
+                    _db.Entry(pass).State = EntityState.Detached;
+                    continue;
+                }
 
-            return MapToDto(saved);
+                var saved = await _db.VisitorPasses
+                    .Include(p => p.Unit)
+                    .FirstAsync(p => p.Id == pass.Id);
+
+                return MapToDto(saved);
+            }
+        }
+
+        // 👈 كشف انتهاك الفهرس الفريد في SQL Server (أخطاء 2601 / 2627)
+        private static bool IsUniqueConstraintViolation(DbUpdateException ex)
+        {
+            return ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx
+                && (sqlEx.Number == 2601 || sqlEx.Number == 2627);
         }
 
         public async Task<VisitorPassResponseDto?> GetByIdAsync(int id)
@@ -94,7 +114,33 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
+        // 🛡️ حماية سباق المسح المتزامن (سكان بوابتين في نفس اللحظة):
+        // معاملة Serializable تضمن أن ثاني حارس يقرأ UsedCount بعد تحديث الأول —
+        // مستحيل رياضياً تجاوز MaxEntries مهما كان عدد المحاولات المتزامنة
         public async Task<ScanResultDto> ScanAndValidatePassAsync(ScanPassDto dto, string scannedBy)
+        {
+            // EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                ScanResultDto result;
+                try
+                {
+                    result = await ScanCoreAsync(dto, scannedBy);
+                    // نُثبّت كل كتابات المسار (سواء سماح أو رفض + سجل الدخول) دفعة واحدة
+                    await tx.CommitAsync();
+                }
+                catch
+                {
+                    await tx.RollbackAsync();
+                    throw;
+                }
+                return result;
+            });
+        }
+
+        private async Task<ScanResultDto> ScanCoreAsync(ScanPassDto dto, string scannedBy)
         {
             var pass = await _db.VisitorPasses
                 .Include(p => p.Unit)
@@ -168,7 +214,7 @@ namespace Andalos.API.Services
 
                 if (activeContract != null)
                 {
-                    _ = _notification.SendToTenantAsync(
+                    await _notification.SendToTenantAsync(
                         activeContract.TenantId,
                         "وصول زائر للمحل 🚪",
                         $"نعلمكم بأن زائرك ({pass.VisitorName}) قد تم تسجيل دخوله الآن من بوابة: {dto.GateName}.",

@@ -55,44 +55,59 @@ namespace Andalos.API.Services
 
             int currentYear = DateTime.Now.Year;
 
-            var sequence = await _db.NumberSequences
-                .FirstOrDefaultAsync(s => s.SequenceKey == sequenceKey);
-
-            if (sequence == null)
+            // 🛡️ حماية التزامن تحت الضغط: قفل صف العداد بـ (UPDLOCK, ROWLOCK) داخل معاملة صريحة
+            // بحيث ينتظر أي طلب متزامن حتى يُحفظ الرقم الحالي — لا تكرار أرقام إطلاقاً
+            // ملاحظة: EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy
+            var strategy = _db.Database.CreateExecutionStrategy();
+            var generatedNumber = await strategy.ExecuteAsync(async () =>
             {
-                sequence = new NumberSequence
+                await using var tx = await _db.Database.BeginTransactionAsync();
+
+                var rows = await _db.NumberSequences
+                    .FromSqlInterpolated($"SELECT * FROM NumberSequences WITH (UPDLOCK, ROWLOCK) WHERE SequenceKey = {sequenceKey}")
+                    .ToListAsync();
+                var sequence = rows.FirstOrDefault();
+
+                if (sequence == null)
                 {
-                    SequenceKey = sequenceKey,
-                    LastNumber = 0,
-                    CurrentYear = currentYear,
-                    LastYear = currentYear,
-                    UpdatedAt = DateTimeHelper.LibyaNow
-                };
-                _db.NumberSequences.Add(sequence);
-            }
+                    // يحدث مرة واحدة فقط لكل نوع رقم (موجودة مسبقاً في القاعدة فعلياً)
+                    sequence = new NumberSequence
+                    {
+                        SequenceKey = sequenceKey,
+                        LastNumber = 0,
+                        CurrentYear = currentYear,
+                        LastYear = currentYear,
+                        UpdatedAt = DateTimeHelper.LibyaNow
+                    };
+                    _db.NumberSequences.Add(sequence);
+                }
 
-            if (sequence.CurrentYear != currentYear)
-            {
-                sequence.LastYear = sequence.CurrentYear;
-                sequence.CurrentYear = currentYear;
-                sequence.LastNumber = 0;
-            }
+                if (sequence.CurrentYear != currentYear)
+                {
+                    sequence.LastYear = sequence.CurrentYear;
+                    sequence.CurrentYear = currentYear;
+                    sequence.LastNumber = 0;
+                }
 
-            string generatedNumber;
-            bool exists;
+                string number;
+                bool exists;
 
-            // 👈 حلقة ذكية لضمان تخطي أي رقم موجود سابقاً في قاعدة البيانات
-            do
-            {
-                sequence.LastNumber += 1;
-                sequence.UpdatedAt = DateTimeHelper.LibyaNow;
-                generatedNumber = BuildNumber(format, prefix, sequence.LastNumber, currentYear);
+                // 👈 حلقة ذكية لضمان تخطي أي رقم موجود سابقاً في قاعدة البيانات
+                do
+                {
+                    sequence.LastNumber += 1;
+                    sequence.UpdatedAt = DateTimeHelper.LibyaNow;
+                    number = BuildNumber(format, prefix, sequence.LastNumber, currentYear);
 
-                exists = await CheckIfNumberExistsAsync(sequenceKey, generatedNumber);
-            }
-            while (exists);
+                    exists = await CheckIfNumberExistsAsync(sequenceKey, number);
+                }
+                while (exists);
 
-            await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                return number;
+            });
 
             return generatedNumber;
         }
