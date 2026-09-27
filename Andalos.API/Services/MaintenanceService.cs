@@ -159,7 +159,7 @@ namespace Andalos.API.Services
             // 🔔 إشعار المستأجر بتحديث حالة الصيانة
             if (request.TenantId != null && dto.Status != previousStatus)
             {
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     request.TenantId.Value,
                     "تحديث على طلب الصيانة 🛠️",
                     $"تم تحديث حالة طلب الصيانة رقم {request.RequestNumber} إلى: {GetStatusLabel(dto.Status)}.",
@@ -334,8 +334,15 @@ namespace Andalos.API.Services
 
             await _db.SaveChangesAsync();
 
-            // 🔔 إشعار المستأجر بالسداد
-            _ = _notification.SendToTenantAsync(
+            // 👈 إعادة التحميل أولاً — قبل أي إشعار (يمنع تزامن الـ DbContext)
+            var saved = await _db.TenantCharges
+                .Include(c => c.Tenant)
+                .Include(c => c.Unit)
+                .Include(c => c.MaintenanceRequest)
+                .FirstAsync(c => c.Id == charge.Id);
+
+            // 🔔 إشعار المستأجر بالسداد (آخر شيء — بعد انتهاء كل عمليات القاعدة)
+            await _notification.SendToTenantAsync(
                 charge.TenantId,
                 "تم سداد المتعلقات المالية ✅",
                 $"تم استلام مبلغ {settleAmount:N2} د.ل كسداد للتحميل رقم {charge.ChargeNumber} بموجب الإيصال {receiptNumber}.",
@@ -343,13 +350,6 @@ namespace Andalos.API.Services
                 "/portal/payments",
                 charge.Id
             );
-
-            // إعادة التحميل مع العلاقات للعرض
-            var saved = await _db.TenantCharges
-                .Include(c => c.Tenant)
-                .Include(c => c.Unit)
-                .Include(c => c.MaintenanceRequest)
-                .FirstAsync(c => c.Id == charge.Id);
 
             return MapChargeToDto(saved);
         }
@@ -459,7 +459,7 @@ namespace Andalos.API.Services
             if (isOffer)
             {
                 // 🔔 إشعار المستأجر: عرض صيانة يحتاج موافقة (قبول/رفض)
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     request.TenantId.Value,
                     "عرض صيانة يحتاج موافقتكم 🛠️",
                     $"تعرض الإدارة تنفيذ: {request.Description} بمبلغ {billedAmount:N2} د.ل. يرجى قبول العرض أو رفضه من بوابة الصيانة.",
@@ -469,7 +469,7 @@ namespace Andalos.API.Services
                 );
 
                 // 🔔 إشعار الإدارة بأن العرض أُرسل وينتظر الرد
-                _ = _notification.SendToGroupAsync(
+                await _notification.SendToGroupAsync(
                     "Accountants",
                     "عرض صيانة مُرسل للمستأجر ⏳",
                     $"تم إرسال عرض صيانة بمبلغ {billedAmount:N2} د.ل للمستأجر {request.Tenant?.FullName} ({request.RequestNumber}) — بانتظار موافقته أو رفضه.",
@@ -480,7 +480,7 @@ namespace Andalos.API.Services
             else
             {
                 // 🔔 إشعار المستأجر بتحميل إجباري
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     request.TenantId.Value,
                     "مبلغ محمّل على حسابك 📋",
                     $"تم تحميل مبلغ {billedAmount:N2} د.ل على حسابكم — {charge.Description}.",
@@ -490,7 +490,7 @@ namespace Andalos.API.Services
                 );
 
                 // 🔔 إشعار الإدارة/المحاسبين
-                _ = _notification.SendToGroupAsync(
+                await _notification.SendToGroupAsync(
                     "Accountants",
                     "تحميل مالي جديد على مستأجر 💰",
                     $"تم تحميل مبلغ {billedAmount:N2} د.ل على المستأجر {request.Tenant?.FullName} بموجب طلب الصيانة {request.RequestNumber}.",
@@ -592,7 +592,7 @@ namespace Andalos.API.Services
                 await _db.SaveChangesAsync();
 
                 // 🔔 إشعار الإدارة بقبول المستأجر
-                _ = _notification.SendToGroupAsync(
+                await _notification.SendToGroupAsync(
                     "Accountants",
                     "المستأجر وافق على عرض الصيانة ✅",
                     $"وافق المستأجر {charge.Tenant?.FullName} على عرض بمبلغ {charge.Amount:N2} د.ل ({charge.ChargeNumber} — {request.RequestNumber}).",
@@ -601,7 +601,7 @@ namespace Andalos.API.Services
                 );
 
                 // 🔔 تأكيد للمستأجر
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     tenantId,
                     "تم تأكيد قبولك للعرض ✅",
                     $"تم تأكيد قبولك لعرض الصيانة بمبلغ {charge.Amount:N2} د.ل وسيدخل ضمن متعلقات حسابكم.",
@@ -619,7 +619,7 @@ namespace Andalos.API.Services
                 await _db.SaveChangesAsync();
 
                 // 🔔 إشعار الإدارة برفض المستأجر
-                _ = _notification.SendToGroupAsync(
+                await _notification.SendToGroupAsync(
                     "Accountants",
                     "المستأجر رفض عرض الصيانة ❌",
                     $"رفض المستأجر {charge.Tenant?.FullName} العرض رقم {charge.ChargeNumber} ({request.RequestNumber}).{(string.IsNullOrWhiteSpace(dto.Reason) ? "" : " السبب: " + dto.Reason)}",
@@ -714,6 +714,7 @@ namespace Andalos.API.Services
                 Amount = c.Amount,
                 SettledAmount = c.SettledAmount,
                 IsSettled = c.IsSettled,
+                ChargeStatus = c.ChargeStatus, // 👈 إصلاح: كان يظهر دائماً 1
                 ChargeStatusLabel = GetChargeStatusLabel(c.ChargeStatus),
                 RespondedAt = c.RespondedAt,
                 RejectionReason = c.RejectionReason,

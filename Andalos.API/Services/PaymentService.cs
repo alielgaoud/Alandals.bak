@@ -12,11 +12,16 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INotificationService _notification; // 👈 حقن الإشعارات
+        private readonly INumberGeneratorService _numberGen; // 👈 جديد: مولّد الأرقام الموحد (يمنع تكرار الإيصالات)
 
-        public PaymentService(AppDbContext db, INotificationService notification)
+        public PaymentService(
+            AppDbContext db,
+            INotificationService notification,
+            INumberGeneratorService numberGen)
         {
             _db = db;
             _notification = notification;
+            _numberGen = numberGen;
         }
 
         public async Task<List<PaymentResponseDto>> GetAllAsync()
@@ -68,7 +73,7 @@ namespace Andalos.API.Services
             if (contract == null)
                 throw new KeyNotFoundException("العقد غير موجود");
 
-            string receiptNumber = await GenerateReceiptNumberAsync();
+            string receiptNumber = await _numberGen.GenerateAsync("receipt"); // 👈 المولّد الموحد (يتحقق من التكرار)
 
             var tenant = contract.Tenant;
             string? allocationNote = null;
@@ -245,13 +250,6 @@ namespace Andalos.API.Services
             }
 
             return summaries;
-        }
-
-        private async Task<string> GenerateReceiptNumberAsync()
-        {
-            int year = DateTime.Now.Year;
-            int count = await _db.Payments.CountAsync(p => p.PaymentDate.Year == year);
-            return $"REC-{year}-{(count + 1):D5}";
         }
 
         // 👈 دمج ملاحظة التوجيه مع ملاحظات المحاسب

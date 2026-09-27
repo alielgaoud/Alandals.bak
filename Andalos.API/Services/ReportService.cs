@@ -143,6 +143,7 @@ namespace Andalos.API.Services
 
             var payments = await _db.Payments
                 .Where(p => p.IsActive && p.PaymentDate.Year == year)
+                .Select(p => new { p.Amount, p.PaymentType, p.PaymentDate })
                 .ToListAsync();
 
             var expenses = await _db.Expenses
@@ -152,6 +153,9 @@ namespace Andalos.API.Services
             for (int month = 1; month <= 12; month++)
             {
                 decimal rev = payments.Where(p => p.PaymentDate.Month == month).Sum(p => p.Amount);
+                decimal rentRev = payments
+                    .Where(p => p.PaymentDate.Month == month && p.PaymentType == PaymentType.Rent)
+                    .Sum(p => p.Amount);
                 decimal exp = expenses.Where(e => e.ExpenseDate.Month == month).Sum(e => e.Amount);
 
                 result.Add(new MonthlyFinancialBarDto
@@ -159,6 +163,8 @@ namespace Andalos.API.Services
                     Month = month,
                     MonthName = culture.DateTimeFormat.GetMonthName(month),
                     Revenue = rev,
+                    RentRevenue = rentRev,
+                    OtherRevenue = rev - rentRev,
                     Expenses = exp,
                     NetProfit = rev - exp
                 });

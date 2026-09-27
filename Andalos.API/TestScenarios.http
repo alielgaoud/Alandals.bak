@@ -250,7 +250,7 @@ Content-Type: application/json
 }
 
 ### 💰 3-تحقق: الرصيد زاد 200
-GET {{host}}/api/TenantAccount/{{tenantId}}/statement
+GET {{host}}/api/TenantAccounts/{{tenantId}}/statement
 Authorization: Bearer {{adminToken}}
 
 ### 💰 4-دفعة على الحساب ← 4000 كاملة رصيد (تُخصم آلياً شهرياً)
@@ -269,7 +269,7 @@ Content-Type: application/json
 }
 
 ### 💰 5-تحقق: الرصيد زاد 4000
-GET {{host}}/api/TenantAccount/{{tenantId}}/statement
+GET {{host}}/api/TenantAccounts/{{tenantId}}/statement
 Authorization: Bearer {{adminToken}}
 
 ### 📊 1-ملخص الإيرادات المنفصلة (إيجار / صيانة محمّلة + صافي الربح)
