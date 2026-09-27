@@ -2,16 +2,28 @@
 ═══════════════════════════════════════════════════════════════════
  🧪 ملف التجربة الشامل — نظام الصيانة والتحميل وتوجيه الدفعات
 ═══════════════════════════════════════════════════════════════════
- 📌 كيفية الاستخدام:
-   1. شغّل المشروع (F5) ثم افتح هذا الملف في Visual Studio
-   2. ستجد رابط "Send Request" فوق كل طلب — اضغطه بالترتيب من الأعلى للأسفل
-   3. التوكنات والـ IDs تُستخرج تلقائياً من الاستجابات
-   4. ⚠️ عدّل @unitId و @contractId يدوياً بعد جلب القوائم (الخطوة 0)
+ 📌 خطوات الاستخدام (بالترتيب):
+   1. شغّل المشروع (F5) — تأكد أن البورت هنا = بورت المتصفح
+   2. نفّذ طلب "دخول الإدارة" بالأسفل ← انسخ قيمة token من الاستجابة
+      والصقها في @adminToken هنا (بدون علامات التنصيص)
+   3. نفّذ طلب "دخول المستأجر" ← انسخ token في @tenantToken
+      وانسخ tenantId في @tenantPortalId
+   4. أكمل باقي الطلبات بالترتيب واملأ باقي المتغيرات عند طلبها
+═══════════════════════════════════════════════════════════════════
+
+ ⚠️ المتغيرات — عدّلها قبل البدء:
 ═══════════════════════════════════════════════════════════════════
 
 ═════════════════════════════════════════
  🔐 الخطوة 1: دخول الإدارة (تلقائي التوكن)
 ═════════════════════════════════════════
+@adminToken = PASTE_ADMIN_TOKEN_HERE
+@tenantToken = PASTE_TENANT_TOKEN_HERE
+@tenantPortalId = 1
+
+# ⚠️ إذا ظهرت success:false في الدخول → بيانات frames الافتراضية تغيرت
+#    سابقاً على السيرفر — استخدم بيانات أدمن حقيقية عندك
+
  (بيانات السوبر أدمن الافتراضية: frames / 528888)
 
 # @name loginAdmin
@@ -24,7 +36,8 @@ Content-Type: application/json
 }
 
 ###
-# التوكن الآن جاهز للاستخدام: {{loginAdmin.response.body.$.data.token}}
+# 📋 انسخ من الاستجابة يميناً القيمة الطويلة بعد "token":
+#    والصقها مكان PASTE_ADMIN_TOKEN_HERE في الأعلى ثم احفظ (Ctrl+S)
 
 ═════════════════════════════════════════
  🔍 الخطوة 0: جلب الـ IDs المطلوبة
@@ -33,19 +46,19 @@ Content-Type: application/json
 
 # قائمة المحلات — اختر محل مؤجر وانسخ رقم الـ id في @unitId أعلاه
 GET {{host}}/api/Units
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 # قائمة المستأجرين — اختر مستأجر وانسخ id في @tenantId
 GET {{host}}/api/Tenants
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 # قائمة العقود — اختر العقد الساري وانسخ id في @contractId
 GET {{host}}/api/Contracts
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 # ⚠️ حدّث هذه القيم يدوياً من استجابات الطلبات أعلاه:
@@ -59,8 +72,9 @@ Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
  النتيجة المتوقعة: مصروف تلقائي 1000 عند الإكمال + لا شيء على أي مستأجر
 
 # @name adminMaint
+# ⚠️ من استجابة هذا الطلب: انسخ "id" وضعه في @adminMaintId بالأسفل
 POST {{host}}/api/Maintenance
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -72,10 +86,12 @@ Content-Type: application/json
 }
 
 ###
+# ⚠️ ضع هنا رقم id طلب الصيانة من الاستجابة أعلاه:
+@adminMaintId = 1
 
 # الإكمال — لاحظ: لا billedToTenant ← التكلفة تصبح مصروفاً تلقائياً
-PUT {{host}}/api/Maintenance/{{adminMaint.response.body.$.data.id}}/status
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+PUT {{host}}/api/Maintenance/{{adminMaintId}}/status
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -86,7 +102,7 @@ Content-Type: application/json
 ###
 # ✅ تحقق: ابحث في المصروفات عن وصف "تكلفة تنفيذ صيانة"
 GET {{host}}/api/Reports/expenses
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ═══════════════════════════════════════════════════════════
  🅱️ السيناريو 2: عرض بموافقة المستأجر (Offer) — دورة كاملة
@@ -96,7 +112,7 @@ Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
 # 2.1 إنشاء صيانة مرتبطة بمستأجر (تكلفة 1000)
 # @name offerMaint
 POST {{host}}/api/Maintenance
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -112,8 +128,11 @@ Content-Type: application/json
 
 # 2.2 الإكمال + العرض: حمّل 1500 كعرض (billingType=2) — في هذه اللحظة:
 #     ❌ لا مصروف بعد  ❌ لا مديونية على المستأجر  ✅ إشعار وصل له فوراً
-PUT {{host}}/api/Maintenance/{{offerMaint.response.body.$.data.id}}/status
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+# ⚠️ ضع هنا رقم id طلب صيانة العرض من استجابة 2.1:
+@offerMaintId = 2
+
+PUT {{host}}/api/Maintenance/{{offerMaintId}}/status
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -129,7 +148,7 @@ Content-Type: application/json
 
 # 2.3 جلب العروض المعلقة (للإدارة) — انسخ id التحميل من الاستجابة
 GET {{host}}/api/Maintenance/charges?status=1
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 # ⚠️ ضع رقم التحميل هنا (من استجابة الطلب السابق):
@@ -150,30 +169,31 @@ Content-Type: application/json
 }
 
 ###
-# tenantId للمستأجر مستخرج تلقائياً: {{loginTenant.response.body.$.data.tenantId}}
+# 📋 انسخ من الاستجابة: قيمة "token" → في @tenantToken بالأعلى
+#                        وقيمة "tenantId" → في @tenantPortalId بالأعلى
 
 # 2.4 المستأجر يرى العروض المعلقة — يجب أن يظهر عرض الـ 1500
-GET {{host}}/api/TenantPortal/maintenance/{{loginTenant.response.body.$.data.tenantId}}/charges/pending
-Authorization: Bearer {{loginTenant.response.body.$.data.token}}
+GET {{host}}/api/TenantPortal/maintenance/{{tenantPortalId}}/charges/pending
+Authorization: Bearer {{tenantToken}}
 
 ###
 
 # 2.5 ✅ المستأجر يقبل العرض — الآن:
 #     يُسجَّل مصروف 1000 تلقائياً + تدخل 1500 مديونية في كشف حسابه
-POST {{host}}/api/TenantPortal/maintenance/{{loginTenant.response.body.$.data.tenantId}}/charges/{{chargeId}}/accept
-Authorization: Bearer {{loginTenant.response.body.$.data.token}}
+POST {{host}}/api/TenantPortal/maintenance/{{tenantPortalId}}/charges/{{chargeId}}/accept
+Authorization: Bearer {{tenantToken}}
 
 ###
 
 # 2.6 تحقق: ظهرت المديونية في كشف حساب المستأجر
-GET {{host}}/api/TenantPortal/statement/{{loginTenant.response.body.$.data.tenantId}}
-Authorization: Bearer {{loginTenant.response.body.$.data.token}}
+GET {{host}}/api/TenantPortal/statement/{{tenantPortalId}}
+Authorization: Bearer {{tenantToken}}
 
 ###
 
 # 2.7 💵 سداد جزئي: نحصّل 500 فقط من الـ 1500 (يتبقى 1000 مؤكد غير مسدد)
 POST {{host}}/api/Maintenance/charges/{{chargeId}}/settle
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -185,7 +205,7 @@ Content-Type: application/json
 
 # 2.8 إكمال السداد: باقي المبلغ (بدون amount = كامل المتبقي 1000)
 POST {{host}}/api/Maintenance/charges/{{chargeId}}/settle
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -197,7 +217,7 @@ Content-Type: application/json
 
 # ✅ تحقق نهائي: التحميل الآن حالة 4 (مسدد)
 GET {{host}}/api/Maintenance/charges
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ═══════════════════════════════════════════════════════════
  🅲 السيناريو 3: تحميل إجباري (Mandatory) + رفض عرض (اختياري)
@@ -207,7 +227,7 @@ Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
 #     مصروف + مديونية + إشعار المستأجر (بدون انتظار موافقة)
 # @name mandatoryMaint
 POST {{host}}/api/Maintenance
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -221,8 +241,11 @@ Content-Type: application/json
 
 ###
 
-PUT {{host}}/api/Maintenance/{{mandatoryMaint.response.body.$.data.id}}/status
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+# ⚠️ ضع هنا رقم id طلب الصيانة الإجبارية من الاستجابة السابقة:
+@mandatoryMaintId = 3
+
+PUT {{host}}/api/Maintenance/{{mandatoryMaintId}}/status
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -236,7 +259,7 @@ Content-Type: application/json
 ###
 # ✅ تحقق: ظهر التحميل مباشرة "مؤكد" غير مسدد
 GET {{host}}/api/Maintenance/charges?unsettledOnly=true
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 # ⚠️ من استجابة الطلب السابق: انسخ رقم (id) التحميل الإجباري غير المسدد وضعه هنا:
@@ -247,7 +270,7 @@ Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
 # ---------------------------------------------------------
 # @name rejectOfferMaint
 POST {{host}}/api/Maintenance
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -261,8 +284,11 @@ Content-Type: application/json
 
 ###
 
-PUT {{host}}/api/Maintenance/{{rejectOfferMaint.response.body.$.data.id}}/status
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+# ⚠️ ضع هنا رقم id طلب الصيانة من الاستجابة السابقة:
+@rejectOfferMaintId = 4
+
+PUT {{host}}/api/Maintenance/{{rejectOfferMaintId}}/status
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -276,14 +302,14 @@ Content-Type: application/json
 ###
 # 📋 من قائمة العروض المعلقة: انسخ id العرض الجديد (400) وضعه هنا:
 GET {{host}}/api/Maintenance/charges?status=1
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 @rejectChargeId = 3
 
 # ❌ المستأجر يرفض العرض (مع سبب) — النتيجة: لا مصروف + لا مديونية + إشعار للإدارة
-POST {{host}}/api/TenantPortal/maintenance/{{loginTenant.response.body.$.data.tenantId}}/charges/{{rejectChargeId}}/reject
-Authorization: Bearer {{loginTenant.response.body.$.data.token}}
+POST {{host}}/api/TenantPortal/maintenance/{{tenantPortalId}}/charges/{{rejectChargeId}}/reject
+Authorization: Bearer {{tenantToken}}
 Content-Type: application/json
 
 {
@@ -298,7 +324,7 @@ Content-Type: application/json
 
 # 4.1 دفعة عادية (كالوضع القديم — بدون allocationMode)
 POST {{host}}/api/Payments
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -315,7 +341,7 @@ Content-Type: application/json
 #      دفعة 500 → تسدد الـ 300 كاملة + الفائض 200 يبقى رصيداً في محفظته!
 #      ⚠️ يستخدم @mandatoryChargeId (وليس @chargeId لأنه سُدد في السيناريو 2)
 POST {{host}}/api/Payments
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -331,13 +357,13 @@ Content-Type: application/json
 ###
 # ✅ تحقق من الرصيد — يجب أن يظهر الـ 200 في الرصيد الدائن
 GET {{host}}/api/TenantAccount/{{tenantId}}/statement
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 # 4.3 💳 دفعة على الحساب: كاملة رصيد (النموذج المسبق — تُخصم آلياً شهرياً)
 POST {{host}}/api/Payments
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
 {
@@ -353,7 +379,7 @@ Content-Type: application/json
 ###
 # ✅ تحقق: الرصيد زاد بـ 4000 والدفعة مسجلة AdvancePayment
 GET {{host}}/api/TenantAccount/{{tenantId}}/statement
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ═══════════════════════════════════════════════════════════
  📊 الخطوة الأخيرة: التقارير المنفصلة
@@ -361,18 +387,18 @@ Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
 
 # ملخص الإيرادات: إيجار / أخرى + صافي الربح + تحميلات غير محصلة
 GET {{host}}/api/Reports/income-summary
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 # لوحة المؤشرات: راقب ThisMonthRentRevenue و ThisMonthOtherRevenue
 GET {{host}}/api/Reports/dashboard
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
 
 # الأداء السنوي: كل شهر فيه rentRevenue و otherRevenue منفصلين
 GET {{host}}/api/Reports/financial-performance/2026
-Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Authorization: Bearer {{adminToken}}
 
 ###
