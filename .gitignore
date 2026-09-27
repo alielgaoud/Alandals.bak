@@ -1,5 +1,5 @@
-.vs/
-**/bin/
-**/obj/
-*.user
-*.suo
+# ═══ الأسرار لا تُرفع أبداً ═══
+appsettings.Development.json
+appsettings.*.Local.json
+*.pfx
+*.pem

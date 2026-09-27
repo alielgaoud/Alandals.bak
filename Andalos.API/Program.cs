@@ -20,7 +20,8 @@ var builder = WebApplication.CreateBuilder(args);
 // 2. Database
 // ═══════════════════════════════════════════════════════════
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
+// 🛡️ تجميع السياقات (Pooling) لتحمّل الضغط: إعادة استخدام بدل إنشاء سياق لكل طلب
+builder.Services.AddDbContextPool<AppDbContext>(options =>
 {
     options.UseSqlServer(connectionString, sqlOptions =>
     {

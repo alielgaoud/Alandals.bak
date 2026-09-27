@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- 🔐 معرّف مخزن أسرار التطوير (يُخزَّن خارج المستودع في %APPDATA%) -->
+    <UserSecretsId>a3f8c2e1-7b4d-4e9a-9c6f-2d1b8e5a7c30</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
