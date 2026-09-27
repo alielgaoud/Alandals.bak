@@ -238,6 +238,60 @@ Content-Type: application/json
 GET {{host}}/api/Maintenance/charges?unsettledOnly=true
 Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
 
+###
+# ⚠️ من استجابة الطلب السابق: انسخ رقم (id) التحميل الإجباري غير المسدد وضعه هنا:
+@mandatoryChargeId = 2
+
+# ---------------------------------------------------------
+# 🧪 (اختياري) تجربة رفض عرض: أنشئ عرضاً جديداً ثم ارفضه
+# ---------------------------------------------------------
+# @name rejectOfferMaint
+POST {{host}}/api/Maintenance
+Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "unitId": {{unitId}},
+  "tenantId": {{tenantId}},
+  "type": 5,
+  "priority": 1,
+  "description": "تجربة: صيانة عرض ثانٍ (سيتم رفضه)",
+  "cost": 200
+}
+
+###
+
+PUT {{host}}/api/Maintenance/{{rejectOfferMaint.response.body.$.data.id}}/status
+Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "status": 3,
+  "cost": 200,
+  "billedToTenant": true,
+  "billedAmount": 400,
+  "billingType": 2
+}
+
+###
+# 📋 من قائمة العروض المعلقة: انسخ id العرض الجديد (400) وضعه هنا:
+GET {{host}}/api/Maintenance/charges?status=1
+Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
+
+###
+@rejectChargeId = 3
+
+# ❌ المستأجر يرفض العرض (مع سبب) — النتيجة: لا مصروف + لا مديونية + إشعار للإدارة
+POST {{host}}/api/TenantPortal/maintenance/{{loginTenant.response.body.$.data.tenantId}}/charges/{{rejectChargeId}}/reject
+Authorization: Bearer {{loginTenant.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "reason": "التكلفة أعلى من المتوقع — سأعيّن ورشة خاصة"
+}
+
+###
+
 ═══════════════════════════════════════════════════════════
  💰 السيناريو 4: توجيه الدفعات (تسوية / على الحساب)
 ═══════════════════════════════════════════════════════════
@@ -257,8 +311,9 @@ Content-Type: application/json
 
 ###
 
-# 4.2 🎯 تسوية الدفعة بتحميل محدد (التجربة: 300 إجباري من السيناريو 3)
+# 4.2 🎯 تسوية الدفعة بتحميل محدد (نستخدم التحميل الإجباري 300 من السيناريو 3)
 #      دفعة 500 → تسدد الـ 300 كاملة + الفائض 200 يبقى رصيداً في محفظته!
+#      ⚠️ يستخدم @mandatoryChargeId (وليس @chargeId لأنه سُدد في السيناريو 2)
 POST {{host}}/api/Payments
 Authorization: Bearer {{loginAdmin.response.body.$.data.token}}
 Content-Type: application/json
@@ -269,7 +324,7 @@ Content-Type: application/json
   "amount": 500,
   "paymentMethod": 1,
   "allocationMode": 2,
-  "chargeId": {{chargeId}},
+  "chargeId": {{mandatoryChargeId}},
   "notes": "سداد التحميل + فائض للمحفظة"
 }
 
