@@ -124,6 +124,36 @@ namespace Andalos.API.Services
                     dto.Notes ?? $"تحميل تكلفة صيانة ({request.RequestNumber})", dto.BillingType);
             }
 
+            // 👈 جديد: الصيانة على الإدارة (بدون تحميل على مستأجر) —
+            // تسجيل التكلفة الفعلية كمصروف تلقائياً عند الإكمال (تعمل حتى لو لم يكن هناك مستأجر أصلاً)
+            if (dto.Status == MaintenanceStatus.Completed
+                && !request.BilledToTenant
+                && dto.RecordCostExpense
+                && request.Cost > 0)
+            {
+                bool costExpenseExists = await _db.Expenses
+                    .AnyAsync(e => e.MaintenanceRequestId == request.Id && e.IsActive);
+
+                if (!costExpenseExists)
+                {
+                    string expenseNumber = await _numberGen.GenerateAsync("expense");
+
+                    _db.Expenses.Add(new Expense
+                    {
+                        ExpenseNumber = expenseNumber,
+                        UnitId = request.UnitId,
+                        TenantId = request.TenantId, // قد يكون null — صيانة عامة بدون مستأجر
+                        IsChargedToTenant = false, // على الإدارة
+                        ExpenseType = ExpenseType.Maintenance,
+                        Amount = request.Cost,
+                        ExpenseDate = DateTimeHelper.LibyaNow,
+                        Description = $"تكلفة تنفيذ صيانة ({request.RequestNumber}): {request.Description}",
+                        MaintenanceRequestId = request.Id,
+                        IsActive = true
+                    });
+                }
+            }
+
             await _db.SaveChangesAsync();
 
             // 🔔 إشعار المستأجر بتحديث حالة الصيانة
