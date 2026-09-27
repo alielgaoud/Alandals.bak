@@ -132,7 +132,9 @@ namespace Andalos.API.Controllers
             {
                 var result = await _service.SettleChargeAsync(id, dto);
                 return Ok(ApiResponseDto<TenantChargeDto>.SuccessResponse(result,
-                    $"تم تحصيل {result.SettledAmount:N2} د.ل وتسجيله كإيراد صيانة بنجاح"));
+                    result.IsSettled
+                        ? $"تم تحصيل {result.SettledAmount:N2} د.ل وسُدد التحميل بالكامل"
+                        : $"تم تحصيل {result.SettledAmount:N2} د.ل من أصل {result.Amount:N2} د.ل (سداد جزئي)"));
             }
             catch (KeyNotFoundException ex)
             {

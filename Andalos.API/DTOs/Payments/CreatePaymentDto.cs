@@ -22,6 +22,13 @@ namespace Andalos.API.DTOs.Payments
         public DateTime PaymentDate { get; set; } = DateTime.Now;
 
         public string? Notes { get; set; }
+
+        // 👈 جديد: توجيه الدفعة (اختياري)
+        // 1 = عادية (افتراضي) / 2 = تسوية بتحميل محدد / 3 = على الحساب (رصيد)
+        public PaymentAllocationMode AllocationMode { get; set; } = PaymentAllocationMode.Regular;
+
+        // رقم التحميل المستهدف (TenantCharge) — مطلوب فقط عند AllocationMode = 2
+        public int? ChargeId { get; set; }
     }
     public class PaymentResponseDto
     {

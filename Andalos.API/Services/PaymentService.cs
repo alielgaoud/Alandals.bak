@@ -70,18 +70,77 @@ namespace Andalos.API.Services
 
             string receiptNumber = await GenerateReceiptNumberAsync();
 
+            var tenant = contract.Tenant;
+            string? allocationNote = null;
+            decimal overflowToBalance = 0;
+
+            // ============================================================
+            // 👈 جديد: توجيه الدفعة حسب النمط المختار
+            // ============================================================
+            if (dto.AllocationMode == PaymentAllocationMode.SettleCharge)
+            {
+                // ===== تسوية الدفعة بتحميل معين (جزئياً أو كلياً) =====
+                if (dto.ChargeId == null)
+                    throw new InvalidOperationException("تحديد رقم التحميل (chargeId) مطلوب عند وضع التسوية");
+
+                var targetCharge = await _db.TenantCharges
+                    .FirstOrDefaultAsync(ch => ch.Id == dto.ChargeId.Value && ch.IsActive);
+
+                if (targetCharge == null)
+                    throw new KeyNotFoundException("التحميل المحدد غير موجود");
+
+                if (targetCharge.TenantId != contract.TenantId)
+                    throw new UnauthorizedAccessException("هذا التحميل لا يخص مستأجر هذا العقد");
+
+                if (targetCharge.ChargeStatus != ChargeStatus.Approved)
+                    throw new InvalidOperationException("يمكن التسوية فقط للتحميلات المؤكدة (المعلقة تنتظر موافقة المستأجر، والمرفوضة والمسددة لا تُقبل)");
+
+                decimal chargeRemaining = targetCharge.Amount - targetCharge.SettledAmount;
+                if (chargeRemaining <= 0)
+                    throw new InvalidOperationException("هذا التحميل مسدد بالكامل");
+
+                // 👈 التسوية الجزئية: نسدد ما تكفيه الدفعة والفائض يبقى رصيداً بحسابه
+                decimal settledPart = Math.Min(dto.Amount, chargeRemaining);
+                overflowToBalance = dto.Amount - settledPart;
+
+                targetCharge.SettledAmount += settledPart;
+                if (targetCharge.SettledAmount >= targetCharge.Amount)
+                {
+                    targetCharge.IsSettled = true;
+                    targetCharge.ChargeStatus = ChargeStatus.Paid;
+                    targetCharge.SettlementReceiptNumber = receiptNumber;
+                }
+                targetCharge.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                allocationNote = $"تسوية تحميل رقم ({targetCharge.ChargeNumber}) بمبلغ {settledPart:N2} د.ل";
+                if (overflowToBalance > 0)
+                    allocationNote += $" — والفائض {overflowToBalance:N2} د.ل أُودع رصيداً بحسابه";
+            }
+            else if (dto.AllocationMode == PaymentAllocationMode.OnAccount)
+            {
+                // ===== دفعة على الحساب: تُودع رصيداً وتُخصم لاحقاً تلقائياً =====
+                if (tenant == null)
+                    throw new InvalidOperationException("لا يوجد مستأجر مرتبط بهذا العقد");
+
+                tenant.CreditBalance += dto.Amount;
+                allocationNote = $"إيداع دفعة على الحساب — الرصيد بعد الإيداع: {tenant.CreditBalance:N2} د.ل";
+            }
+
             var payment = new Payment
             {
                 ReceiptNumber = receiptNumber,
                 ContractId = dto.ContractId,
                 TenantId = contract.TenantId,
                 UnitId = contract.UnitId,
-                PaymentType = dto.PaymentType,
+                // 👈 على الحساب = توحيداً مع آلية الرصيد الحالية (تُعامل كدفعة مقدمة)
+                PaymentType = dto.AllocationMode == PaymentAllocationMode.OnAccount
+                    ? PaymentType.AdvancePayment
+                    : dto.PaymentType,
                 Amount = dto.Amount,
                 PaymentMethod = dto.PaymentMethod,
                 ReferenceNumber = dto.ReferenceNumber,
                 PaymentDate = dto.PaymentDate,
-                Notes = dto.Notes
+                Notes = CombineNotes(allocationNote, dto.Notes)
             };
 
             _db.Payments.Add(payment);
@@ -193,6 +252,14 @@ namespace Andalos.API.Services
             int year = DateTime.Now.Year;
             int count = await _db.Payments.CountAsync(p => p.PaymentDate.Year == year);
             return $"REC-{year}-{(count + 1):D5}";
+        }
+
+        // 👈 دمج ملاحظة التوجيه مع ملاحظات المحاسب
+        private static string? CombineNotes(string? allocationNote, string? userNotes)
+        {
+            if (allocationNote == null) return userNotes;
+            if (string.IsNullOrWhiteSpace(userNotes)) return allocationNote;
+            return $"{allocationNote} — {userNotes}";
         }
 
         private static PaymentResponseDto MapToDto(Payment p)

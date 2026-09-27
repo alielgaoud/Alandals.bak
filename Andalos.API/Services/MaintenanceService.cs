@@ -291,6 +291,11 @@ namespace Andalos.API.Services
             if (remaining <= 0)
                 throw new InvalidOperationException("لا يوجد مبلغ متبقٍ للسداد");
 
+            // 👈 السداد الجزئي: المبلغ المحدد أو كامل المتبقي
+            decimal settleAmount = dto.Amount.HasValue ? Math.Min(dto.Amount.Value, remaining) : remaining;
+            if (settleAmount <= 0)
+                throw new InvalidOperationException("مبلغ السداد غير صالح");
+
             // البحث عن العقد الساري للمستأجر (مطلوب لإنشاء الدفعة)
             var activeContract = await _db.Contracts
                 .FirstOrDefaultAsync(c => c.TenantId == charge.TenantId && c.Status == ContractStatus.Active && c.IsActive);
@@ -307,7 +312,7 @@ namespace Andalos.API.Services
                 TenantId = charge.TenantId,
                 UnitId = charge.UnitId ?? activeContract.UnitId,
                 PaymentType = PaymentType.Maintenance, // 👈 إيراد صيانة (غير الإيجار)
-                Amount = remaining,
+                Amount = settleAmount,
                 PaymentMethod = dto.PaymentMethod,
                 ReferenceNumber = dto.ReferenceNumber,
                 PaymentDate = dto.PaymentDate,
@@ -317,9 +322,13 @@ namespace Andalos.API.Services
 
             _db.Payments.Add(payment);
 
-            charge.SettledAmount = charge.Amount;
-            charge.IsSettled = true;
-            charge.ChargeStatus = ChargeStatus.Paid;
+            // 👈 التحديث الجزئي: يبقى "مؤكد" مع مبلغ مسدد جزئي — أو يتحول "مسدد" بالكامل
+            charge.SettledAmount += settleAmount;
+            if (charge.SettledAmount >= charge.Amount)
+            {
+                charge.IsSettled = true;
+                charge.ChargeStatus = ChargeStatus.Paid;
+            }
             charge.SettlementReceiptNumber = receiptNumber;
             charge.UpdatedAt = DateTimeHelper.LibyaNow;
 
@@ -329,7 +338,7 @@ namespace Andalos.API.Services
             _ = _notification.SendToTenantAsync(
                 charge.TenantId,
                 "تم سداد المتعلقات المالية ✅",
-                $"تم استلام مبلغ {remaining:N2} د.ل كسداد للتحميل رقم {charge.ChargeNumber} بموجب الإيصال {receiptNumber}.",
+                $"تم استلام مبلغ {settleAmount:N2} د.ل كسداد للتحميل رقم {charge.ChargeNumber} بموجب الإيصال {receiptNumber}.",
                 NotificationType.PaymentReceived,
                 "/portal/payments",
                 charge.Id

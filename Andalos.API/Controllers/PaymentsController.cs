@@ -56,6 +56,16 @@ namespace Andalos.API.Controllers
             {
                 return NotFound(ApiResponseDto<PaymentResponseDto>.FailResponse(ex.Message));
             }
+            catch (InvalidOperationException ex)
+            {
+                // 👈 أخطاء قواعد التسوية/التوجيه (تحميل مسدد، حالة غير صالحة، ...)
+                return BadRequest(ApiResponseDto<PaymentResponseDto>.FailResponse(ex.Message));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // 👈 التحميل لا يخص مستأجر هذا العقد
+                return StatusCode(403, ApiResponseDto<PaymentResponseDto>.FailResponse(ex.Message));
+            }
         }
 
         // DELETE: api/payments/5

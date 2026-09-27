@@ -69,6 +69,10 @@ namespace Andalos.API.DTOs.Maintenance
     {
         public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
 
+        // 👈 جديد: سداد جزئي — المبلغ المطلوب تحصيله الآن (افتراضياً كامل المتبقي)
+        [Range(0.01, double.MaxValue, ErrorMessage = "مبلغ السداد يجب أن يكون أكبر من صفر")]
+        public decimal? Amount { get; set; }
+
         public string? ReferenceNumber { get; set; } // رقم التحويل/الشيك إن وجد
 
         public DateTime PaymentDate { get; set; } = DateTime.Now;

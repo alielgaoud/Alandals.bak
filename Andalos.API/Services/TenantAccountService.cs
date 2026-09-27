@@ -23,11 +23,16 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGenerator;
+        private readonly INotificationService _notification; // 👈 جديد: لإشعار اقتراب نفاد الرصيد
 
-        public TenantAccountService(AppDbContext db, INumberGeneratorService numberGenerator)
+        public TenantAccountService(
+            AppDbContext db,
+            INumberGeneratorService numberGenerator,
+            INotificationService notification)
         {
             _db = db;
             _numberGenerator = numberGenerator;
+            _notification = notification;
         }
 
         // =====================================================
@@ -148,6 +153,41 @@ namespace Andalos.API.Services
                         IsActive = true
                     };
                     _db.Payments.Add(partialPayment);
+                }
+
+                // ============================================================
+                // 👈 جديد: نموذج الإيجار المسبق — إشعار "الشهر القادم عليك استحقاق"
+                // إذا الرصيد بعد الخصم لن يكفي استحقاق الشهر القادم → تنبيه فوري
+                // (مع منع التكرار: إشعار واحد شهرياً لكل مستأجر)
+                // ============================================================
+                if (tenant.CreditBalance < totalMonthlyDue)
+                {
+                    bool alreadyWarnedThisMonth = await _db.Notifications
+                        .AnyAsync(n => n.TenantId == tenant.Id
+                                    && n.Type == NotificationType.PaymentReminder
+                                    && n.CreatedAt >= startOfMonth
+                                    && n.IsActive);
+
+                    if (!alreadyWarnedThisMonth)
+                    {
+                        // 🔔 للمستأجر
+                        await _notification.SendToTenantAsync(
+                            tenant.Id,
+                            "تنبيه: الشهر القادم عليك استحقاق 💰",
+                            $"رصيدك الحالي ({tenant.CreditBalance:N2} د.ل) لا يكفي استحقاق الشهر القادم ({totalMonthlyDue:N2} د.ل). نرجو إيداع رصيد جديد في أي وقت لتغطية الاستحقاقات القادمة.",
+                            NotificationType.PaymentReminder,
+                            "/portal/payments"
+                        );
+
+                        // 🔔 للمحاسبين والإدارة للمتابعة
+                        await _notification.SendToGroupAsync(
+                            "Accountants",
+                            "رصيد مستأجر على وشك النفاد ⚠️",
+                            $"رصيد المستأجر {tenant.FullName} ({tenant.CreditBalance:N2} د.ل) لن يكفي استحقاق الشهر القادم ({totalMonthlyDue:N2} د.ل) — يحتاج إيداعاً جديداً.",
+                            NotificationType.PaymentReminder,
+                            $"/admin/tenants/{tenant.Id}"
+                        );
+                    }
                 }
             }
 
