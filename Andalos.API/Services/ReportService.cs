@@ -304,7 +304,7 @@ namespace Andalos.API.Services
                 query = query.Where(p => p.PaymentDate >= fromDate.Value.Date);
 
             if (toDate.HasValue)
-                query = query.Where(p => p.PaymentDate <= toDate.Value.Date);
+                query = query.Where(p => p.PaymentDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1)); // 👈 شامل نهاية اليوم
 
             return await query
                 .OrderByDescending(p => p.PaymentDate)
@@ -351,7 +351,7 @@ namespace Andalos.API.Services
                 query = query.Where(e => e.ExpenseDate >= fromDate.Value.Date);
 
             if (toDate.HasValue)
-                query = query.Where(e => e.ExpenseDate <= toDate.Value.Date);
+                query = query.Where(e => e.ExpenseDate <= toDate.Value.Date.AddDays(1).AddSeconds(-1)); // 👈 شامل نهاية اليوم
 
             return await query
                 .OrderByDescending(e => e.ExpenseDate)
@@ -380,7 +380,8 @@ namespace Andalos.API.Services
         public async Task<IncomeSummaryDto> GetIncomeSummaryAsync(DateTime? fromDate, DateTime? toDate)
         {
             var from = (fromDate ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1)).Date;
-            var to = (toDate ?? DateTime.Today).Date;
+            // 👈 إصلاح: نهاية اليوم (23:59:59) بدل منتصف الليل — حتى لا تُستبعد دفعات اليوم نفسه
+            var to = (toDate?.Date ?? DateTime.Today).AddDays(1).AddSeconds(-1);
 
             var payments = await _db.Payments
                 .Where(p => p.IsActive && p.PaymentDate >= from && p.PaymentDate <= to)
