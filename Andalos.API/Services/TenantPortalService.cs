@@ -4,6 +4,8 @@ using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Portal;
+// 👈 حسم التضارب: TenantAccountStatementDto يشير لنسخة Portal (وTenants تُستخدم عبر AccountTransactionDto)
+using TenantAccountStatementDto = Andalos.API.DTOs.Portal.TenantAccountStatementDto;
 using Andalos.API.DTOs.Users;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
