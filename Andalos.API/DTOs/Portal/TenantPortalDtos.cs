@@ -17,6 +17,15 @@ namespace Andalos.API.DTOs.Portal
         public decimal RemainingBalance { get; set; }  // المتبقي عليه
         public List<ContractResponseDto> ActiveContracts { get; set; } = new();
         public List<PaymentResponseDto> PaymentHistory { get; set; } = new();
+
+        // 👈 جديد: كامل الحركات (مدين + دائن) — من كشف الحساب الشامل
+        public List<Andalos.API.DTOs.Tenants.AccountTransactionDto> Transactions { get; set; } = new();
+
+        // 👈 جديد: الإجماليات والرصيد الجاري
+        public decimal TotalDebit { get; set; } // إجمالي المدين (المستحقات)
+        public decimal TotalCredit { get; set; } // إجمالي الدائن (المدفوعات)
+        public decimal CurrentBalance { get; set; } // الرصيد الحالي (+ دائن / - مدين)
+        public string BalanceStatus { get; set; } = string.Empty; // Debtor / Creditor / Settled
     }
 
     // 2. رفع طلب صيانة من المستأجر

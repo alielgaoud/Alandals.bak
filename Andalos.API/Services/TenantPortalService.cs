@@ -2,6 +2,7 @@
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
+using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Portal;
 using Andalos.API.DTOs.Users;
 using Andalos.API.DTOs.Visitors;
@@ -20,14 +21,18 @@ namespace Andalos.API.Services
         private readonly IMaintenanceService _maintenanceService;
         private readonly IVisitorPassService _passService;
 
+        private readonly ITenantAccountService _tenantAccountService; // 👈 جديد: لكشف الحساب الشامل
+
         public TenantPortalService(
             AppDbContext db,
             IMaintenanceService maintenanceService,
-            IVisitorPassService passService)
+            IVisitorPassService passService,
+            ITenantAccountService tenantAccountService)
         {
             _db = db;
             _maintenanceService = maintenanceService;
             _passService = passService;
+            _tenantAccountService = tenantAccountService;
         }
 
         public async Task<TenantAccountStatementDto> GetMyStatementAsync(int tenantId)
@@ -74,7 +79,7 @@ namespace Andalos.API.Services
 
             decimal totalPaid = payments.Sum(p => p.Amount);
 
-            return new TenantAccountStatementDto
+            var statement = new TenantAccountStatementDto
             {
                 TenantId = tenant.Id,
                 TenantName = tenant.FullName,
@@ -119,6 +124,19 @@ namespace Andalos.API.Services
                     Notes = p.Notes
                 }).ToList()
             };
+
+            // 👈 جديد: جلب كامل الحركات (مدين + دائن) من كشف الحساب الشامل
+            var fullStatement = await _tenantAccountService.GetStatementAsync(tenantId);
+            if (fullStatement != null)
+            {
+                statement.Transactions = fullStatement.Transactions;
+                statement.TotalDebit = fullStatement.TotalDebit;
+                statement.TotalCredit = fullStatement.TotalCredit;
+                statement.CurrentBalance = fullStatement.CurrentBalance;
+                statement.BalanceStatus = fullStatement.BalanceStatus;
+            }
+
+            return statement;
         }
 
         public async Task<List<ContractResponseDto>> GetMyContractsAsync(int tenantId)
