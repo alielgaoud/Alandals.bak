@@ -116,10 +116,14 @@ namespace Andalos.API.Services
             // 👈 جديد: تحميل المستأجر تلقائياً عند الإكمال (إذا طُلب ذلك)
             if (dto.Status == MaintenanceStatus.Completed
                 && dto.BilledToTenant
-                && !request.BilledToTenant
-                && request.TenantId != null
                 && dto.BilledAmount > 0)
             {
+                if (request.TenantId == null)
+                    throw new InvalidOperationException("لا يمكن التحميل على المستأجر: طلب الصيانة غير مرتبط بأي مستأجر");
+
+                if (request.BilledToTenant)
+                    throw new InvalidOperationException($"تم تحميل هذا الطلب مسبقاً بمبلغ {request.BilledAmount:N2} د.ل — لا يمكن التحميل مرتين");
+
                 await ApplyChargeInternalAsync(request, dto.BilledAmount, dto.RecordCostExpense,
                     dto.Notes ?? $"تحميل تكلفة صيانة ({request.RequestNumber})", dto.BillingType);
             }

@@ -63,11 +63,19 @@ namespace Andalos.API.Controllers
         [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateMaintenanceStatusDto dto)
         {
-            var result = await _service.UpdateStatusAsync(id, dto);
-            if (!result)
-                return NotFound(ApiResponseDto<bool>.FailResponse("طلب الصيانة غير موجود"));
+            try
+            {
+                var result = await _service.UpdateStatusAsync(id, dto);
+                if (!result)
+                    return NotFound(ApiResponseDto<bool>.FailResponse("طلب الصيانة غير موجود"));
 
-            return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث حالة الصيانة بنجاح"));
+                return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث حالة الصيانة بنجاح"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // 👈 أخطاء قواعد التحميل (طلب بلا مستأجر، محمّل مسبقاً، ...)
+                return BadRequest(ApiResponseDto<bool>.FailResponse(ex.Message));
+            }
         }
 
         [HttpDelete("{id}")]
