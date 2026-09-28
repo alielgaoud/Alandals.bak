@@ -152,7 +152,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 إشعار المستأجر فور تسجيل السداد في النظام
-            _ = _notification.SendToTenantAsync(
+            await _notification.SendToTenantAsync(
                 contract.TenantId,
                 "استلام دفعة مالية ناجح 🧾",
                 $"تم استلام مبلغ {dto.Amount:N2} د.ل بنجاح بموجب الإيصال رقم {receiptNumber}.",
@@ -162,7 +162,7 @@ namespace Andalos.API.Services
             );
 
             // 🔔 إشعار المحاسبين وإدارة المجمع بوجود دفعة جديدة داخل اللوحة
-            _ = _notification.SendToGroupAsync(
+            await _notification.SendToGroupAsync(
                 "Accountants",
                 "دفعة مالية جديدة 💰",
                 $"قام المستأجر {contract.Tenant?.FullName} بسداد مبلغ {dto.Amount:N2} د.ل للمحل {contract.Unit?.UnitNumber}.",

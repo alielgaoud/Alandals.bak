@@ -38,7 +38,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 إشعار طاقم الإدارة بوجود شكوى جديدة تحتاج لمعاينة
-            _ = _notification.SendToAllAdminsAsync(
+            await _notification.SendToAllAdminsAsync(
                 "شكوى جديدة تحتاج مراجعة ⚠️",
                 $"قام المستأجر {tenant.FullName} بتقديم شكوى بخصوص: {dto.Subject}",
                 NotificationType.NewComplaint,
@@ -197,7 +197,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 إشعار المستأجر بوجود رد جديد على الشكوى
-            _ = _notification.SendToTenantAsync(
+            await _notification.SendToTenantAsync(
                 complaint.TenantId,
                 "تم الرد على شكواكم 💬",
                 $"مرحباً، قامت الإدارة بالرد على الشكوى المقدمة منكم: '{complaint.Subject}'.",
@@ -209,7 +209,7 @@ namespace Andalos.API.Services
             // 🔔 إشعار إضافي إذا تم حل الشكوى وإغلاقها
             if (dto.MarkAsResolved)
             {
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     complaint.TenantId,
                     "تم حل الشكوى وإغلاقها ✅",
                     $"نرجو أن نكون قد وفقنا في خدمتكم، تم حل شكواكم '{complaint.Subject}' وإغلاق الملف.",
@@ -244,7 +244,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 إشعار المستأجر بتغيير حالة الشكوى من قبل الإدارة
-            _ = _notification.SendToTenantAsync(
+            await _notification.SendToTenantAsync(
                 complaint.TenantId,
                 "تحديث حالة الشكوى 📋",
                 $"تم تعديل حالة الشكوى الخاصة بكم إلى: ({parsedStatus}).",

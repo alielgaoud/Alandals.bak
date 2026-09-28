@@ -36,7 +36,7 @@ export default function (data) {
   const H = authHeaders(data.token);
 
   // ── القراءة (75% من الدورة) ──
-  let res = http.get(`${BASE}/api/VisitorPasses`, { headers: H, tags: { name: 'list-passes' } });
+  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
   check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
 
   res = http.get(`${BASE}/api/TenantAccounts/${data.tenantId}/statement`, { headers: H, tags: { name: 'statement' } });

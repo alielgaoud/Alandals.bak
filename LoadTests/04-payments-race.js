@@ -10,6 +10,7 @@ import { check } from 'k6';
 import { BASE, login, authHeaders, firstId } from './lib.js';
 
 export const options = {
+  setupTimeout: '120s', // السيرفر قد يكون منشغلاً بصرّ طابور السيناريو السابق
   vus: 20,
   iterations: 40, // 40 دفعة متزامنة القوة القصوى
   thresholds: {

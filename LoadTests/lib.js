@@ -35,7 +35,8 @@ export function firstId(token, url, tag) {
   if (res.status === 0) return null;
   let body = null;
   try { body = res.json(); } catch (_) { return null; }
-  const arr = body && body.data;
+  let arr = body && body.data;
+  if (arr && Array.isArray(arr.items)) arr = arr.items; // دعم شكل الترقيم {items,...}
   if (Array.isArray(arr) && arr.length > 0 && arr[0] && arr[0].id != null) return arr[0].id;
   return null;
 }

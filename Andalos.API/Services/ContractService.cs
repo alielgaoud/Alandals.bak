@@ -135,7 +135,7 @@ namespace Andalos.API.Services
                     .FirstAsync(c => c.Id == contract.Id);
 
                 // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     savedContract.TenantId,
                     "تفعيل عقد إيجار جديد 📜",
                     $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
@@ -191,7 +191,7 @@ namespace Andalos.API.Services
                 // 🔔 إشعار عند فسخ أو إنهاء العقد
                 if (newStatus == ContractStatus.Terminated)
                 {
-                    _ = _notification.SendToTenantAsync(
+                    await _notification.SendToTenantAsync(
                         contract.TenantId,
                         "تم إنهاء عقد الإيجار ⚠️",
                         $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
@@ -343,7 +343,7 @@ namespace Andalos.API.Services
                     .FirstAsync(c => c.Id == newContract.Id);
 
                 // 🔔 إشعار بتجديد العقد بنجاح
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     savedContract.TenantId,
                     "تم تجديد عقد الإيجار بنجاح 🔄",
                     $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",

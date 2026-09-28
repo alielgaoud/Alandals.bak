@@ -172,7 +172,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 [إشعار فوري]: تنبيه المستأجر (صاحب المحل) بخصم ناجح من محفظة الزائر وتوضيح المتبقي كاش إن وجد
-            _ = _notification.SendToTenantAsync(
+            await _notification.SendToTenantAsync(
                 tenantId,
                 "عملية بيع عبر محفظة زائر 🛒",
                 $"تم خصم مبلغ {chargedAmount:N2} د.ل من محفظة الزائر ({pass.VisitorName}) لصالح محلكم بنجاح.{(cashDifference > 0 ? $" المتبقي كاش: {cashDifference:N2} د.ل." : "")}",
@@ -299,7 +299,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 [إشعار فوري]: تنبيه المستأجر بتسوية مستحقات مبيعات الزوار وتوضيح طريقة الدفع المتخذة
-            _ = _notification.SendToTenantAsync(
+            await _notification.SendToTenantAsync(
                 dto.TenantId,
                 "تمت تسوية مستحقات مبيعات الزوار ✅",
                 $"نعلمكم بأنه تمت تسوية مستحقات مبيعات زوار الـ QR الخاصة بمحلكم بقيمة {totalAmount:N2} د.ل بنجاح عبر طريقة ({GetSettlementMethodLabel(dto.SettlementMethod)}).",

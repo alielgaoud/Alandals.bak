@@ -64,6 +64,11 @@ DELETE FROM Units         WHERE UnitNumber  LIKE N'LT-%';
 
 > ملاحظة: شغّل التنظيف **قبل** التعبئة من جديد إذا أردت البدء من صفحة نظيفة.
 
+## نقاط الـ API المستخدمة
+
+- `GET /api/VisitorPasses` — القائمة القديمة (توافق الفرونت) محدودة بـ 200 سجل كحد أقصى
+- `GET /api/VisitorPasses/paged?page=1&pageSize=20` — 🛡️ المُوصى بها: ترقيم صفحات كامل (items/page/pageSize/totalCount/totalPages، حد أقصى 100 للصفحة)
+
 ## ملاحظات
 
 - سكربت 03 ينشئ تصريحاً صالحاً **اليوم فقط** — شغّله في نفس يوم إنشائه (يحدث تلقائياً)

@@ -108,10 +108,48 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
+            // 🛡️ حد أقصى لحماية الذاكرة تحت الضغط (كان يجلب كل شيء — ميغابايتات لكل نداء)
             return await query
                 .OrderByDescending(p => p.CreatedAt)
+                .Take(200)
                 .Select(p => MapToDto(p))
                 .ToListAsync();
+        }
+
+        // 🛡️ قائمة مرقّمة صفحاتاً — للشاشات ذات الحجم الكبير (page/pageSize مع إجماليات)
+        public async Task<object> GetPagedAsync(DateTime? date, int? unitId, int page, int pageSize)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            var query = _db.VisitorPasses
+                .Include(p => p.Unit)
+                .Where(p => p.IsActive);
+
+            if (date.HasValue)
+                query = query.Where(p => p.ValidDate == date.Value.Date);
+
+            if (unitId.HasValue)
+                query = query.Where(p => p.UnitId == unitId.Value);
+
+            int totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => MapToDto(p))
+                .ToListAsync();
+
+            return new
+            {
+                items,
+                page,
+                pageSize,
+                totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
         }
 
         // 🛡️ حماية سباق المسح المتزامن (سكان بوابتين في نفس اللحظة):

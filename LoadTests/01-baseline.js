@@ -30,7 +30,7 @@ export default function () {
   }
 
   // 1) قائمة التصاريح
-  let res = http.get(`${BASE}/api/VisitorPasses`, { headers: H, tags: { name: 'list-passes' } });
+  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
   check(res, { 'قائمة التصاريح 2xx': (r) => r.status >= 200 && r.status < 300 });
 
   // 2) كشف حساب المستأجر (أثقل استعلام قراءة) — بمعرف حقيقي
