@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.System;
 using Andalos.API.Interfaces;
@@ -34,7 +34,7 @@ namespace Andalos.API.Services
             // 3. بدء عملية التفريغ المرتبة بدقة حسب شجرة العلاقات
             // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy
             var strategy = _db.Database.CreateExecutionStrategy();
-            await strategy.ExecuteAsync(async () =>
+            return await strategy.ExecuteAsync(async () =>
             {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
