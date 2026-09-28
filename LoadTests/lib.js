@@ -16,6 +16,12 @@ export function login() {
   const res = http.post(`${BASE}/api/Auth/login`,
     JSON.stringify({ username: USER, password: PASS }),
     { headers: JSON_HEADERS, tags: { name: 'login' } });
+
+  // status = 0 يعني فشل الاتصال أصلاً (السيرفر غير مشغّل)
+  if (res.status === 0) {
+    throw new Error(`❌ لا يمكن الوصول إلى الـ API على ${BASE} — شغّل السيرفر أولاً (Ctrl+F5) ثم أعد السكربت`);
+  }
+
   const body = res.json();
   if (!body || !body.data || !body.data.token) {
     throw new Error(`فشل الدخول (${res.status}) — تأكد أن الـ API يعمل وبيانات frames صحيحة`);
@@ -36,7 +42,7 @@ export function today() {
   return new Date().toISOString().substring(0, 10);
 }
 
-/** إنشاء تصريح زائر — يرجع passCode */
+/** إنشاء تصريح زائر — يرجع passCode (أو null عند الفشل) */
 export function createPass(token, name, maxEntries = 2) {
   const res = http.post(`${BASE}/api/VisitorPasses`,
     JSON.stringify({
@@ -49,7 +55,9 @@ export function createPass(token, name, maxEntries = 2) {
       notes: 'LT-بيانات اختبار',
     }),
     { headers: authHeaders(token), tags: { name: 'create-pass' } });
-  const body = res.json();
+  if (res.status === 0) return null;
+  let body = null;
+  try { body = res.json(); } catch (_) { return null; }
   return body && body.data ? body.data.passCode : null;
 }
 
@@ -58,6 +66,12 @@ export function scanPass(token, passCode) {
   const res = http.post(`${BASE}/api/Gate/scan`,
     JSON.stringify({ passCode: passCode, gateName: 'بوابة الاختبار' }),
     { headers: authHeaders(token), tags: { name: 'scan-pass' } });
-  const body = res.json();
+  if (res.status === 0) {
+    return { isSuccess: false, message: '❌ السيرفر غير مشغّل (فشل الاتصال)' };
+  }
+  let body = null;
+  try { body = res.json(); } catch (_) {
+    return { isSuccess: false, message: `استجابة غير صالحة (HTTP ${res.status})` };
+  }
   return body && body.data ? body.data : { isSuccess: false, message: `HTTP ${res.status}` };
 }
