@@ -147,6 +147,7 @@ namespace Andalos.API.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+            });
         }
 
         public async Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus)
@@ -199,6 +200,7 @@ namespace Andalos.API.Services
                 await transaction.RollbackAsync();
                 return false;
             }
+            });
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -230,6 +232,7 @@ namespace Andalos.API.Services
                 await transaction.RollbackAsync();
                 return false;
             }
+            });
         }
 
         public async Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto)
@@ -254,6 +257,22 @@ namespace Andalos.API.Services
 
             string newContractNumber = await _numberGen.GenerateAsync("Contract");
 
+            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
@@ -340,6 +359,7 @@ namespace Andalos.API.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+            });
         }
 
         private static ContractResponseDto MapToDto(Contract contract)

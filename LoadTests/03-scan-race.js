@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
-import { login, createPass, scanPass, firstId } from './lib.js';
+import { BASE, login, createPass, scanPass, firstId } from './lib.js';
 
 // عدّاد الدخول المسموح به — المفروض يتوقف عند 3 بالضبط
 const allowed = new Counter('scan_allowed');

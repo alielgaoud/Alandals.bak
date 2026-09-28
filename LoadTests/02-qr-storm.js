@@ -3,7 +3,7 @@
 //  التشغيل:  k6 run 02-qr-storm.js   (شغّل 00-seed.js أولاً)
 // ═══════════════════════════════════════════════════════════
 import { check, sleep } from 'k6';
-import { createPass, scanPass, firstId } from './lib.js';
+import { BASE, login, createPass, scanPass, firstId } from './lib.js';
 
 export const options = {
   stages: [
