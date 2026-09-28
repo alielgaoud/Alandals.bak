@@ -1,10 +1,9 @@
 // ═══════════════════════════════════════════════════════════
 //  02 — عاصفة QR: إنشاء تصاريح + مسح تحت ضغط متصاعد
-//  يثبت: الإنشاء والمسح يعملان معاً تحت الحمل بدون 5xx
-//  التشغيل:  k6 run 02-qr-storm.js
+//  التشغيل:  k6 run 02-qr-storm.js   (شغّل 00-seed.js أولاً)
 // ═══════════════════════════════════════════════════════════
 import { check, sleep } from 'k6';
-import { login, createPass, scanPass } from './lib.js';
+import { createPass, scanPass, firstId } from './lib.js';
 
 export const options = {
   stages: [
@@ -20,13 +19,21 @@ export const options = {
   },
 };
 
+// يُنفَّذ مرة واحدة قبل كل السيناريو: توكن واحد + أول محل حقيقي
+export function setup() {
+  const token = login();
+  const unitId = firstId(token, `${BASE}/api/Units`, 'list-units');
+  if (!unitId) throw new Error('❌ لا توجد وحدات في القاعدة — شغّل 00-seed.js أولاً');
+  return { token, unitId };
+}
+
 let seq = 0;
 
-export default function () {
-  const token = login();
+export default function (data) {
+  const token = data.token;
 
   const name = `LT-عاصفة-${__VU}-${__ITER}-${Date.now()}`;
-  const code = createPass(token, name, 2);
+  const code = createPass(token, name, 2, data.unitId);
   if (!check(code, { 'تم إنشاء التصريح': (c) => !!c })) return;
 
   const result = scanPass(token, code);

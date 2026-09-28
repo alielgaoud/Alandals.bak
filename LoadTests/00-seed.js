@@ -92,9 +92,9 @@ export default function () {
       startDate: start,
       endDate: plusYears(start, 1),
       rentAmount: 800 + ((i * 137) % 2200),
-      rentCycle: 'Monthly',
+      rentCycle: 1, // Monthly
       depositAmount: (i % 3) * 250,
-      activityType: 'Other',
+      activityType: 1, // Restaurant (الإدخال يقبل أرقاماً فقط)
       tradeName: `LT-نشاط-${i + 1}`,
       autoRenew: false,
       contractFees: [],
@@ -122,9 +122,9 @@ export default function () {
   for (let i = 1; i <= PAYMENTS && contractIds.length; i++) {
     postJSON(token, `${BASE}/api/Payments`, {
       contractId: contractIds[i % contractIds.length],
-      paymentType: 'Rent',
+      paymentType: 1, // Rent
       amount: 100 + ((i * 53) % 400),
-      paymentMethod: i % 2 ? 'Cash' : 'Transfer',
+      paymentMethod: i % 2 ? 1 : 2, // Cash / Transfer
       notes: 'LT-seed',
     }, 'create-payment');
     // نحتسب النجاح ضمنياً من failed — الأهم ألا تنكسر السلسلة

@@ -2,13 +2,12 @@
 //  03 — سباق المسح (الأهم أمنياً 🎯)
 //  نفس التصريح يُمسح بعشرات الطلبات في نفس اللحظة —
 //  يجب ألا يدخل أكثر من maxEntries مهما كان الإقبال المتزامن
-//  التشغيل:  k6 run 03-scan-race.js
+//  التشغيل:  k6 run 03-scan-race.js   (شغّل 00-seed.js أولاً)
 //  النجاح:   count للمؤشر scan_allowed = 3 بالضبط (وليس أكثر)
 // ═══════════════════════════════════════════════════════════
-import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
-import { BASE, login, authHeaders, createPass, scanPass } from './lib.js';
+import { login, createPass, scanPass, firstId } from './lib.js';
 
 // عدّاد الدخول المسموح به — المفروض يتوقف عند 3 بالضبط
 const allowed = new Counter('scan_allowed');
@@ -22,13 +21,6 @@ export const options = {
     http_req_failed: ['rate<0.05'],
   },
   scenarios: {
-    setup_phase: {
-      executor: 'shared-iterations',
-      vus: 1, iterations: 1,
-      maxDuration: '30s',
-      exec: 'setupOnly',
-      startTime: '0s',
-    },
     race_phase: {
       executor: 'constant-arrival-rate',
       rate: 60,                // 60 مسح/ثانية — عاصفة حقيقية
@@ -36,24 +28,26 @@ export const options = {
       duration: '5s',          // ≈ 300 مسح متزامن على نفس التصريح
       preAllocatedVUs: 80,
       maxVUs: 150,
-      startTime: '8s',
+      startTime: '3s',
       exec: 'race',
     },
   },
 };
 
-let passCode = null;
-let token = null;
+// يُنفَّذ مرة واحدة قبل السباق: إنشاء التصريح بمعرف محل حقيقي
+export function setup() {
+  const token = login();
+  const unitId = firstId(token, `${BASE}/api/Units`, 'list-units');
+  if (!unitId) throw new Error('❌ لا توجد وحدات في القاعدة — شغّل 00-seed.js أولاً');
 
-export function setupOnly() {
-  token = login();
-  passCode = createPass(token, `LT-سباق-${Date.now()}`, MAX_ENTRIES);
+  const passCode = createPass(token, `LT-سباق-${Date.now()}`, MAX_ENTRIES, unitId);
   if (!passCode) throw new Error('فشل إنشاء تصريح السباق');
   console.log(`==> تصريح السباق: ${passCode} (الحد = ${MAX_ENTRIES} دخول)`);
+  return { token, passCode };
 }
 
-export function race() {
-  const result = scanPass(token, passCode);
+export function race(data) {
+  const result = scanPass(data.token, data.passCode);
   if (result.isSuccess === true) allowed.add(1);
 
   check(result, {
@@ -61,9 +55,9 @@ export function race() {
   });
 }
 
-export function teardown() {
+export function teardown(data) {
   // تحقق نهائي: محاولة إضافية يجب أن تُرفض دائماً
-  const late = scanPass(token, passCode);
+  const late = scanPass(data.token, data.passCode);
   console.log(`\n==> المسح بعد انتهاء السباق: ${late.isSuccess ? '❌ قبول خطير!' : '✅ رفض صحيح'} — ${late.message || ''}`);
-  console.log(`==> عدد الدخول المسموح به إجمالاً (يجب أن يكون <= ${MAX_ENTRIES}): راقب مؤشر scan_allowed في الملخص`);
+  console.log(`==> راقب مؤشر scan_allowed في الملخص: يجب أن يكون <= ${MAX_ENTRIES}`);
 }

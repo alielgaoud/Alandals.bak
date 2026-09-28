@@ -29,6 +29,17 @@ export function login() {
   return body.data.token;
 }
 
+/** جلب أول id من أي قائمة (وحدات/مستأجرين/عقود) — يجعل السكربتات مستقلة عن أي قاعدة */
+export function firstId(token, url, tag) {
+  const res = http.get(url, { headers: authHeaders(token), tags: { name: tag || 'list' } });
+  if (res.status === 0) return null;
+  let body = null;
+  try { body = res.json(); } catch (_) { return null; }
+  const arr = body && body.data;
+  if (Array.isArray(arr) && arr.length > 0 && arr[0] && arr[0].id != null) return arr[0].id;
+  return null;
+}
+
 /** ترويسة Authorization جاهزة */
 export function authHeaders(token) {
   return {
@@ -43,12 +54,12 @@ export function today() {
 }
 
 /** إنشاء تصريح زائر — يرجع passCode (أو null عند الفشل) */
-export function createPass(token, name, maxEntries = 2) {
+export function createPass(token, name, maxEntries = 2, unitId = 1) {
   const res = http.post(`${BASE}/api/VisitorPasses`,
     JSON.stringify({
       visitorName: name,
       visitorPhone: '0910000000',
-      unitId: 1,
+      unitId: unitId,
       validDate: today(),
       maxEntries: maxEntries,
       purpose: 'اختبار ضغط',
