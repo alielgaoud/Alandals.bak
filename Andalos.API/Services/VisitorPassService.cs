@@ -488,7 +488,7 @@ namespace Andalos.API.Services
         }
 
         // 🔍 مساعد تشخيصي: ينفذ SQL خام ويرجع المدة + أول قيمة + نص الخطأ
-        private static async Task<(long ms, string err, string? first)> ProbeAsync(Microsoft.Data.Common.DbConnection conn, string sql)
+        private static async Task<(long ms, string err, string? first)> ProbeAsync(System.Data.Common.DbConnection conn, string sql)
         {
             try
             {
