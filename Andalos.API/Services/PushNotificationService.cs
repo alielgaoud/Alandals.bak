@@ -15,6 +15,10 @@ namespace Andalos.API.Services
     }
     public class PushNotificationService : IPushNotificationService
     {
+        // 🛡️ HttpClient مشترك واحد بمهلة صريحة 10 ثوانٍ.
+        // المهلة الافتراضية 100 ثانية + اشتراك Push قديم/ميت = تجميد طلبات الدفعات 25-60 ثانية (تشخيص اختبار 04)
+        private static readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
+
         private readonly AppDbContext _db;
         private readonly ISettingService _settings;
         private readonly ILogger<PushNotificationService> _logger;
@@ -28,7 +32,7 @@ namespace Andalos.API.Services
             _db = db;
             _settings = settings;
             _logger = logger;
-            _pushClient = new PushServiceClient();
+            _pushClient = new PushServiceClient(_sharedHttp);
         }
 
         public async Task SendPushNotificationAsync(int? userId, int? tenantId, string title, string body, string? url)

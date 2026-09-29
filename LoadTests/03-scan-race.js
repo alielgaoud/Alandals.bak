@@ -23,11 +23,12 @@ export const options = {
   scenarios: {
     race_phase: {
       executor: 'constant-arrival-rate',
-      rate: 60,                // 60 مسح/ثانية — عاصفة حقيقية
+      rate: 8,                 // 🛡️ 8 مسح/ثانية — سباق حقيقي "صالح": المسوحات المتسلسلة (Serializable)
+                               // تستنزف الطابور بدل أن يتضخم — 60/s كانت تُسقط 150 تكراراً وتُبطل القياس
       timeUnit: '1s',
-      duration: '5s',          // ≈ 300 مسح متزامن على نفس التصريح
-      preAllocatedVUs: 80,
-      maxVUs: 150,
+      duration: '5s',          // ≈ 40 محاولة متزامنة على نفس التصريح (الحد = 3)
+      preAllocatedVUs: 20,
+      maxVUs: 40,
       startTime: '3s',
       exec: 'race',
     },
