@@ -36,7 +36,7 @@ export default function (data) {
     const b = res.json();
     if (b && b.data) {
       console.log(`🔍 DIAG EF: count=${b.data.diagCountMs} | صفوف=${b.data.diagRowsMs} — ADO: بلاJoin=${b.data.diagAdoNoJoinMs}ms | NOLOCK=${b.data.diagAdoNolockMs}ms | JOIN=${b.data.diagAdoJoinMs}ms | خطأ=${b.data.diagAdoError || 'لا'}`);
-      console.log(`🎯 جلسات بمعاملات مفتوحة: ${b.data.diagOpenTrx} | أقدم دخول: ${b.data.diagOldestLogin}`);
+      console.log(`🎯 بمعاملات-مثل-EF=${b.data.diagAdoParamMs}ms | انتظارات-الجلسة: ${b.data.diagWaits} | جلسات-مفتوحة: ${b.data.diagOpenTrx}`);
     } else if (b) {
       console.log(`❌ استجابة خطأ (${res.status}): ${(b.message || JSON.stringify(b)).substring(0, 300)}`);
     }
