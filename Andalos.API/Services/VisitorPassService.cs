@@ -232,33 +232,28 @@ namespace Andalos.API.Services
 
             string adoError = "";
             long adoJoinMs = -1, adoNolockMs = -1, adoNoJoinMs = -1;
-            try
-            {
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandTimeout = 60;
+            string diagOpenTrx = "", diagOldestLogin = "";
 
-                    var sw2 = System.Diagnostics.Stopwatch.StartNew();
-                    cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
-                    using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                    adoJoinMs = sw2.ElapsedMilliseconds;
+            var pNoJoin = await ProbeAsync(conn,
+                "SELECT p.Id FROM VisitorPasses p ORDER BY p.CreatedAt DESC OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY");
+            adoNoJoinMs = pNoJoin.ms; if (pNoJoin.err != "") adoError = "بلاJoin: " + pNoJoin.err;
 
-                    sw2.Restart();
-                    cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p WITH (NOLOCK) LEFT JOIN Units u WITH (NOLOCK) ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
-                    using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                    adoNolockMs = sw2.ElapsedMilliseconds;
+            var pNolock = await ProbeAsync(conn,
+                "SELECT p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p WITH (NOLOCK) LEFT JOIN Units u WITH (NOLOCK) ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY");
+            adoNolockMs = pNolock.ms; if (pNolock.err != "") adoError += " | NOLOCK: " + pNolock.err;
 
-                    sw2.Restart();
-                    cmd.CommandText = "SELECT TOP 20 p.Id FROM VisitorPasses p ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
-                    using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                    adoNoJoinMs = sw2.ElapsedMilliseconds;
-                }
-            }
-            catch (Exception adoEx)
-            {
-                adoError = adoEx.Message;
-                if (adoError.Length > 300) adoError = adoError.Substring(0, 300);
-            }
+            var pJoin = await ProbeAsync(conn,
+                "SELECT p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY");
+            adoJoinMs = pJoin.ms; if (pJoin.err != "") adoError += " | JOIN: " + pJoin.err;
+
+            // 🎯 صائداً الجلسات الجاثمة بمعاملات مفتوحة (مرشح الجريمة الأول)
+            var pTrx = await ProbeAsync(conn,
+                "SELECT CAST(COUNT(*) AS varchar(20)) FROM sys.dm_exec_sessions WHERE open_transaction_count > 0 AND session_id <> @@SPID");
+            diagOpenTrx = pTrx.first ?? ("خطأ: " + pTrx.err);
+
+            var pOld = await ProbeAsync(conn,
+                "SELECT CONVERT(varchar(19), MIN(login_time), 120) FROM sys.dm_exec_sessions WHERE open_transaction_count > 0 AND session_id <> @@SPID");
+            diagOldestLogin = pOld.first ?? ("خطأ: " + pOld.err);
 
             return new
             {
@@ -273,7 +268,9 @@ namespace Andalos.API.Services
                 diagAdoJoinMs = adoJoinMs,
                 diagAdoNolockMs = adoNolockMs,
                 diagAdoNoJoinMs = adoNoJoinMs,
-                diagAdoError = adoError
+                diagAdoError = adoError,
+                diagOpenTrx = diagOpenTrx,
+                diagOldestLogin = diagOldestLogin
             };
         }
 
@@ -488,6 +485,30 @@ namespace Andalos.API.Services
             while (exists);
 
             return passCode;
+        }
+
+        // 🔍 مساعد تشخيصي: ينفذ SQL خام ويرجع المدة + أول قيمة + نص الخطأ
+        private static async Task<(long ms, string err, string? first)> ProbeAsync(Microsoft.Data.Common.DbConnection conn, string sql)
+        {
+            try
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandTimeout = 20;
+                cmd.CommandText = sql;
+                string? first = null;
+                using (var r = await cmd.ExecuteReaderAsync())
+                {
+                    if (await r.ReadAsync()) first = r.GetValue(0)?.ToString();
+                }
+                return (sw.ElapsedMilliseconds, "", first);
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
+                if (msg.Length > 200) msg = msg.Substring(0, 200);
+                return (-1, msg, null);
+            }
         }
 
         private static VisitorPassResponseDto MapToDto(VisitorPass p)

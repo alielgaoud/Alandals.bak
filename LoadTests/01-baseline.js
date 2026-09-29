@@ -29,13 +29,14 @@ export function setup() {
 export default function (data) {
   const H = authHeaders(data.token);
 
-  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
+  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, timeout: '150000', tags: { name: 'list-passes' } });
   check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
   // 🔍 طباعة التشخيص دائماً — حتى مع الخطأ
   try {
     const b = res.json();
     if (b && b.data) {
-      console.log(`🔍 DIAG EF: count=${b.data.diagCountMs} | صفوف=${b.data.diagRowsMs} | تحويل=${b.data.diagMapMs} — ADO: JOIN=${b.data.diagAdoJoinMs}ms | NOLOCK=${b.data.diagAdoNolockMs}ms | بلاJoin=${b.data.diagAdoNoJoinMs}ms | خطأADO=${b.data.diagAdoError || 'لا يوجد'}`);
+      console.log(`🔍 DIAG EF: count=${b.data.diagCountMs} | صفوف=${b.data.diagRowsMs} — ADO: بلاJoin=${b.data.diagAdoNoJoinMs}ms | NOLOCK=${b.data.diagAdoNolockMs}ms | JOIN=${b.data.diagAdoJoinMs}ms | خطأ=${b.data.diagAdoError || 'لا'}`);
+      console.log(`🎯 جلسات بمعاملات مفتوحة: ${b.data.diagOpenTrx} | أقدم دخول: ${b.data.diagOldestLogin}`);
     } else if (b) {
       console.log(`❌ استجابة خطأ (${res.status}): ${(b.message || JSON.stringify(b)).substring(0, 300)}`);
     }
