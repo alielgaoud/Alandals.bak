@@ -91,7 +91,7 @@ namespace Andalos.API.Services
             await _db.SaveChangesAsync();
 
             // 🔔 إشعار المستأجر بإصدار مرتجع مالي لصالحه
-            _ = _notification.SendToTenantAsync(
+            await _notification.SendToTenantAsync(
                 contract.TenantId,
                 "تم إصدار مرتجع مالي لصالحك 💰",
                 $"تم إصدار سند مرتجع رقم {refundNumber} بقيمة {dto.Amount:N2} د.ل. السبب: {dto.Reason}.",

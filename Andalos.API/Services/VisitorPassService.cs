@@ -108,10 +108,135 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
-            return await query
+            // 🛡️ حد أقصى لحماية الذاكرة تحت الضغط + إسقاط SQL خالص (نفس إصلاح GetPagedAsync)
+            var rows = await query
                 .OrderByDescending(p => p.CreatedAt)
-                .Select(p => MapToDto(p))
+                .Take(200)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.PassCode,
+                    p.VisitorName,
+                    p.VisitorPhone,
+                    p.NationalId,
+                    p.VisitorType,
+                    p.UnitId,
+                    UnitNumber = p.Unit != null ? p.Unit.UnitNumber : null,
+                    p.ValidDate,
+                    p.MaxEntries,
+                    p.UsedCount,
+                    p.Status,
+                    p.Purpose,
+                    p.Notes,
+                    p.CreatedAt
+                })
                 .ToListAsync();
+
+            return rows.Select(r => new VisitorPassResponseDto
+            {
+                Id = r.Id,
+                PassCode = r.PassCode,
+                VisitorName = r.VisitorName,
+                VisitorPhone = r.VisitorPhone,
+                NationalId = r.NationalId,
+                VisitorType = r.VisitorType.ToString(),
+                UnitId = r.UnitId,
+                UnitNumber = r.UnitNumber,
+                UnitName = r.UnitNumber,
+                ValidDate = r.ValidDate,
+                MaxEntries = r.MaxEntries,
+                UsedCount = r.UsedCount,
+                Status = r.Status.ToString(),
+                Purpose = r.Purpose,
+                Notes = r.Notes,
+                CreatedAt = r.CreatedAt
+            }).ToList();
+        }
+
+        // 🛡️ قائمة مرقّمة صفحاتاً — للشاشات ذات الحجم الكبير (page/pageSize مع إجماليات)
+        public async Task<object> GetPagedAsync(DateTime? date, int? unitId, int page, int pageSize)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 20;
+            if (pageSize > 100) pageSize = 100;
+
+            var query = _db.VisitorPasses
+                .Where(p => p.IsActive);
+
+            if (date.HasValue)
+                query = query.Where(p => p.ValidDate == date.Value.Date);
+
+            if (unitId.HasValue)
+                query = query.Where(p => p.UnitId == unitId.Value);
+
+            int totalCount = await query.CountAsync();
+
+            // 🛡️ المرحلة 1: معرفات الصفحة فقط — شكل مُثبت السرعة (كان 9ms في كل القياسات)
+            var ids = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            // 🛡️ المرحلة 2: الصفوف عبر IN بإسقاط SQL مسطّح (يتجاوز الخطة المرضية للصيغة المتشعبة العريضة)
+            var rows = await query
+                .Where(p => ids.Contains(p.Id))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.PassCode,
+                    p.VisitorName,
+                    p.VisitorPhone,
+                    p.NationalId,
+                    p.VisitorType,
+                    p.UnitId,
+                    UnitNumber = p.Unit != null ? p.Unit.UnitNumber : null,
+                    p.ValidDate,
+                    p.MaxEntries,
+                    p.UsedCount,
+                    p.Status,
+                    p.Purpose,
+                    p.Notes,
+                    p.CreatedAt
+                })
+                .ToListAsync();
+
+            // IN لا يضمن الترتيب — نعيد الترتيب في الذاكرة على 20 صفاً
+            var order = new Dictionary<int, int>();
+            for (int i = 0; i < ids.Count; i++) order[ids[i]] = i;
+
+            var items = rows
+                .OrderBy(r => order[r.Id])
+                .Select(r => new VisitorPassResponseDto
+                {
+                    Id = r.Id,
+                    PassCode = r.PassCode,
+                    VisitorName = r.VisitorName,
+                    VisitorPhone = r.VisitorPhone,
+                    NationalId = r.NationalId,
+                    VisitorType = r.VisitorType.ToString(),
+                    UnitId = r.UnitId,
+                    UnitNumber = r.UnitNumber,
+                    UnitName = r.UnitNumber,
+                    ValidDate = r.ValidDate,
+                    MaxEntries = r.MaxEntries,
+                    UsedCount = r.UsedCount,
+                    Status = r.Status.ToString(),
+                    Purpose = r.Purpose,
+                    Notes = r.Notes,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToList();
+
+            return new
+            {
+                items,
+                page,
+                pageSize,
+                totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
         }
 
         // 🛡️ حماية سباق المسح المتزامن (سكان بوابتين في نفس اللحظة):

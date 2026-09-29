@@ -26,7 +26,7 @@ export default function () {
   const token = login();
   const H = authHeaders(token);
 
-  const res = http.get(`${BASE}/api/VisitorPasses`, { headers: H, tags: { name: 'list-passes' } });
+  const res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
   check(res, { 'القائمة 2xx': (r) => r.status < 300 });
 
   sleep(0.7);

@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Visitors;
+using Andalos.API.DTOs.Visitors;
 
 namespace Andalos.API.Interfaces
 {
@@ -8,6 +8,7 @@ namespace Andalos.API.Interfaces
         Task<VisitorPassResponseDto?> GetByIdAsync(int id);
         Task<VisitorPassResponseDto?> GetByCodeAsync(string passCode);
         Task<List<VisitorPassResponseDto>> GetAllAsync(DateTime? date, int? unitId);
+        Task<object> GetPagedAsync(DateTime? date, int? unitId, int page, int pageSize);
         Task<ScanResultDto> ScanAndValidatePassAsync(ScanPassDto dto, string scannedBy);
         Task<bool> RevokePassAsync(int id);
         Task<List<EntryLogResponseDto>> GetEntryLogsAsync(DateTime? date);

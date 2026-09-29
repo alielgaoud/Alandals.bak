@@ -1,35 +1,51 @@
 // ═══════════════════════════════════════════════════════════
-//  01 — خط الأساس: مستخدم واحد على أهم المسارات
-//  الغرض: قياس زمن الاستجابة "السليم" قبل أي ضغط
-//  التشغيل:  k6 run 01-baseline.js
+//  01 — خط الأساس: مستخدم واحد على أهم المسارات (نسخة تشخيصية)
+//  كل نقطة لها عتبة خاصة — الملخص سيُظهر زمن كل نقطة منفصلة
+//  التشغيل:  k6 run 01-baseline.js   (شغّل 00-seed.js أولاً)
 // ═══════════════════════════════════════════════════════════
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE, login, authHeaders } from './lib.js';
+import { BASE, login, authHeaders, firstId } from './lib.js';
 
 export const options = {
   vus: 1,
-  iterations: 10,
+  iterations: 8,
   thresholds: {
-    http_req_duration: ['p(95)<500'], // خط الأساس: p95 أقل من نصف ثانية
+    http_req_duration: ['p(95)<500'],
+    'http_req_duration{name:statement}': ['p(95)<500'],
+    'http_req_duration{name:list-passes}': ['p(95)<500'],
+    'http_req_duration{name:payments-list}': ['p(95)<500'],
   },
 };
 
-export default function () {
+export function setup() {
   const token = login();
-  const H = authHeaders(token);
+  const tenantId = firstId(token, `${BASE}/api/Tenants`, 'list-tenants');
+  if (!tenantId) throw new Error('❌ لا يوجد مستأجرون — شغّل 00-seed.js أولاً');
+  console.log(`==> كشف الحساب سيُقاس على المستأجر: ${tenantId}`);
+  return { token, tenantId };
+}
 
-  // 1) قائمة التصاريح
-  let res = http.get(`${BASE}/api/VisitorPasses`, { headers: H, tags: { name: 'list-passes' } });
-  check(res, { 'قائمة التصاريح 2xx': (r) => r.status >= 200 && r.status < 300 });
+export default function (data) {
+  const H = authHeaders(data.token);
 
-  // 2) كشف حساب المستأجر (أثقل استعلام قراءة)
-  res = http.get(`${BASE}/api/TenantAccounts/1/statement`, { headers: H, tags: { name: 'statement' } });
-  check(res, { 'كشف الحساب 2xx': (r) => r.status >= 200 && r.status < 300 });
+  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
+  check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
+  // عند الخطأ فقط: اطبع جسم الاستجابة للتشخيص السريع
+  if (res.status >= 300) {
+    try {
+      const b = res.json();
+      console.log(`❌ استجابة خطأ (${res.status}): ${(b.message || JSON.stringify(b)).substring(0, 300)}`);
+    } catch (e) {
+      console.log(`❌ استجابة غير قابلة للتحليل (${res.status}): ${(res.body || '').substring(0, 200)}`);
+    }
+  }
 
-  // 3) قائمة الدفعات
+  res = http.get(`${BASE}/api/TenantAccounts/${data.tenantId}/statement`, { headers: H, tags: { name: 'statement' } });
+  check(res, { 'كشف الحساب 2xx': (r) => r.status < 300 });
+
   res = http.get(`${BASE}/api/Payments`, { headers: H, tags: { name: 'payments-list' } });
-  check(res, { 'الدفعات 2xx': (r) => r.status >= 200 && r.status < 300 });
+  check(res, { 'الدفعات 2xx': (r) => r.status < 300 });
 
   sleep(1);
 }

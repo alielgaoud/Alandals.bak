@@ -325,14 +325,15 @@ namespace Andalos.API.Services
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    _ = _notification.SendToTenantAsync(
-                        dto.TenantId,
-                        "تمت تسوية مستحقات مبيعات الزوار ✅",
-                        $"نعلمكم بأنه تمت تسوية مستحقات مبيعات زوار الـ QR الخاصة بمحلكم بقيمة {totalAmount:N2} د.ل بنجاح عبر طريقة ({GetSettlementMethodLabel(dto.SettlementMethod)}).",
-                        NotificationType.PaymentReceived,
-                        "/portal/wallet-scanner",
-                        settlement.Id
-                    );
+            // 🔔 [إشعار فوري]: تنبيه المستأجر بتسوية مستحقات مبيعات الزوار وتوضيح طريقة الدفع المتخذة
+            _ = _notification.SendToTenantAsync(
+                dto.TenantId,
+                "تمت تسوية مستحقات مبيعات الزوار ✅",
+                $"نعلمكم بأنه تمت تسوية مستحقات مبيعات زوار الـ QR الخاصة بمحلكم بقيمة {totalAmount:N2} د.ل بنجاح عبر طريقة ({GetSettlementMethodLabel(dto.SettlementMethod)}).",
+                NotificationType.PaymentReceived,
+                "/portal/wallet-scanner",
+                settlement.Id
+            );
 
                     return new SettlementResponseDto
                     {

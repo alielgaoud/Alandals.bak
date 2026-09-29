@@ -1,39 +1,55 @@
 # ============================================================
-#  إعداد أسرار التطوير (User Secrets) — يعمل مرة واحدة فقط
+#  Dev secrets setup (User Secrets) - run once
 #
-#  يقرأ الإعدادات الحقيقية من تاريخ Git (قبل نقلها خارج
-#  appsettings.json) ويحفظها في مخزن User Secrets المحلي
-#  الذي لا يُرفع إلى Git إطلاقاً (%APPDATA%\Microsoft\UserSecrets).
+#  Reads real values from git history (the last commit that had
+#  them inside appsettings.json) and stores them in the LOCAL
+#  User Secrets store - never committed to git.
 #
-#  التشغيل من مجلد الحل D:\Backend :
+#  Usage (from the solution folder D:\Backend):
 #     powershell -ExecutionPolicy Bypass -File Scripts\setup-dev-secrets.ps1
+#
+#  Safe to re-run: keys already present in the store are NOT
+#  overwritten (your manual values, e.g. local connection
+#  string, are kept).
+#
+#  NOTE: this file is intentionally English/ASCII only -
+#  Windows PowerShell 5.1 misreads UTF-8 .ps1 files without
+#  BOM under non-UTF8 system codepages.
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 
-# آخر كومِت يحتوي appsettings.json بالقيم الحقيقية (قبل نقل الأسرار)
+# Last commit that contained the real values in appsettings.json
 $sourceCommit = "cf14976"
 
 $projectDir = (Resolve-Path (Join-Path $PSScriptRoot "..\Andalos.API")).Path
-Write-Host "==> المشروع: $projectDir" -ForegroundColor Cyan
+Write-Host "==> Project: $projectDir" -ForegroundColor Cyan
 
-Write-Host "==> قراءة appsettings.json من الكومِت $sourceCommit ..." -ForegroundColor Cyan
+Write-Host "==> Reading appsettings.json from commit $sourceCommit ..." -ForegroundColor Cyan
 $raw = git show "${sourceCommit}:Andalos.API/appsettings.json"
-if ($LASTEXITCODE -ne 0) { throw "فشل الوصول للكومِت $sourceCommit — تأكد أنك داخل مجلد المستودع" }
+if ($LASTEXITCODE -ne 0) { throw "Cannot read commit $sourceCommit - make sure you run this from inside the repository folder" }
 $json = ($raw -join "`n") | ConvertFrom-Json
+
+# Existing secrets - so we never overwrite manual values
+$existing = ""
+try { $existing = (dotnet user-secrets list --project $projectDir) -join "`n" } catch {}
 
 function Set-Secret {
     param([string]$Key, [string]$Value)
     if ([string]::IsNullOrWhiteSpace($Value) -or $Value -like "SET_IN_*") {
-        Write-Host "  (تخطي) $Key" -ForegroundColor DarkGray
+        Write-Host "  (skip, empty) $Key" -ForegroundColor DarkGray
+        return
+    }
+    if ($existing -match [regex]::Escape($Key)) {
+        Write-Host "  (already set - kept your value) $Key" -ForegroundColor Yellow
         return
     }
     dotnet user-secrets set "$Key" "$Value" --project "$projectDir" | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "فشل حفظ: $Key" }
-    Write-Host "  ✔ $Key" -ForegroundColor Green
+    if ($LASTEXITCODE -ne 0) { throw "Failed to save: $Key" }
+    Write-Host "  [OK] $Key" -ForegroundColor Green
 }
 
-Write-Host "==> حفظ الأسرار في User Secrets ..." -ForegroundColor Cyan
+Write-Host "==> Saving secrets to the User Secrets store ..." -ForegroundColor Cyan
 Set-Secret "ConnectionStrings:DefaultConnection" $json.ConnectionStrings.DefaultConnection
 Set-Secret "JwtSettings:SecretKey"               $json.JwtSettings.SecretKey
 Set-Secret "VapidDetails:PrivateKey"             $json.VapidDetails.PrivateKey
@@ -41,8 +57,8 @@ Set-Secret "VapidDetails:PublicKey"              $json.VapidDetails.PublicKey
 Set-Secret "VapidDetails:Subject"                $json.VapidDetails.Subject
 
 Write-Host ""
-Write-Host "==> التحقق — الأسرار المخزنة:" -ForegroundColor Cyan
+Write-Host "==> Current secret store:" -ForegroundColor Cyan
 dotnet user-secrets list --project "$projectDir"
 
 Write-Host ""
-Write-Host "✅ تم! شغّل المشروع (F5) وسيعمل مباشرة — appsettings.json لم يعد يحمل أي أسرار" -ForegroundColor Green
+Write-Host "DONE - press F5. appsettings.json no longer holds any secrets." -ForegroundColor Green

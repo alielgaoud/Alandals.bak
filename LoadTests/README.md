@@ -3,10 +3,21 @@
 ## التثبيت (مرة واحدة)
 
 ```powershell
-winget install Grafana.k6
-# أو: choco install k6
+winget install -e --id GrafanaLabs.k6
+# ملاحظة: المعرّف الصحيح هو GrafanaLabs.k6 (وليس Grafana.k6)
+# ثم أغلق الطرفية وافتحها من جديد:
 k6 version   # تحقق
 ```
+
+## قاعدة بيانات جديدة/فارغة؟ ابدأ بالتعبئة
+
+```powershell
+k6 run 00-seed.js
+# أعداد مخصصة:
+k6 run -e SEED_UNITS=30 -e SEED_TENANTS=60 -e SEED_PASSES=30 -e SEED_PAYMENTS=50 00-seed.js
+```
+
+ينشئ عبر الـ API: وحدات → مستأجرين → عقود (بتواريخ متدرجة خلفية لتتراكم الإيجارات) → تصاريح صالحة اليوم → دفعات. كل شيء مميز ببادئة `LT-` وفريد لكل تشغيل (يمكن إعادة تشغيله دون تصادم).
 
 ## التشغيل
 
@@ -42,13 +53,21 @@ k6 run 06-spike.js             # 6. الذروة المفاجئة
 كل بيانات الاختبار مميزة ببادئة `LT-` — نظّفها من SQL Server متى شئت:
 
 ```sql
--- التصاريح وسجلات دخولها
-DELETE FROM EntryLogs WHERE VisitorPassId IN (SELECT Id FROM VisitorPasses WHERE VisitorName LIKE N'LT-%');
+-- الترتيب مهم (علاقات FK): دفعات ← سجلات دخول ← تصاريح ← عقود ← مستأجرون ← وحدات
+DELETE FROM Payments      WHERE Notes       LIKE N'LT-%';
+DELETE FROM EntryLogs     WHERE VisitorPassId IN (SELECT Id FROM VisitorPasses WHERE VisitorName LIKE N'LT-%');
 DELETE FROM VisitorPasses WHERE VisitorName LIKE N'LT-%';
-
--- دفعات اختبار المولد
-DELETE FROM Payments WHERE Notes LIKE N'LT-%';
+DELETE FROM Contracts     WHERE Notes       LIKE N'LT-seed';
+DELETE FROM Tenants       WHERE FullName    LIKE N'LT-%';
+DELETE FROM Units         WHERE UnitNumber  LIKE N'LT-%';
 ```
+
+> ملاحظة: شغّل التنظيف **قبل** التعبئة من جديد إذا أردت البدء من صفحة نظيفة.
+
+## نقاط الـ API المستخدمة
+
+- `GET /api/VisitorPasses` — القائمة القديمة (توافق الفرونت) محدودة بـ 200 سجل كحد أقصى
+- `GET /api/VisitorPasses/paged?page=1&pageSize=20` — 🛡️ المُوصى بها: ترقيم صفحات كامل (items/page/pageSize/totalCount/totalPages، حد أقصى 100 للصفحة)
 
 ## ملاحظات
 

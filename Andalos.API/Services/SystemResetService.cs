@@ -1,4 +1,4 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.System;
 using Andalos.API.Interfaces;
@@ -32,6 +32,10 @@ namespace Andalos.API.Services
                 throw new UnauthorizedAccessException("❌ كلمة المرور المدخلة غير صحيحة. تم إلغاء عملية إعادة ضبط النظام.");
 
             // 3. بدء عملية التفريغ المرتبة بدقة حسب شجرة العلاقات
+            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy
+            var strategy = _db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
@@ -104,6 +108,7 @@ namespace Andalos.API.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+            });
         }
 
         private static bool VerifyPassword(string password, string hash)

@@ -8,6 +8,8 @@ using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Andalos.API.Services
 {
@@ -17,19 +19,24 @@ namespace Andalos.API.Services
         private readonly IHubContext<NotificationHub> _hub;
         private readonly IPushNotificationService _pushService; // 👈 1. إضافة حقل خدمة الـ Push
         private readonly ISettingService _settings; // 👈 استدعاء الإعدادات
-
+        private readonly IServiceScopeFactory _scopeFactory; // 🛡️ خلفية الـ Push بنطاق DI خاص
+        private readonly ILogger<NotificationService> _logger; // 🛡️ تسجيل أخطاء الخلفية
 
         // 👈 2. تحديث الـ Constructor لحقن IPushNotificationService
         public NotificationService(
             AppDbContext db,
             ISettingService settings,
             IHubContext<NotificationHub> hub,
-            IPushNotificationService pushService)
+            IPushNotificationService pushService,
+            IServiceScopeFactory scopeFactory,
+            ILogger<NotificationService> logger)
         {
             _db = db;
             _settings = settings;
             _hub = hub;
             _pushService = pushService;
+            _scopeFactory = scopeFactory;
+            _logger = logger;
         }
 
         // =====================================================
@@ -83,9 +90,28 @@ namespace Andalos.API.Services
                 bool pushEnabled = await IsNotificationEnabledAsync(dto.UserId, dto.TenantId, dto.Type, NotificationChannel.Push);
                 if (pushEnabled)
                 {
-                    // يُنفذ في الخلفية دون تعطيل الـ Request الحالي
-                    await _pushService.SendPushNotificationAsync(
-    dto.UserId, dto.TenantId, dto.Title, dto.Message, dto.ActionUrl);
+                    // 🛡️ الـ Push خارج مسار الطلب — كان await مباشراً: مهلة HttpClient الافتراضية (100 ثانية)
+                    // مع اشتراك قديم/ميت كانت تُجمّد طلبات إنشاء الدفعات 25-60 ثانية (تشخيص اختبار 04).
+                    // قناة InApp + SignalR تبقى متزامنة فورية — الإشعار يصل للمستأجر كالمعتاد.
+                    // AppDbContext معرّف Scoped → الخلفية تفتح نطاقها الخاص ولا تشارك سياق هذا الطلب.
+                    var pUserId = dto.UserId;
+                    var pTenantId = dto.TenantId;
+                    var pTitle = dto.Title;
+                    var pBody = dto.Message;
+                    var pUrl = dto.ActionUrl;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            using var scope = _scopeFactory.CreateScope();
+                            var push = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
+                            await push.SendPushNotificationAsync(pUserId, pTenantId, pTitle, pBody, pUrl);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "فشل إرسال Push في الخلفية — لا يؤثر على الطلب الأصلي.");
+                        }
+                    });
                 }
             }
 
@@ -503,7 +529,6 @@ namespace Andalos.API.Services
             NotificationType.ContractExpiringSoon or NotificationType.ContractRenewed or NotificationType.ContractTerminated => "file-text",
             NotificationType.PaymentReminder or NotificationType.PaymentOverdue or NotificationType.AutomaticDeduction or NotificationType.PaymentReceived => "dollar-sign",
             NotificationType.NewMaintenanceRequest or NotificationType.MaintenanceStatusChanged => "tool",
-            NotificationType.MaintenanceChargeOffer or NotificationType.MaintenanceChargeApproved or NotificationType.MaintenanceChargeRejected => "clipboard-check",
             NotificationType.NewCircular => "megaphone",
             NotificationType.VisitorRejected or NotificationType.VisitorEntered => "user-check",
             NotificationType.System => "settings",
@@ -528,9 +553,6 @@ namespace Andalos.API.Services
             NotificationType.PaymentReceived => "استلام دفعة",
             NotificationType.NewMaintenanceRequest => "طلب صيانة جديد",
             NotificationType.MaintenanceStatusChanged => "تحديث طلب صيانة",
-            NotificationType.MaintenanceChargeOffer => "عرض صيانة جديد",
-            NotificationType.MaintenanceChargeApproved => "قبول عرض صيانة",
-            NotificationType.MaintenanceChargeRejected => "رفض عرض صيانة",
             NotificationType.VisitorRejected => "رفض دخول زائر",
             NotificationType.VisitorEntered => "دخول زائر",
             NotificationType.System => "إشعار نظام",

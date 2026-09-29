@@ -25,6 +25,14 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<List<VisitorPassResponseDto>>.SuccessResponse(list));
         }
 
+        // 🛡️ نقطة مرقّمة صفحاتاً (قبل {id} في التوجيه) — للحمولات الكبيرة
+        [HttpGet("paged")]
+        public async Task<IActionResult> GetPaged([FromQuery] DateTime? date, [FromQuery] int? unitId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var result = await _passService.GetPagedAsync(date, unitId, page, pageSize);
+            return Ok(ApiResponseDto<object>.SuccessResponse(result));
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {

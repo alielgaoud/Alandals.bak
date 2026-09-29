@@ -136,7 +136,7 @@ namespace Andalos.API.Services
             // 🔔 إشعار المستأجر إذا تم تحميل مصروف على حسابه
             if (dto.IsChargedToTenant && dto.TenantId.HasValue)
             {
-                _ = _notification.SendToTenantAsync(
+                await _notification.SendToTenantAsync(
                     dto.TenantId.Value,
                     "مصروف جديد محمّل على حسابك 📋",
                     $"تم تحميل مصروف بقيمة {dto.Amount:N2} د.ل على حسابكم. الوصف: {dto.Description}.",
