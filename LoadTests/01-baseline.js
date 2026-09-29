@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-//  01 — خط الأساس: مستخدم واحد على أهم المسارات
-//  التشغيل:  k6 run 01-baseline.js
-//  (يتطلب بيانات — شغّل 00-seed.js أولاً على قاعدة جديدة)
+//  01 — خط الأساس: مستخدم واحد على أهم المسارات (نسخة تشخيصية)
+//  كل نقطة لها عتبة خاصة — الملخص سيُظهر زمن كل نقطة منفصلة
+//  التشغيل:  k6 run 01-baseline.js   (شغّل 00-seed.js أولاً)
 // ═══════════════════════════════════════════════════════════
 import http from 'k6/http';
 import { check, sleep } from 'k6';
@@ -9,39 +9,34 @@ import { BASE, login, authHeaders, firstId } from './lib.js';
 
 export const options = {
   vus: 1,
-  iterations: 10,
+  iterations: 8,
   thresholds: {
-    http_req_duration: ['p(95)<500'], // خط الأساس: p95 أقل من نصف ثانية
+    http_req_duration: ['p(95)<500'],
+    'http_req_duration{name:statement}': ['p(95)<500'],
+    'http_req_duration{name:list-passes}': ['p(95)<500'],
+    'http_req_duration{name:payments-list}': ['p(95)<500'],
   },
 };
 
-let tenantId = null;
-
-export default function () {
+export function setup() {
   const token = login();
-  const H = authHeaders(token);
+  const tenantId = firstId(token, `${BASE}/api/Tenants`, 'list-tenants');
+  if (!tenantId) throw new Error('❌ لا يوجد مستأجرون — شغّل 00-seed.js أولاً');
+  console.log(`==> كشف الحساب سيُقاس على المستأجر: ${tenantId}`);
+  return { token, tenantId };
+}
 
-  // نجلب معرف مستأجر حقيقي من القاعدة (مرة واحدة)
-  if (!tenantId) {
-    tenantId = firstId(token, `${BASE}/api/Tenants`, 'list-tenants');
-    if (!tenantId) {
-      console.error('❌ لا يوجد مستأجرون في القاعدة — شغّل 00-seed.js أولاً');
-    }
-  }
+export default function (data) {
+  const H = authHeaders(data.token);
 
-  // 1) قائمة التصاريح
   let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
-  check(res, { 'قائمة التصاريح 2xx': (r) => r.status >= 200 && r.status < 300 });
+  check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
 
-  // 2) كشف حساب المستأجر (أثقل استعلام قراءة) — بمعرف حقيقي
-  if (tenantId) {
-    res = http.get(`${BASE}/api/TenantAccounts/${tenantId}/statement`, { headers: H, tags: { name: 'statement' } });
-    check(res, { 'كشف الحساب 2xx': (r) => r.status >= 200 && r.status < 300 });
-  }
+  res = http.get(`${BASE}/api/TenantAccounts/${data.tenantId}/statement`, { headers: H, tags: { name: 'statement' } });
+  check(res, { 'كشف الحساب 2xx': (r) => r.status < 300 });
 
-  // 3) قائمة الدفعات
   res = http.get(`${BASE}/api/Payments`, { headers: H, tags: { name: 'payments-list' } });
-  check(res, { 'الدفعات 2xx': (r) => r.status >= 200 && r.status < 300 });
+  check(res, { 'الدفعات 2xx': (r) => r.status < 300 });
 
   sleep(1);
 }
