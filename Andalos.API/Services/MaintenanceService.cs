@@ -630,6 +630,17 @@ namespace Andalos.API.Services
                     NotificationType.MaintenanceChargeRejected,
                     $"/admin/maintenance/{request.Id}"
                 );
+
+                // 🔔 تأكيد للمستأجر — قاعدة المنظومة: كل تدفقات الفوترة تُشعر المستأجر
+                // (فرع القبول يُشعره، وهذا الفرع كان ينشئ إشعاراً للإدارة فقط)
+                await _notification.SendToTenantAsync(
+                    tenantId,
+                    "تم تسجيل رفضك للعرض",
+                    $"تم تسجيل رفضكم لعرض الصيانة بمبلغ {charge.Amount:N2} د.ل ({charge.ChargeNumber}) — لن يدخل ضمن متعلقات حسابكم.",
+                    NotificationType.MaintenanceChargeRejected,
+                    "/portal/maintenance",
+                    charge.Id
+                );
             }
 
             var saved = await _db.TenantCharges
