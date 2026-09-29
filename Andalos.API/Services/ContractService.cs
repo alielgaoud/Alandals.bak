@@ -64,7 +64,6 @@ namespace Andalos.API.Services
 
             string contractNumber = await _numberGen.GenerateAsync("Contract");
 
-            // 👈 استخدام Execution Strategy لحل مشكلة SqlServerRetryingExecutionStrategy
             var strategy = _db.Database.CreateExecutionStrategy();
 
             var savedContract = await strategy.ExecuteAsync(async () =>
@@ -143,23 +142,17 @@ namespace Andalos.API.Services
                 }
             });
 
-                // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
-                _ = _notification.SendToTenantAsync(
-                    savedContract.TenantId,
-                    "تفعيل عقد إيجار جديد 📜",
-                    $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
-                    NotificationType.ContractRenewed,
-                    $"/tenant/contracts/{savedContract.Id}",
-                    savedContract.Id
-                );
+            // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
+            _ = _notification.SendToTenantAsync(
+                savedContract.TenantId,
+                "تفعيل عقد إيجار جديد 📜",
+                $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
+                NotificationType.ContractRenewed,
+                $"/tenant/contracts/{savedContract.Id}",
+                savedContract.Id
+            );
 
-                return MapToDto(savedContract);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            return MapToDto(savedContract);
         }
 
         public async Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus)
@@ -175,12 +168,12 @@ namespace Andalos.API.Services
 
                 if (contract == null) return false;
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var oldStatus = contract.Status;
-                contract.Status = newStatus;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
+                {
+                    var oldStatus = contract.Status;
+                    contract.Status = newStatus;
+                    contract.UpdatedAt = DateTimeHelper.LibyaNow;
 
                     if (contract.Unit != null && (newStatus == ContractStatus.Expired || newStatus == ContractStatus.Terminated))
                     {
@@ -196,26 +189,27 @@ namespace Andalos.API.Services
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                // 🔔 إشعار عند فسخ أو إنهاء العقد
-                if (newStatus == ContractStatus.Terminated)
-                {
-                    _ = _notification.SendToTenantAsync(
-                        contract.TenantId,
-                        "تم إنهاء عقد الإيجار ⚠️",
-                        $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
-                        NotificationType.ContractTerminated,
-                        $"/tenant/contracts/{contract.Id}",
-                        contract.Id
-                    );
-                }
+                    // 🔔 إشعار عند فسخ أو إنهاء العقد
+                    if (newStatus == ContractStatus.Terminated)
+                    {
+                        _ = _notification.SendToTenantAsync(
+                            contract.TenantId,
+                            "تم إنهاء عقد الإيجار ⚠️",
+                            $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
+                            NotificationType.ContractTerminated,
+                            $"/tenant/contracts/{contract.Id}",
+                            contract.Id
+                        );
+                    }
 
-                return true;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                return false;
-            }
+                    return true;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+            });
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -230,11 +224,11 @@ namespace Andalos.API.Services
 
                 if (contract == null) return false;
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                contract.IsActive = false;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
+                {
+                    contract.IsActive = false;
+                    contract.UpdatedAt = DateTimeHelper.LibyaNow;
 
                     if (contract.Unit != null && contract.Status == ContractStatus.Active)
                     {
@@ -242,15 +236,16 @@ namespace Andalos.API.Services
                         contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
                     }
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return true;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                return false;
-            }
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+            });
         }
 
         public async Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto)
@@ -275,27 +270,31 @@ namespace Andalos.API.Services
 
             string newContractNumber = await _numberGen.GenerateAsync("Contract");
 
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
+            var strategy = _db.Database.CreateExecutionStrategy();
+
+            var savedContract = await strategy.ExecuteAsync(async () =>
             {
-                var newContract = new Contract
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    ContractNumber = newContractNumber,
-                    TenantId = oldContract.TenantId,
-                    UnitId = oldContract.UnitId,
-                    StartDate = dto.NewStartDate,
-                    EndDate = dto.NewEndDate,
-                    RentAmount = newRent,
-                    RentCycle = oldContract.RentCycle,
-                    DepositAmount = oldContract.DepositAmount,
-                    Status = ContractStatus.Active,
-                    ActivityType = oldContract.ActivityType,
-                    TradeName = oldContract.TradeName,
-                    AutoRenew = dto.AutoRenew,
-                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
-                    ParentContractId = oldContract.Id,
-                    Notes = dto.Notes ?? $"تجديد للعقد السابق رقم {oldContract.ContractNumber} بزيادة ({dto.IncreaseValue})"
-                };
+                    var newContract = new Contract
+                    {
+                        ContractNumber = newContractNumber,
+                        TenantId = oldContract.TenantId,
+                        UnitId = oldContract.UnitId,
+                        StartDate = dto.NewStartDate,
+                        EndDate = dto.NewEndDate,
+                        RentAmount = newRent,
+                        RentCycle = oldContract.RentCycle,
+                        DepositAmount = oldContract.DepositAmount,
+                        Status = ContractStatus.Active,
+                        ActivityType = oldContract.ActivityType,
+                        TradeName = oldContract.TradeName,
+                        AutoRenew = dto.AutoRenew,
+                        AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
+                        ParentContractId = oldContract.Id,
+                        Notes = dto.Notes ?? $"تجديد للعقد السابق رقم {oldContract.ContractNumber} بزيادة ({dto.IncreaseValue})"
+                    };
 
                     if (dto.CopyFeesFromPreviousContract && oldContract.ContractFees.Any())
                     {
@@ -351,23 +350,17 @@ namespace Andalos.API.Services
                 }
             });
 
-                // 🔔 إشعار بتجديد العقد بنجاح
-                _ = _notification.SendToTenantAsync(
-                    savedContract.TenantId,
-                    "تم تجديد عقد الإيجار بنجاح 🔄",
-                    $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
-                    NotificationType.ContractRenewed,
-                    $"/tenant/contracts/{savedContract.Id}",
-                    savedContract.Id
-                );
+            // 🔔 إشعار بتجديد العقد بنجاح
+            _ = _notification.SendToTenantAsync(
+                savedContract.TenantId,
+                "تم تجديد عقد الإيجار بنجاح 🔄",
+                $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
+                NotificationType.ContractRenewed,
+                $"/tenant/contracts/{savedContract.Id}",
+                savedContract.Id
+            );
 
-                return MapToDto(savedContract);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            return MapToDto(savedContract);
         }
 
         private static ContractResponseDto MapToDto(Contract contract)
