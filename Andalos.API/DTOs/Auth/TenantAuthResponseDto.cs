@@ -8,5 +8,7 @@
         public string Role { get; set; } = "Tenant";
         public int TenantId { get; set; }
         public DateTime Expiration { get; set; }
+        public List<string> Permissions { get; set; } = new();
+
     }
 }
