@@ -108,12 +108,49 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
-            // 🛡️ حد أقصى لحماية الذاكرة تحت الضغط (كان يجلب كل شيء — ميغابايتات لكل نداء)
-            return await query
+            // 🛡️ حد أقصى لحماية الذاكرة تحت الضغط + إسقاط SQL خالص (نفس إصلاح GetPagedAsync)
+            var rows = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Take(200)
-                .Select(p => MapToDto(p))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.PassCode,
+                    p.VisitorName,
+                    p.VisitorPhone,
+                    p.NationalId,
+                    p.VisitorType,
+                    p.UnitId,
+                    UnitNumber = p.Unit != null ? p.Unit.UnitNumber : null,
+                    p.ValidDate,
+                    p.MaxEntries,
+                    p.UsedCount,
+                    p.Status,
+                    p.Purpose,
+                    p.Notes,
+                    p.CreatedAt
+                })
                 .ToListAsync();
+
+            return rows.Select(r => new VisitorPassResponseDto
+            {
+                Id = r.Id,
+                PassCode = r.PassCode,
+                VisitorName = r.VisitorName,
+                VisitorPhone = r.VisitorPhone,
+                NationalId = r.NationalId,
+                VisitorType = r.VisitorType.ToString(),
+                UnitId = r.UnitId,
+                UnitNumber = r.UnitNumber,
+                UnitName = r.UnitNumber,
+                ValidDate = r.ValidDate,
+                MaxEntries = r.MaxEntries,
+                UsedCount = r.UsedCount,
+                Status = r.Status.ToString(),
+                Purpose = r.Purpose,
+                Notes = r.Notes,
+                CreatedAt = r.CreatedAt
+            }).ToList();
         }
 
         // 🛡️ قائمة مرقّمة صفحاتاً — للشاشات ذات الحجم الكبير (page/pageSize مع إجماليات)
@@ -133,7 +170,7 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
-            // 🔍 تشخيص مؤقت: ثلاثة قياسات + نص SQL المولَّد
+            // 🔍 تشخيص + إصلاح: إسقاط SQL خالص (بلا client-eval) ثم تحويل في الذاكرة
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalCount = await query.CountAsync();
             long countMs = sw.ElapsedMilliseconds;
@@ -143,18 +180,55 @@ namespace Andalos.API.Services
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize);
 
-            // أ) ids فقط — ترجمة SQL كاملة بلا أي معالجة client-side
+            // ✅ الإصلاح: استعلام مسطّح (scalars فقط) — يُترجم SQL بالكامل مع JOIN للمحل
             sw.Restart();
-            var idsOnly = await pagedQuery.Select(p => p.Id).ToListAsync();
-            long idsMs = sw.ElapsedMilliseconds;
+            var rows = await pagedQuery.Select(p => new
+            {
+                p.Id,
+                p.PassCode,
+                p.VisitorName,
+                p.VisitorPhone,
+                p.NationalId,
+                p.VisitorType,
+                p.UnitId,
+                UnitNumber = p.Unit != null ? p.Unit.UnitNumber : null,
+                p.ValidDate,
+                p.MaxEntries,
+                p.UsedCount,
+                p.Status,
+                p.Purpose,
+                p.Notes,
+                p.CreatedAt
+            }).ToListAsync();
+            long rowsMs = sw.ElapsedMilliseconds;
 
-            // ب) الجلب الحقيقي (بصيغة MapToDto عبر client-eval)
+            // التحويل للـ DTO في الذاكرة (على 20 صفاً — microseconds)
             sw.Restart();
-            var items = await pagedQuery.Select(p => MapToDto(p)).ToListAsync();
-            long itemsMs = sw.ElapsedMilliseconds;
+            var items = rows.Select(r => new VisitorPassResponseDto
+            {
+                Id = r.Id,
+                PassCode = r.PassCode,
+                VisitorName = r.VisitorName,
+                VisitorPhone = r.VisitorPhone,
+                NationalId = r.NationalId,
+                VisitorType = r.VisitorType.ToString(),
+                UnitId = r.UnitId,
+                UnitNumber = r.UnitNumber,
+                UnitName = r.UnitNumber,
+                ValidDate = r.ValidDate,
+                MaxEntries = r.MaxEntries,
+                UsedCount = r.UsedCount,
+                Status = r.Status.ToString(),
+                Purpose = r.Purpose,
+                Notes = r.Notes,
+                CreatedAt = r.CreatedAt
+            }).ToList();
+            long mapMs = sw.ElapsedMilliseconds;
 
-            var sqlText = pagedQuery.Select(p => MapToDto(p)).ToQueryString();
-            if (sqlText.Length > 900) sqlText = sqlText.Substring(0, 900) + "...";
+            // 🔍 للمقارنة فقط: الصيغة القديمة (client-eval عبر MapToDto)
+            sw.Restart();
+            var legacy = await pagedQuery.Select(p => MapToDto(p)).ToListAsync();
+            long clientEvalMs = sw.ElapsedMilliseconds;
 
             return new
             {
@@ -164,10 +238,10 @@ namespace Andalos.API.Services
                 totalCount,
                 totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 diagCountMs = countMs,
-                diagItemsMs = itemsMs,
-                diagIdsMs = idsMs,
-                diagIdsCount = idsOnly.Count,
-                diagSql = sqlText
+                diagRowsMs = rowsMs,
+                diagMapMs = mapMs,
+                diagClientEvalMs = clientEvalMs,
+                diagLegacyCount = legacy.Count
             };
         }
 
