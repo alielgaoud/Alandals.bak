@@ -35,7 +35,7 @@ export default function (data) {
   try {
     const b = res.json();
     if (b && b.data) {
-      console.log(`🔍 DIAG count=${b.data.diagCountMs}ms | صفوف-جديدة=${b.data.diagRowsMs}ms | تحويل=${b.data.diagMapMs}ms | القديمة-clientEval=${b.data.diagClientEvalMs}ms | كامل≈${res.timings.duration.toFixed(0)}ms`);
+      console.log(`🔍 DIAG EF: count=${b.data.diagCountMs} | صفوف=${b.data.diagRowsMs} | تحويل=${b.data.diagMapMs} — ADO: JOIN=${b.data.diagAdoJoinMs}ms | NOLOCK=${b.data.diagAdoNolockMs}ms | بلاJoin=${b.data.diagAdoNoJoinMs}ms`);
     }
   } catch (_) {}
 

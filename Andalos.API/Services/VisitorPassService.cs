@@ -225,10 +225,31 @@ namespace Andalos.API.Services
             }).ToList();
             long mapMs = sw.ElapsedMilliseconds;
 
-            // 🔍 للمقارنة فقط: الصيغة القديمة (client-eval عبر MapToDto)
-            sw.Restart();
-            var legacy = await pagedQuery.Select(p => MapToDto(p)).ToListAsync();
-            long clientEvalMs = sw.ElapsedMilliseconds;
+            // 🔍 حسم مطلق: نفس الاستعلامات عبر ADO الخام على نفس الاتصال (بلا EF إطلاقاً)
+            var conn = _db.Database.GetDbConnection();
+            bool wasOpen = conn.State == System.Data.ConnectionState.Open;
+            if (!wasOpen) await conn.OpenAsync();
+
+            long adoJoinMs, adoNolockMs, adoNoJoinMs;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 60;
+
+                var sw2 = System.Diagnostics.Stopwatch.StartNew();
+                cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
+                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
+                adoJoinMs = sw2.ElapsedMilliseconds;
+
+                sw2.Restart();
+                cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p WITH (NOLOCK) LEFT JOIN Units u WITH (NOLOCK) ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
+                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
+                adoNolockMs = sw2.ElapsedMilliseconds;
+
+                sw2.Restart();
+                cmd.CommandText = "SELECT TOP 20 p.Id FROM VisitorPasses p ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
+                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
+                adoNoJoinMs = sw2.ElapsedMilliseconds;
+            }
 
             return new
             {
@@ -240,8 +261,9 @@ namespace Andalos.API.Services
                 diagCountMs = countMs,
                 diagRowsMs = rowsMs,
                 diagMapMs = mapMs,
-                diagClientEvalMs = clientEvalMs,
-                diagLegacyCount = legacy.Count
+                diagAdoJoinMs = adoJoinMs,
+                diagAdoNolockMs = adoNolockMs,
+                diagAdoNoJoinMs = adoNoJoinMs
             };
         }
 
