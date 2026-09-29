@@ -31,13 +31,17 @@ export default function (data) {
 
   let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
   check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
-  // 🔍 طباعة مجزئ الزمن من الاستجابة
+  // 🔍 طباعة التشخيص دائماً — حتى مع الخطأ
   try {
     const b = res.json();
     if (b && b.data) {
-      console.log(`🔍 DIAG EF: count=${b.data.diagCountMs} | صفوف=${b.data.diagRowsMs} | تحويل=${b.data.diagMapMs} — ADO: JOIN=${b.data.diagAdoJoinMs}ms | NOLOCK=${b.data.diagAdoNolockMs}ms | بلاJoin=${b.data.diagAdoNoJoinMs}ms`);
+      console.log(`🔍 DIAG EF: count=${b.data.diagCountMs} | صفوف=${b.data.diagRowsMs} | تحويل=${b.data.diagMapMs} — ADO: JOIN=${b.data.diagAdoJoinMs}ms | NOLOCK=${b.data.diagAdoNolockMs}ms | بلاJoin=${b.data.diagAdoNoJoinMs}ms | خطأADO=${b.data.diagAdoError || 'لا يوجد'}`);
+    } else if (b) {
+      console.log(`❌ استجابة خطأ (${res.status}): ${(b.message || JSON.stringify(b)).substring(0, 300)}`);
     }
-  } catch (_) {}
+  } catch (e) {
+    console.log(`❌ استجابة غير قابلة للتحليل (${res.status}): ${(res.body || '').substring(0, 200)}`);
+  }
 
   res = http.get(`${BASE}/api/TenantAccounts/${data.tenantId}/statement`, { headers: H, tags: { name: 'statement' } });
   check(res, { 'كشف الحساب 2xx': (r) => r.status < 300 });

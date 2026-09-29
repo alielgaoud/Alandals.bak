@@ -230,25 +230,34 @@ namespace Andalos.API.Services
             bool wasOpen = conn.State == System.Data.ConnectionState.Open;
             if (!wasOpen) await conn.OpenAsync();
 
-            long adoJoinMs, adoNolockMs, adoNoJoinMs;
-            using (var cmd = conn.CreateCommand())
+            string adoError = "";
+            long adoJoinMs = -1, adoNolockMs = -1, adoNoJoinMs = -1;
+            try
             {
-                cmd.CommandTimeout = 60;
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 60;
 
-                var sw2 = System.Diagnostics.Stopwatch.StartNew();
-                cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
-                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                adoJoinMs = sw2.ElapsedMilliseconds;
+                    var sw2 = System.Diagnostics.Stopwatch.StartNew();
+                    cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
+                    using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
+                    adoJoinMs = sw2.ElapsedMilliseconds;
 
-                sw2.Restart();
-                cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p WITH (NOLOCK) LEFT JOIN Units u WITH (NOLOCK) ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
-                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                adoNolockMs = sw2.ElapsedMilliseconds;
+                    sw2.Restart();
+                    cmd.CommandText = "SELECT TOP 20 p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p WITH (NOLOCK) LEFT JOIN Units u WITH (NOLOCK) ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
+                    using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
+                    adoNolockMs = sw2.ElapsedMilliseconds;
 
-                sw2.Restart();
-                cmd.CommandText = "SELECT TOP 20 p.Id FROM VisitorPasses p ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
-                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                adoNoJoinMs = sw2.ElapsedMilliseconds;
+                    sw2.Restart();
+                    cmd.CommandText = "SELECT TOP 20 p.Id FROM VisitorPasses p ORDER BY p.CreatedAt DESC OFFSET 0 ROWS";
+                    using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
+                    adoNoJoinMs = sw2.ElapsedMilliseconds;
+                }
+            }
+            catch (Exception adoEx)
+            {
+                adoError = adoEx.Message;
+                if (adoError.Length > 300) adoError = adoError.Substring(0, 300);
             }
 
             return new
@@ -263,7 +272,8 @@ namespace Andalos.API.Services
                 diagMapMs = mapMs,
                 diagAdoJoinMs = adoJoinMs,
                 diagAdoNolockMs = adoNolockMs,
-                diagAdoNoJoinMs = adoNoJoinMs
+                diagAdoNoJoinMs = adoNoJoinMs,
+                diagAdoError = adoError
             };
         }
 
