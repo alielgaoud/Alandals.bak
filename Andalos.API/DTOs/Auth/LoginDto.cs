@@ -41,6 +41,12 @@ namespace Andalos.API.DTOs.Auth
         public string UserName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
+
+        // 👈 جديد: قائمة الصلاحيات التفصيلية
+        public List<string> Permissions { get; set; } = new();
+
+        // 👈 جديد: الأقسام المسموحة (للاستخدام السريع في الفرونت)
+        public List<string> Modules { get; set; } = new();
     }
 
 

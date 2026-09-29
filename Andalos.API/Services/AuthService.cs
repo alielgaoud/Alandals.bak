@@ -4,6 +4,7 @@ using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
 using Andalos.API.Enums;
+using Andalos.API.Constants;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,11 +15,13 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly JwtHelper _jwt;
+        private readonly IPermissionPackageService _permissionService; // 👈 حقن خدمة الصلاحيات
 
-        public AuthService(AppDbContext db, JwtHelper jwt)
+        public AuthService(AppDbContext db, JwtHelper jwt, IPermissionPackageService permissionService)
         {
             _db = db;
             _jwt = jwt;
+            _permissionService = permissionService;
         }
 
         // =====================================================
@@ -28,7 +31,6 @@ namespace Andalos.API.Services
         {
             var input = dto.UserName.Trim();
 
-            // 👈 مطابقة مرنة: اسم المستخدم أو البريد أو رقم الهاتف
             var user = await _db.Users
                 .FirstOrDefaultAsync(u => (u.UserName == input
                                         || u.UserName.ToLower() == input.ToLower()
@@ -38,13 +40,34 @@ namespace Andalos.API.Services
             if (user == null)
                 throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
 
-            // 🛑 منع المستأجرين من الدخول إلى لوحة تحكم الإدارة
             if (user.Role == UserRole.Tenant || user.Role == UserRole.TenantStaff)
                 throw new UnauthorizedAccessException("غير مصرح لك بالدخول من هنا، يرجى استخدام بوابة المستأجرين");
 
             await CheckAndApplyLockoutAsync(user, dto.Password);
 
-            var token = _jwt.GenerateToken(user);
+            // 👈 1. جلب الصلاحيات الفعالة للمستخدم (مباشرة + باقات الصلاحيات الممنوحة له)
+            List<string> permissions;
+            List<string> modules;
+
+            if (user.Role == UserRole.SuperAdmin)
+            {
+                // الـ SuperAdmin يملك كافة صلاحيات وأقسام النظام تلقائياً وضمنياً
+                permissions = Permissions.GetAllPermissions();
+                modules = PermissionModules.ModuleMap.Keys.ToList();
+            }
+            else
+            {
+                permissions = await _permissionService.GetEffectivePermissionsForUserAsync(user.Id);
+
+                // استنتاج الـ Modules المسموحة بناءً على الصلاحيات التي يمتلكها
+                modules = PermissionModules.ModuleMap
+                    .Where(m => m.Value.Any(k => permissions.Contains(k)))
+                    .Select(m => m.Key)
+                    .ToList();
+            }
+
+            // 👈 2. توليد التوكن شاملاً الصلاحيات
+            var token = _jwt.GenerateToken(user, permissions);
 
             return new AuthResponseDto
             {
@@ -52,7 +75,9 @@ namespace Andalos.API.Services
                 FullName = user.FullName,
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
+                Expiration = DateTimeHelper.LibyaNow.AddMinutes(1440), // متوافق مع مدة التوكن
+                Permissions = permissions, // 👈 إرجاعها في الـ Response للفرونت اند
+                Modules = modules          // 👈 إرجاع الأقسام المسموحة للفرونت اند
             };
         }
 
@@ -63,7 +88,6 @@ namespace Andalos.API.Services
         {
             var input = dto.UserName.Trim();
 
-            // 👈 مطابقة مرنة: اسم المستخدم أو البريد أو رقم الهاتف
             var user = await _db.Users
                 .FirstOrDefaultAsync(u => (u.UserName == input
                                         || u.UserName.ToLower() == input.ToLower()
@@ -73,15 +97,26 @@ namespace Andalos.API.Services
             if (user == null)
                 throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
 
-            // 🛑 التحقق من الدور: يجب أن يكون مستأجراً أو موظف مستأجر ومرتبط بـ TenantId
             if ((user.Role != UserRole.Tenant && user.Role != UserRole.TenantStaff) || !user.TenantId.HasValue)
                 throw new UnauthorizedAccessException("هذا الحساب ليس حساب مستأجر مسجل");
 
-            // التحقق من حالة القفل والتخمين
             await CheckAndApplyLockoutAsync(user, dto.Password);
 
-            // توليد الـ JWT Token متضمناً الـ TenantId Claim
-            var token = _jwt.GenerateToken(user);
+            // 👈 1. تحديد صلاحيات المستأجر الافتراضية والآمنة
+            var tenantPermissions = new List<string>
+            {
+                "Contracts.View",
+                "Financials.ViewPayments",
+                "Complaints.View",
+                "Complaints.Create",
+                "VisitorWallet.ViewMyBalance",
+                "Maintenance.View",
+                "Maintenance.Create",
+                "Circulars.View"
+            };
+
+            // 👈 2. توليد التوكن شاملاً صلاحيات المستأجر
+            var token = _jwt.GenerateToken(user, tenantPermissions);
 
             return new TenantAuthResponseDto
             {
@@ -90,11 +125,11 @@ namespace Andalos.API.Services
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
                 TenantId = user.TenantId.Value,
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
+                Expiration = DateTimeHelper.LibyaNow.AddMinutes(1440),
+                Permissions = tenantPermissions // 👈 إرجاعها في الـ Response
             };
         }
 
-        // تابع مساعد للتحقق من كلمة المرور ونظام القفل التلقائي
         private async Task CheckAndApplyLockoutAsync(User user, string password)
         {
             if (user.IsLocked)
@@ -127,7 +162,6 @@ namespace Andalos.API.Services
                 throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
             }
 
-            // نجاح الدخول - تصفير العدادات
             user.FailedLoginAttempts = 0;
             user.IsLocked = false;
             user.LockoutEnd = null;
@@ -153,7 +187,9 @@ namespace Andalos.API.Services
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            var token = _jwt.GenerateToken(user);
+            // عند تسجيل مستخدم جديد لا يمتلك أي صلاحيات بعد حتى يتم تعيينها له من لوحة التحكم
+            var emptyPermissions = new List<string>();
+            var token = _jwt.GenerateToken(user, emptyPermissions);
 
             return new AuthResponseDto
             {
@@ -161,7 +197,9 @@ namespace Andalos.API.Services
                 FullName = user.FullName,
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
+                Expiration = DateTimeHelper.LibyaNow.AddMinutes(1440),
+                Permissions = emptyPermissions,
+                Modules = new List<string>()
             };
         }
 

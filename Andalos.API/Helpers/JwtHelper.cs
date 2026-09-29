@@ -15,7 +15,8 @@ namespace Andalos.API.Helpers
             _config = config;
         }
 
-        public string GenerateToken(User user)
+        // 👈 إضافة معامل الصلاحيات للدالة لزرعها داخل التوكن
+        public string GenerateToken(User user, List<string> permissions)
         {
             var jwtSettings = _config.GetSection("JwtSettings");
             var secretKey = jwtSettings["SecretKey"] ?? throw new ArgumentNullException("Jwt SecretKey is missing");
@@ -23,25 +24,30 @@ namespace Andalos.API.Helpers
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            // 👈 صناعة الهوية (البيانات المدمجة داخل التوكن)
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim("FullName", user.FullName) // أضفنا الاسم الكامل للتوكن
             };
 
-            // 👈 عزل بيانات المستأجر: إذا كان المستخدم مستأجراً، نزرع رقمه في التوكن!
             if (user.TenantId.HasValue)
             {
                 claims.Add(new Claim("TenantId", user.TenantId.Value.ToString()));
+            }
+
+            // 👈 زراعة الصلاحيات بداخل الـ JWT Claims تحت اسم "Permission"
+            foreach (var permission in permissions)
+            {
+                claims.Add(new Claim("Permission", permission));
             }
 
             var token = new JwtSecurityToken(
                 issuer: jwtSettings["Issuer"],
                 audience: jwtSettings["Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryMinutes"])),
+                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryMinutes"] ?? "1440")), // افتراضي يوم كامل
                 signingCredentials: creds
             );
 

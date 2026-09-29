@@ -12,7 +12,7 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INumberGeneratorService _numberGen;
-        private readonly INotificationService _notification; // 👈 حقن خدمة الإشعارات
+        private readonly INotificationService _notification;
 
         public ContractService(AppDbContext db, INumberGeneratorService numberGen, INotificationService notification)
         {
@@ -64,186 +64,187 @@ namespace Andalos.API.Services
 
             string contractNumber = await _numberGen.GenerateAsync("Contract");
 
-            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
             var strategy = _db.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
-            {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var contract = new Contract
-                {
-                    ContractNumber = contractNumber,
-                    TenantId = dto.TenantId,
-                    UnitId = dto.UnitId,
-                    StartDate = dto.StartDate,
-                    EndDate = dto.EndDate,
-                    RentAmount = dto.RentAmount,
-                    RentCycle = dto.RentCycle,
-                    DepositAmount = dto.DepositAmount,
-                    Status = ContractStatus.Active,
-                    ActivityType = dto.ActivityType,
-                    TradeName = dto.TradeName,
-                    AutoRenew = dto.AutoRenew,
-                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage,
-                    Notes = dto.Notes
-                };
 
-                if (dto.ExtraItems != null && dto.ExtraItems.Any())
+            var savedContract = await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    foreach (var item in dto.ExtraItems)
+                    var contract = new Contract
                     {
-                        contract.ContractItems.Add(new ContractItem
-                        {
-                            ItemName = item.ItemName,
-                            Amount = item.Amount,
-                            Notes = item.Notes
-                        });
-                    }
-                }
+                        ContractNumber = contractNumber,
+                        TenantId = dto.TenantId,
+                        UnitId = dto.UnitId,
+                        StartDate = dto.StartDate,
+                        EndDate = dto.EndDate,
+                        RentAmount = dto.RentAmount,
+                        RentCycle = dto.RentCycle,
+                        DepositAmount = dto.DepositAmount,
+                        Status = ContractStatus.Active,
+                        ActivityType = dto.ActivityType,
+                        TradeName = dto.TradeName,
+                        AutoRenew = dto.AutoRenew,
+                        AnnualIncreasePercentage = dto.AnnualIncreasePercentage,
+                        Notes = dto.Notes,
+                        CreatedAt = DateTimeHelper.LibyaNow
+                    };
 
-                if (dto.ContractFees != null && dto.ContractFees.Any())
-                {
-                    foreach (var fee in dto.ContractFees)
+                    if (dto.ExtraItems != null && dto.ExtraItems.Any())
                     {
-                        contract.ContractFees.Add(new ContractFee
+                        foreach (var item in dto.ExtraItems)
                         {
-                            FeeName = fee.FeeName,
-                            ValueType = fee.ValueType,
-                            Frequency = fee.Frequency,
-                            Value = fee.Value,
-                            Notes = fee.Notes
-                        });
+                            contract.ContractItems.Add(new ContractItem
+                            {
+                                ItemName = item.ItemName,
+                                Amount = item.Amount,
+                                Notes = item.Notes
+                            });
+                        }
                     }
+
+                    if (dto.ContractFees != null && dto.ContractFees.Any())
+                    {
+                        foreach (var fee in dto.ContractFees)
+                        {
+                            contract.ContractFees.Add(new ContractFee
+                            {
+                                FeeName = fee.FeeName,
+                                ValueType = fee.ValueType,
+                                Frequency = fee.Frequency,
+                                Value = fee.Value,
+                                Notes = fee.Notes
+                            });
+                        }
+                    }
+
+                    _db.Contracts.Add(contract);
+
+                    unit.Status = UnitStatus.Rented;
+                    unit.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return await _db.Contracts
+                        .Include(c => c.Tenant)
+                        .Include(c => c.Unit)
+                        .Include(c => c.ContractItems)
+                        .Include(c => c.ContractDocuments)
+                        .Include(c => c.ContractFees)
+                        .Include(c => c.ParentContract)
+                        .FirstAsync(c => c.Id == contract.Id);
                 }
-
-                _db.Contracts.Add(contract);
-
-                unit.Status = UnitStatus.Rented;
-                unit.UpdatedAt = DateTime.UtcNow;
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var savedContract = await _db.Contracts
-                    .Include(c => c.Tenant)
-                    .Include(c => c.Unit)
-                    .Include(c => c.ContractItems)
-                    .Include(c => c.ContractDocuments)
-                    .Include(c => c.ContractFees)
-                    .Include(c => c.ParentContract)
-                    .FirstAsync(c => c.Id == contract.Id);
-
-                // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
-                await _notification.SendToTenantAsync(
-                    savedContract.TenantId,
-                    "تفعيل عقد إيجار جديد 📜",
-                    $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
-                    NotificationType.ContractRenewed,
-                    $"/tenant/contracts/{savedContract.Id}",
-                    savedContract.Id
-                );
-
-                return MapToDto(savedContract);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             });
+
+            // 🔔 إشعار المستأجر بإنشاء العقد الجديد وتفعيل محلّه
+            _ = _notification.SendToTenantAsync(
+                savedContract.TenantId,
+                "تفعيل عقد إيجار جديد 📜",
+                $"مرحباً بك، تم إصدار وتفعيل عقدك رقم {savedContract.ContractNumber} للمحل رقم ({unit.UnitNumber}) بنجاح.",
+                NotificationType.ContractRenewed,
+                $"/tenant/contracts/{savedContract.Id}",
+                savedContract.Id
+            );
+
+            return MapToDto(savedContract);
         }
 
         public async Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus)
         {
-            var contract = await _db.Contracts
-                .Include(c => c.Unit)
-                .Include(c => c.Tenant)
-                .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
-
-            if (contract == null) return false;
-
-            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
             var strategy = _db.Database.CreateExecutionStrategy();
+
             return await strategy.ExecuteAsync(async () =>
             {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var oldStatus = contract.Status;
-                contract.Status = newStatus;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
+                var contract = await _db.Contracts
+                    .Include(c => c.Unit)
+                    .Include(c => c.Tenant)
+                    .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
-                if (contract.Unit != null && (newStatus == ContractStatus.Expired || newStatus == ContractStatus.Terminated))
+                if (contract == null) return false;
+
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    contract.Unit.Status = UnitStatus.Vacant;
+                    var oldStatus = contract.Status;
+                    contract.Status = newStatus;
                     contract.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                    if (contract.Unit != null && (newStatus == ContractStatus.Expired || newStatus == ContractStatus.Terminated))
+                    {
+                        contract.Unit.Status = UnitStatus.Vacant;
+                        contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    }
+                    else if (contract.Unit != null && newStatus == ContractStatus.Active)
+                    {
+                        contract.Unit.Status = UnitStatus.Rented;
+                        contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    }
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    // 🔔 إشعار عند فسخ أو إنهاء العقد
+                    if (newStatus == ContractStatus.Terminated)
+                    {
+                        _ = _notification.SendToTenantAsync(
+                            contract.TenantId,
+                            "تم إنهاء عقد الإيجار ⚠️",
+                            $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
+                            NotificationType.ContractTerminated,
+                            $"/tenant/contracts/{contract.Id}",
+                            contract.Id
+                        );
+                    }
+
+                    return true;
                 }
-                else if (contract.Unit != null && newStatus == ContractStatus.Active)
+                catch
                 {
-                    contract.Unit.Status = UnitStatus.Rented;
-                    contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    await transaction.RollbackAsync();
+                    return false;
                 }
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // 🔔 إشعار عند فسخ أو إنهاء العقد
-                if (newStatus == ContractStatus.Terminated)
-                {
-                    await _notification.SendToTenantAsync(
-                        contract.TenantId,
-                        "تم إنهاء عقد الإيجار ⚠️",
-                        $"نعلمكم بأنه تم إنهاء العقد رقم {contract.ContractNumber} للمحل {contract.Unit?.UnitNumber} رسمياً.",
-                        NotificationType.ContractTerminated,
-                        $"/tenant/contracts/{contract.Id}",
-                        contract.Id
-                    );
-                }
-
-                return true;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                return false;
-            }
             });
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var contract = await _db.Contracts
-                .Include(c => c.Unit)
-                .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
-
-            if (contract == null) return false;
-
-            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
             var strategy = _db.Database.CreateExecutionStrategy();
+
             return await strategy.ExecuteAsync(async () =>
             {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                contract.IsActive = false;
-                contract.UpdatedAt = DateTimeHelper.LibyaNow;
+                var contract = await _db.Contracts
+                    .Include(c => c.Unit)
+                    .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
-                if (contract.Unit != null && contract.Status == ContractStatus.Active)
+                if (contract == null) return false;
+
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    contract.Unit.Status = UnitStatus.Vacant;
-                    contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
-                }
+                    contract.IsActive = false;
+                    contract.UpdatedAt = DateTimeHelper.LibyaNow;
 
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return true;
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                return false;
-            }
+                    if (contract.Unit != null && contract.Status == ContractStatus.Active)
+                    {
+                        contract.Unit.Status = UnitStatus.Vacant;
+                        contract.Unit.UpdatedAt = DateTimeHelper.LibyaNow;
+                    }
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    return true;
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    return false;
+                }
             });
         }
 
@@ -269,97 +270,97 @@ namespace Andalos.API.Services
 
             string newContractNumber = await _numberGen.GenerateAsync("Contract");
 
-            // 🛡️ EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy (وإلا يرفض EF المعاملة)
             var strategy = _db.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
-            {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var newContract = new Contract
-                {
-                    ContractNumber = newContractNumber,
-                    TenantId = oldContract.TenantId,
-                    UnitId = oldContract.UnitId,
-                    StartDate = dto.NewStartDate,
-                    EndDate = dto.NewEndDate,
-                    RentAmount = newRent,
-                    RentCycle = oldContract.RentCycle,
-                    DepositAmount = oldContract.DepositAmount,
-                    Status = ContractStatus.Active,
-                    ActivityType = oldContract.ActivityType,
-                    TradeName = oldContract.TradeName,
-                    AutoRenew = dto.AutoRenew,
-                    AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
-                    ParentContractId = oldContract.Id,
-                    Notes = dto.Notes ?? $"تجديد للعقد السابق رقم {oldContract.ContractNumber} بزيادة ({dto.IncreaseValue})"
-                };
 
-                if (dto.CopyFeesFromPreviousContract && oldContract.ContractFees.Any())
+            var savedContract = await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _db.Database.BeginTransactionAsync();
+                try
                 {
-                    foreach (var fee in oldContract.ContractFees.Where(f => f.IsActive))
+                    var newContract = new Contract
                     {
-                        newContract.ContractFees.Add(new ContractFee
-                        {
-                            FeeName = fee.FeeName,
-                            ValueType = fee.ValueType,
-                            Frequency = fee.Frequency,
-                            Value = fee.Value,
-                            Notes = fee.Notes
-                        });
-                    }
-                }
+                        ContractNumber = newContractNumber,
+                        TenantId = oldContract.TenantId,
+                        UnitId = oldContract.UnitId,
+                        StartDate = dto.NewStartDate,
+                        EndDate = dto.NewEndDate,
+                        RentAmount = newRent,
+                        RentCycle = oldContract.RentCycle,
+                        DepositAmount = oldContract.DepositAmount,
+                        Status = ContractStatus.Active,
+                        ActivityType = oldContract.ActivityType,
+                        TradeName = oldContract.TradeName,
+                        AutoRenew = dto.AutoRenew,
+                        AnnualIncreasePercentage = dto.AnnualIncreasePercentage ?? (dto.IncreaseType == IncreaseType.Percentage ? dto.IncreaseValue : oldContract.AnnualIncreasePercentage),
+                        ParentContractId = oldContract.Id,
+                        Notes = dto.Notes ?? $"تجديد للعقد السابق رقم {oldContract.ContractNumber} بزيادة ({dto.IncreaseValue})"
+                    };
 
-                if (dto.NewFees != null && dto.NewFees.Any())
-                {
-                    foreach (var feeDto in dto.NewFees)
+                    if (dto.CopyFeesFromPreviousContract && oldContract.ContractFees.Any())
                     {
-                        newContract.ContractFees.Add(new ContractFee
+                        foreach (var fee in oldContract.ContractFees.Where(f => f.IsActive))
                         {
-                            FeeName = feeDto.FeeName,
-                            ValueType = feeDto.ValueType,
-                            Frequency = feeDto.Frequency,
-                            Value = feeDto.Value,
-                            Notes = feeDto.Notes
-                        });
+                            newContract.ContractFees.Add(new ContractFee
+                            {
+                                FeeName = fee.FeeName,
+                                ValueType = fee.ValueType,
+                                Frequency = fee.Frequency,
+                                Value = fee.Value,
+                                Notes = fee.Notes
+                            });
+                        }
                     }
+
+                    if (dto.NewFees != null && dto.NewFees.Any())
+                    {
+                        foreach (var feeDto in dto.NewFees)
+                        {
+                            newContract.ContractFees.Add(new ContractFee
+                            {
+                                FeeName = feeDto.FeeName,
+                                ValueType = feeDto.ValueType,
+                                Frequency = feeDto.Frequency,
+                                Value = feeDto.Value,
+                                Notes = feeDto.Notes
+                            });
+                        }
+                    }
+
+                    _db.Contracts.Add(newContract);
+
+                    oldContract.Status = ContractStatus.Renewed;
+                    oldContract.UpdatedAt = DateTimeHelper.LibyaNow;
+
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return await _db.Contracts
+                        .Include(c => c.Tenant)
+                        .Include(c => c.Unit)
+                        .Include(c => c.ContractItems)
+                        .Include(c => c.ContractDocuments)
+                        .Include(c => c.ContractFees)
+                        .Include(c => c.ParentContract)
+                        .FirstAsync(c => c.Id == newContract.Id);
                 }
-
-                _db.Contracts.Add(newContract);
-
-                oldContract.Status = ContractStatus.Renewed;
-                oldContract.UpdatedAt = DateTime.UtcNow;
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var savedContract = await _db.Contracts
-                    .Include(c => c.Tenant)
-                    .Include(c => c.Unit)
-                    .Include(c => c.ContractItems)
-                    .Include(c => c.ContractDocuments)
-                    .Include(c => c.ContractFees)
-                    .Include(c => c.ParentContract)
-                    .FirstAsync(c => c.Id == newContract.Id);
-
-                // 🔔 إشعار بتجديد العقد بنجاح
-                await _notification.SendToTenantAsync(
-                    savedContract.TenantId,
-                    "تم تجديد عقد الإيجار بنجاح 🔄",
-                    $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
-                    NotificationType.ContractRenewed,
-                    $"/tenant/contracts/{savedContract.Id}",
-                    savedContract.Id
-                );
-
-                return MapToDto(savedContract);
-            }
-            catch
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             });
+
+            // 🔔 إشعار بتجديد العقد بنجاح
+            _ = _notification.SendToTenantAsync(
+                savedContract.TenantId,
+                "تم تجديد عقد الإيجار بنجاح 🔄",
+                $"تم تجديد عقدكم بنجاح برقم جديد {savedContract.ContractNumber} وقيمة إيجار معدلة: {savedContract.RentAmount:N2} د.ل.",
+                NotificationType.ContractRenewed,
+                $"/tenant/contracts/{savedContract.Id}",
+                savedContract.Id
+            );
+
+            return MapToDto(savedContract);
         }
 
         private static ContractResponseDto MapToDto(Contract contract)

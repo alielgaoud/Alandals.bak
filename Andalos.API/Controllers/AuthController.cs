@@ -22,15 +22,14 @@ namespace Andalos.API.Controllers
             try
             {
                 var result = await _auth.LoginAsync(dto);
-                return Ok(ApiResponseDto<AuthResponseDto>.SuccessResponse(result));
+                return Ok(ApiResponseDto<AuthResponseDto>.SuccessResponse(result, "تم تسجيل الدخول بنجاح"));
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized(ApiResponseDto<AuthResponseDto>.FailResponse(ex.Message));
+                return Unauthorized(ApiResponseDto<string>.FailResponse(ex.Message));
             }
         }
 
-        // 👈 الاندبوينت الجديد والآمن المخصص لتسجيل دخول المستأجرين من الويب
         [HttpPost("tenant-login")]
         public async Task<IActionResult> TenantLogin([FromBody] LoginDto dto)
         {
@@ -41,7 +40,7 @@ namespace Andalos.API.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Unauthorized(ApiResponseDto<TenantAuthResponseDto>.FailResponse(ex.Message));
+                return Unauthorized(ApiResponseDto<string>.FailResponse(ex.Message));
             }
         }
 
@@ -51,11 +50,11 @@ namespace Andalos.API.Controllers
             try
             {
                 var result = await _auth.RegisterAsync(dto);
-                return Ok(result);
+                return Ok(ApiResponseDto<AuthResponseDto>.SuccessResponse(result, "تم إنشاء الحساب بنجاح"));
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }
         }
     }

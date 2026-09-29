@@ -1,3 +1,6 @@
 <Solution>
+  <Project Path="Andalos.API.Tests/Andalos.API.Tests.csproj">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
   <Project Path="Andalos.API/Andalos.API.csproj" />
 </Solution>
