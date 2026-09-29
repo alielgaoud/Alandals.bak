@@ -1,51 +1,28 @@
-﻿using Andalos.API.Models;
+using Andalos.API.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-
-namespace Andalos.API.Helpers
+namespace Andalos.API.Helpers;
+public sealed class JwtHelper(IConfiguration configuration)
 {
-    public class JwtHelper
+    public string GenerateToken(User user) => GenerateToken(user, out _);
+    public string GenerateToken(User user, out DateTime expiration)
     {
-        private readonly IConfiguration _config;
-
-        public JwtHelper(IConfiguration config)
+        var settings = configuration.GetSection("JwtSettings");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings["SecretKey"] ?? throw new InvalidOperationException("JWT signing key is required.")));
+        var now = DateTime.UtcNow;
+        expiration = now.AddMinutes(settings.GetValue<int>("ExpiryMinutes", 60));
+        var claims = new List<Claim>
         {
-            _config = config;
-        }
-
-        public string GenerateToken(User user)
-        {
-            var jwtSettings = _config.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new ArgumentNullException("Jwt SecretKey is missing");
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            // 👈 صناعة الهوية (البيانات المدمجة داخل التوكن)
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
-            };
-
-            // 👈 عزل بيانات المستأجر: إذا كان المستخدم مستأجراً، نزرع رقمه في التوكن!
-            if (user.TenantId.HasValue)
-            {
-                claims.Add(new Claim("TenantId", user.TenantId.Value.ToString()));
-            }
-
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryMinutes"])),
-                signingCredentials: creds
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()), new(ClaimTypes.Name, user.UserName),
+            new(ClaimTypes.Role, user.Role.ToString()), new("security_stamp", user.SecurityStamp),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+        };
+        if ((user.Role is Andalos.API.Enums.UserRole.Tenant or Andalos.API.Enums.UserRole.TenantStaff) && user.TenantId.HasValue)
+            claims.Add(new("TenantId", user.TenantId.Value.ToString()));
+        return new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(settings["Issuer"], settings["Audience"], claims,
+            notBefore: now, expires: expiration, signingCredentials: new(key, SecurityAlgorithms.HmacSha256)));
     }
 }

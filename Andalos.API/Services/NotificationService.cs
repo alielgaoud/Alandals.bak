@@ -1,4 +1,5 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Notifications;
 using Andalos.API.Enums;
@@ -14,6 +15,8 @@ namespace Andalos.API.Services
     public class NotificationService : INotificationService
     {
         private readonly AppDbContext _db;
+        private readonly CurrentUser _current;
+        private readonly EffectivePermissions _permissions;
         private readonly IHubContext<NotificationHub> _hub;
         private readonly IPushNotificationService _pushService; // 👈 1. إضافة حقل خدمة الـ Push
         private readonly ISettingService _settings; // 👈 استدعاء الإعدادات
@@ -24,9 +27,11 @@ namespace Andalos.API.Services
             AppDbContext db,
             ISettingService settings,
             IHubContext<NotificationHub> hub,
-            IPushNotificationService pushService)
+            IPushNotificationService pushService, CurrentUser current, EffectivePermissions permissions)
         {
             _db = db;
+            _current = current;
+            _permissions = permissions;
             _settings = settings;
             _hub = hub;
             _pushService = pushService;
@@ -37,6 +42,7 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task<NotificationResponseDto> CreateNotificationAsync(CreateNotificationDto dto)
         {
+            if (!Enum.IsDefined(dto.Type) || !Enum.IsDefined(dto.Priority)) throw new ArgumentException("Invalid notification type/priority.");
             // 👈 1. هل الإشعارات الداخلية مفعلة من إعدادات النظام ككل؟
             var globalInAppEnabled = await _settings.GetValueAsync(SettingKeys.NotificationInAppEnabled, true);
             if (!globalInAppEnabled) return new NotificationResponseDto { Title = "الإشعارات موقوفة من الإدارة" };
@@ -73,22 +79,7 @@ namespace Andalos.API.Services
 
             var responseDto = MapToDto(notification);
 
-            // 🔔 إرسال الإشعار اللحظي عبر SignalR + Push Notifications (إذا لم يكن مجدولاً)
-            if (!dto.ScheduledFor.HasValue)
-            {
-                // أ) الإرسال اللحظي داخل التطبيق عبر SignalR
-                await SendRealtimeNotificationAsync(notification, responseDto);
-
-                // ب) 👈 جديد: إرسال Push Notification للجوال/المتصفح إذا كان المستخدم مفعل لها
-                bool pushEnabled = await IsNotificationEnabledAsync(dto.UserId, dto.TenantId, dto.Type, NotificationChannel.Push);
-                if (pushEnabled)
-                {
-                    // يُنفذ في الخلفية دون تعطيل الـ Request الحالي
-                    await _pushService.SendPushNotificationAsync(
-    dto.UserId, dto.TenantId, dto.Title, dto.Message, dto.ActionUrl);
-                }
-            }
-
+            // Durable outbox: the dispatcher observes this row only AFTER the enclosing transaction commits.
             return responseDto;
         }
 
@@ -123,6 +114,7 @@ namespace Andalos.API.Services
 
         public async Task SendToGroupAsync(string groupName, string title, string message, NotificationType type, string? actionUrl = null)
         {
+            if (!Enum.IsDefined(type) || groupName is not ("Admins" or "Accountants" or "AllTenants")) throw new ArgumentException("Invalid notification target/type.");
             var notification = new Notification
             {
                 TargetGroup = groupName,
@@ -140,7 +132,7 @@ namespace Andalos.API.Services
             _db.Notifications.Add(notification);
             await _db.SaveChangesAsync();
 
-            await _hub.Clients.Group(groupName).SendAsync("ReceiveNotification", MapToDto(notification));
+            // Delivery is permission-filtered per live recipient by NotificationDispatcher.
         }
 
         public async Task SendToAllAdminsAsync(string title, string message, NotificationType type, NotificationPriority priority = NotificationPriority.Medium, string? actionUrl = null, int? relatedEntityId = null)
@@ -168,55 +160,9 @@ namespace Andalos.API.Services
         // =====================================================
         // 3. الإرسال اللحظي عبر SignalR
         // =====================================================
-        private async Task SendRealtimeNotificationAsync(Notification notification, NotificationResponseDto dto)
-        {
-            if (notification.UserId.HasValue)
-            {
-                await _hub.Clients.Group($"user_{notification.UserId}").SendAsync("ReceiveNotification", dto);
-            }
-
-            if (notification.TenantId.HasValue)
-            {
-                await _hub.Clients.Group($"tenant_{notification.TenantId}").SendAsync("ReceiveNotification", dto);
-            }
-
-            if (!string.IsNullOrEmpty(notification.TargetGroup))
-            {
-                await _hub.Clients.Group(notification.TargetGroup).SendAsync("ReceiveNotification", dto);
-            }
-        }
-
         public async Task<NotificationSummaryDto> GetMyNotificationsAsync(int? userId, int? tenantId, int limit = 20)
         {
-            var query = _db.Notifications.Where(n => n.IsActive && n.IsSent);
-
-            // تطبيق فلترة صارمة بناءً على الهويات المتاحة
-            if (tenantId.HasValue)
-            {
-                // سياق المستأجر: جلب الخاص بالمشروع، أو حساب الموظف، أو الموجه لكافة المستأجرين
-                if (userId.HasValue)
-                {
-                    query = query.Where(n => n.TenantId == tenantId.Value
-                                          || n.UserId == userId.Value
-                                          || n.TargetGroup == "AllTenants");
-                }
-                else
-                {
-                    query = query.Where(n => n.TenantId == tenantId.Value || n.TargetGroup == "AllTenants");
-                }
-            }
-            else if (userId.HasValue)
-            {
-                // سياق الإدارة والأمن: جلب الخاص بـ UserId الإداري، أو مجموعات التحكم
-                query = query.Where(n => n.UserId == userId.Value
-                                      || n.TargetGroup == "Admins"
-                                      || n.TargetGroup == "Accountants");
-            }
-            else
-            {
-                // إذا انعدمت الهوية تماماً، نرجع كائن فارغ بأمان
-                return new NotificationSummaryDto();
-            }
+            var query = (await OwnedQueryAsync(userId, tenantId)).Where(n => n.IsActive && n.IsSent);
 
             var totalCount = await query.CountAsync();
             var unreadCount = await query.CountAsync(n => !n.IsRead);
@@ -238,31 +184,7 @@ namespace Andalos.API.Services
 
         public async Task<List<NotificationResponseDto>> GetAllAsync(int? userId, int? tenantId, bool unreadOnly = false, int limit = 50)
         {
-            var query = _db.Notifications.Where(n => n.IsActive && n.IsSent);
-
-            if (tenantId.HasValue)
-            {
-                if (userId.HasValue)
-                {
-                    query = query.Where(n => n.TenantId == tenantId.Value
-                                          || n.UserId == userId.Value
-                                          || n.TargetGroup == "AllTenants");
-                }
-                else
-                {
-                    query = query.Where(n => n.TenantId == tenantId.Value || n.TargetGroup == "AllTenants");
-                }
-            }
-            else if (userId.HasValue)
-            {
-                query = query.Where(n => n.UserId == userId.Value
-                                      || n.TargetGroup == "Admins"
-                                      || n.TargetGroup == "Accountants");
-            }
-            else
-            {
-                return new List<NotificationResponseDto>();
-            }
+            var query = (await OwnedQueryAsync(userId, tenantId)).Where(n => n.IsActive && n.IsSent);
 
             if (unreadOnly)
                 query = query.Where(n => !n.IsRead);
@@ -279,31 +201,7 @@ namespace Andalos.API.Services
 
         public async Task<int> GetUnreadCountAsync(int? userId, int? tenantId)
         {
-            var query = _db.Notifications.Where(n => n.IsActive && n.IsSent && !n.IsRead);
-
-            if (tenantId.HasValue)
-            {
-                if (userId.HasValue)
-                {
-                    query = query.Where(n => n.TenantId == tenantId.Value
-                                          || n.UserId == userId.Value
-                                          || n.TargetGroup == "AllTenants");
-                }
-                else
-                {
-                    query = query.Where(n => n.TenantId == tenantId.Value || n.TargetGroup == "AllTenants");
-                }
-            }
-            else if (userId.HasValue)
-            {
-                query = query.Where(n => n.UserId == userId.Value
-                                      || n.TargetGroup == "Admins"
-                                      || n.TargetGroup == "Accountants");
-            }
-            else
-            {
-                return 0;
-            }
+            var query = (await OwnedQueryAsync(userId, tenantId)).Where(n => n.IsActive && n.IsSent && !n.IsRead);
 
             return await query.CountAsync();
         }
@@ -312,13 +210,11 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task<bool> MarkAsReadAsync(int notificationId, int? userId, int? tenantId)
         {
-            var notification = await _db.Notifications
+            var notification = await (await OwnedQueryAsync(userId, tenantId, write: true))
                 .FirstOrDefaultAsync(n => n.Id == notificationId && n.IsActive);
 
             if (notification == null) return false;
 
-            if (userId.HasValue && notification.UserId != userId) return false;
-            if (tenantId.HasValue && notification.TenantId != tenantId) return false;
 
             notification.IsRead = true;
             notification.ReadAt = DateTimeHelper.LibyaNow;
@@ -330,12 +226,7 @@ namespace Andalos.API.Services
 
         public async Task<bool> MarkAllAsReadAsync(int? userId, int? tenantId)
         {
-            var query = _db.Notifications.Where(n => n.IsActive && !n.IsRead);
-
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId);
-            else if (tenantId.HasValue)
-                query = query.Where(n => n.TenantId == tenantId);
+            var query = (await OwnedQueryAsync(userId, tenantId, write: true)).Where(n => n.IsActive && !n.IsRead);
 
             var notifications = await query.ToListAsync();
             foreach (var n in notifications)
@@ -351,13 +242,11 @@ namespace Andalos.API.Services
 
         public async Task<bool> DeleteAsync(int notificationId, int? userId, int? tenantId)
         {
-            var notification = await _db.Notifications
+            var notification = await (await OwnedQueryAsync(userId, tenantId, write: true))
                 .FirstOrDefaultAsync(n => n.Id == notificationId && n.IsActive);
 
             if (notification == null) return false;
 
-            if (userId.HasValue && notification.UserId != userId) return false;
-            if (tenantId.HasValue && notification.TenantId != tenantId) return false;
 
             notification.IsActive = false;
             notification.UpdatedAt = DateTimeHelper.LibyaNow;
@@ -370,6 +259,7 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task<List<NotificationPreferenceDto>> GetPreferencesAsync(int? userId, int? tenantId)
         {
+            ValidateContext(userId, tenantId);
             var query = _db.NotificationPreferences.Where(p => p.IsActive);
 
             if (userId.HasValue)
@@ -401,6 +291,7 @@ namespace Andalos.API.Services
 
         public async Task<bool> UpdatePreferencesAsync(int? userId, int? tenantId, UpdatePreferencesDto dto)
         {
+            ValidateContext(userId, tenantId);
             foreach (var prefDto in dto.Preferences)
             {
                 var existing = await _db.NotificationPreferences
@@ -461,6 +352,33 @@ namespace Andalos.API.Services
                 _ => true
             };
         }
+
+        private void ValidateContext(int? userId, int? tenantId)
+        {
+            var u = _current.Required;
+            if (userId != u.Id || tenantId != (u.IsTenant ? u.TenantId : null)) throw new ForbiddenOperationException();
+        }
+        private async Task<IQueryable<Notification>> OwnedQueryAsync(int? userId, int? tenantId, bool write = false)
+        {
+            ValidateContext(userId, tenantId);
+            var u = _current.Required;
+            var keys = u.IsStaff ? await _permissions.GetAsync(u) : Array.Empty<string>();
+            var caps = u.Role == UserRole.TenantStaff ? await _db.TenantStaffPermissions.Where(p => p.UserId == u.Id).Select(p => p.Capability).ToListAsync() : new List<string>();
+            var allowed = Enum.GetValues<NotificationType>().Where(t => u.IsStaff
+                ? NotificationPrivacy.StaffKey(t) is null || keys.Contains(NotificationPrivacy.StaffKey(t)!, StringComparer.Ordinal)
+                : u.Role == UserRole.Tenant || NotificationPrivacy.PortalCapability(t) is null || caps.Contains(NotificationPrivacy.PortalCapability(t)!, StringComparer.Ordinal)).ToArray();
+            var q = _db.Notifications.Where(n => allowed.Contains(n.Type));
+            if (write)
+                return q.Where(n => n.TargetGroup == null &&
+                    ((n.UserId == u.Id && (!u.IsTenant || n.TenantId == null || n.TenantId == u.TenantId)) ||
+                     (u.Role == UserRole.Tenant && n.UserId == null && n.TenantId == u.TenantId)));
+            if (u.IsTenant)
+                return q.Where(n => (n.UserId == u.Id && (n.TenantId == null || n.TenantId == u.TenantId)) ||
+                    (n.UserId == null && (n.TenantId == u.TenantId && n.TargetGroup == null ||
+                     n.TenantId == null && n.TargetGroup == "AllTenants")));
+            return q.Where(n => n.UserId == u.Id || (n.UserId == null && n.TenantId == null && (n.TargetGroup == "Admins" || n.TargetGroup == "Accountants")));
+        }
+        public NotificationResponseDto ToDto(Notification notification) => MapToDto(notification);
 
         // =====================================================
         // دوال مساعدة

@@ -1,3 +1,5 @@
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.Enums;
@@ -11,15 +13,17 @@ namespace Andalos.API.Services
     public class MaintenanceService : IMaintenanceService
     {
         private readonly AppDbContext _db;
+        private readonly FinancialOperationGuard _guard;
         private readonly INumberGeneratorService _numberGen;
         private readonly INotificationService _notification;
 
         public MaintenanceService(
             AppDbContext db,
             INumberGeneratorService numberGen,
-            INotificationService notification)
+            INotificationService notification, FinancialOperationGuard guard)
         {
             _db = db;
+            _guard = guard;
             _numberGen = numberGen;
             _notification = notification;
         }
@@ -62,8 +66,15 @@ namespace Andalos.API.Services
             return MapToDto(request, charge);
         }
 
-        public async Task<MaintenanceResponseDto> CreateAsync(CreateMaintenanceRequestDto dto)
+        public Task<MaintenanceResponseDto> CreateAsync(CreateMaintenanceRequestDto dto) => _db.AtomicAsync(() => CreateAsyncCore(dto));
+
+        private async Task<MaintenanceResponseDto> CreateAsyncCore(CreateMaintenanceRequestDto dto)
         {
+            if (!Enum.IsDefined(dto.Type) || !Enum.IsDefined(dto.Priority) || dto.Cost < 0 || dto.Cost > 1_000_000m || decimal.Round(dto.Cost, 2) != dto.Cost)
+                throw new ArgumentException("Invalid maintenance fields.");
+            if (dto.TenantId.HasValue && !await _db.Contracts.AnyAsync(c => c.UnitId == dto.UnitId && c.TenantId == dto.TenantId &&
+                c.IsActive && c.Status == ContractStatus.Active && c.Tenant!.IsActive)) throw new ForbiddenOperationException();
+
             var unit = await _db.Units.FirstOrDefaultAsync(u => u.Id == dto.UnitId && u.IsActive);
             if (unit == null)
                 throw new KeyNotFoundException("المحل المحدد غير موجود");
@@ -95,14 +106,29 @@ namespace Andalos.API.Services
             return MapToDto(saved, savedCharge);
         }
 
-        public async Task<bool> UpdateStatusAsync(int id, UpdateMaintenanceStatusDto dto)
+        public Task<bool> UpdateStatusAsync(int id, UpdateMaintenanceStatusDto dto) => _db.AtomicAsync(() => UpdateStatusAsyncCore(id, dto));
+
+        private async Task<bool> UpdateStatusAsyncCore(int id, UpdateMaintenanceStatusDto dto)
         {
+            if (!Enum.IsDefined(dto.Status) || !Enum.IsDefined(dto.BillingType) || dto.Cost < 0 || dto.Cost > 1_000_000m || decimal.Round(dto.Cost, 2) != dto.Cost)
+                throw new ArgumentException("Invalid status/cost/billing type.");
+            if (dto.BilledToTenant)
+            {
+                FinancialOperationGuard.ValidateAmount(dto.BilledAmount);
+                await _guard.RequireAsync(Permissions.Financials.ChargeTenant);
+            }
+
             var request = await _db.MaintenanceRequests
                 .Include(m => m.Unit)
                 .Include(m => m.Tenant)
                 .FirstOrDefaultAsync(m => m.Id == id && m.IsActive);
             if (request == null) return false;
 
+
+            if (request.BilledToTenant && (dto.Status == MaintenanceStatus.Cancelled || dto.Status == MaintenanceStatus.New || (dto.Cost > 0 && dto.Cost != request.Cost)))
+                throw new ConcurrencyConflictException("A billed request requires a reviewed financial reversal.");
+            if (dto.Status == MaintenanceStatus.Completed && dto.RecordCostExpense && (dto.Cost > 0 || request.Cost > 0))
+                await _guard.RequireAsync(Permissions.Expenses.Create);
             var previousStatus = request.Status; // حفظ الحالة القديمة قبل التحديث (للإشعار)
 
             request.Status = dto.Status;
@@ -176,11 +202,17 @@ namespace Andalos.API.Services
             return true;
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public Task<bool> DeleteAsync(int id) => _db.AtomicAsync(() => DeleteAsyncCore(id));
+
+        private async Task<bool> DeleteAsyncCore(int id)
         {
             var request = await _db.MaintenanceRequests.FirstOrDefaultAsync(m => m.Id == id && m.IsActive);
             if (request == null) return false;
 
+
+            if (await _db.TenantCharges.AnyAsync(c => c.MaintenanceRequestId == id && c.IsActive) ||
+                await _db.Expenses.AnyAsync(e => e.MaintenanceRequestId == id && e.IsActive))
+                throw new ConcurrencyConflictException("A posted maintenance request cannot be deleted without financial reconciliation.");
             request.IsActive = false;
             request.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();
@@ -190,8 +222,13 @@ namespace Andalos.API.Services
         // =========================================================================
         // 👈 جديد: تحميل المستأجر يدوياً (إجراء مستقل — زر "تحميل على المستأجر")
         // =========================================================================
-        public async Task<MaintenanceResponseDto> ChargeTenantAsync(int id, ChargeMaintenanceDto dto)
+        public Task<MaintenanceResponseDto> ChargeTenantAsync(int id, ChargeMaintenanceDto dto) => _db.AtomicAsync(() => ChargeTenantAsyncCore(id, dto));
+
+        private async Task<MaintenanceResponseDto> ChargeTenantAsyncCore(int id, ChargeMaintenanceDto dto)
         {
+            FinancialOperationGuard.ValidateAmount(dto.BilledAmount);
+            if (!Enum.IsDefined(dto.BillingType)) throw new ArgumentException("Invalid billing type.");
+
             var request = await _db.MaintenanceRequests
                 .Include(m => m.Unit)
                 .Include(m => m.Tenant)
@@ -200,6 +237,8 @@ namespace Andalos.API.Services
             if (request == null)
                 throw new KeyNotFoundException("طلب الصيانة غير موجود");
 
+
+            if (dto.RecordCostExpense && request.Cost > 0) await _guard.RequireAsync(Permissions.Expenses.Create);
             if (request.TenantId == null)
                 throw new InvalidOperationException("لا يمكن التحميل على مستأجر: طلب الصيانة غير مرتبط بمستأجر");
 
@@ -270,8 +309,13 @@ namespace Andalos.API.Services
         // =========================================================================
         // 👈 جديد: سداد التحميل المستحق (نقدي/تحويل) — هنا يدخل الإيراد فعلياً
         // =========================================================================
-        public async Task<TenantChargeDto> SettleChargeAsync(int chargeId, SettleChargeDto dto)
+        public Task<TenantChargeDto> SettleChargeAsync(int chargeId, SettleChargeDto dto) => _db.AtomicAsync(() => SettleChargeAsyncCore(chargeId, dto));
+
+        private async Task<TenantChargeDto> SettleChargeAsyncCore(int chargeId, SettleChargeDto dto)
         {
+            if (!Enum.IsDefined(dto.PaymentMethod) || dto.PaymentMethod == PaymentMethod.FromBalance) throw new ArgumentException("Invalid settlement method.");
+            if (dto.Amount.HasValue) FinancialOperationGuard.ValidateAmount(dto.Amount.Value);
+
             var charge = await _db.TenantCharges
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
@@ -296,7 +340,8 @@ namespace Andalos.API.Services
                 throw new InvalidOperationException("لا يوجد مبلغ متبقٍ للسداد");
 
             // 👈 السداد الجزئي: المبلغ المحدد أو كامل المتبقي
-            decimal settleAmount = dto.Amount.HasValue ? Math.Min(dto.Amount.Value, remaining) : remaining;
+            if (dto.Amount > remaining) throw new ArgumentException("Settlement exceeds the remaining charge.");
+            decimal settleAmount = dto.Amount ?? remaining;
             if (settleAmount <= 0)
                 throw new InvalidOperationException("مبلغ السداد غير صالح");
 
@@ -311,6 +356,9 @@ namespace Andalos.API.Services
 
             var payment = new Payment
             {
+                AllocationRecorded = true,
+                AllocatedChargeId = charge.Id,
+                AllocatedChargeAmount = settleAmount,
                 ReceiptNumber = receiptNumber,
                 ContractId = activeContract.Id,
                 TenantId = charge.TenantId,
@@ -421,6 +469,9 @@ namespace Andalos.API.Services
             };
             request.BillingType = billingType;
 
+            _db.TenantCharges.Add(charge);
+            await _db.SaveChangesAsync(); // obtain exact charge ID inside the encompassing transaction
+
             // 3. السداد التلقائي من رصيد المستأجر الدائن — للإجبارية فقط (العرض ينتظر الموافقة)
             var tenant = await _db.Tenants.FirstAsync(t => t.Id == request.TenantId.Value);
             if (!isOffer && tenant.CreditBalance > 0 && activeContract != null)
@@ -432,6 +483,10 @@ namespace Andalos.API.Services
 
                 var settlementPayment = new Payment
                 {
+                    AllocationRecorded = true,
+                    WalletDebitAmount = amountToDeduct,
+                    AllocatedChargeId = charge.Id,
+                    AllocatedChargeAmount = amountToDeduct,
                     ContractId = activeContract.Id,
                     TenantId = tenant.Id,
                     UnitId = request.UnitId,
@@ -448,10 +503,10 @@ namespace Andalos.API.Services
 
                 charge.SettledAmount = amountToDeduct;
                 charge.IsSettled = charge.SettledAmount >= charge.Amount;
+                if (charge.IsSettled) charge.ChargeStatus = ChargeStatus.Paid;
                 charge.SettlementReceiptNumber = receiptNo;
             }
 
-            _db.TenantCharges.Add(charge);
 
             // 4. تحديث طلب الصيانة
             request.BilledToTenant = true;
@@ -507,7 +562,9 @@ namespace Andalos.API.Services
         // =========================================================================
         // 👈 جديد: رد المستأجر على عرض الصيانة (قبول / رفض)
         // =========================================================================
-        public async Task<TenantChargeDto> RespondToChargeAsync(int chargeId, int tenantId, RespondChargeDto dto)
+        public Task<TenantChargeDto> RespondToChargeAsync(int chargeId, int tenantId, RespondChargeDto dto) => _db.AtomicAsync(() => RespondToChargeAsyncCore(chargeId, tenantId, dto));
+
+        private async Task<TenantChargeDto> RespondToChargeAsyncCore(int chargeId, int tenantId, RespondChargeDto dto)
         {
             var charge = await _db.TenantCharges
                 .Include(c => c.Tenant)
@@ -575,6 +632,10 @@ namespace Andalos.API.Services
                     string receiptNo = await _numberGen.GenerateAsync("receipt");
                     _db.Payments.Add(new Payment
                     {
+                        AllocationRecorded = true,
+                        WalletDebitAmount = amountToDeduct,
+                        AllocatedChargeId = charge.Id,
+                        AllocatedChargeAmount = amountToDeduct,
                         ContractId = activeContract.Id,
                         TenantId = tenantId,
                         UnitId = charge.UnitId ?? activeContract.UnitId,

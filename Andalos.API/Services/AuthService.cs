@@ -1,180 +1,62 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Auth;
+using Andalos.API.Enums;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
-using Andalos.API.Enums;
+using Andalos.API.Security;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using System.Text;
 
-namespace Andalos.API.Services
+namespace Andalos.API.Services;
+public sealed class AuthService(AppDbContext db, JwtHelper jwt, PasswordService passwords,
+    UserSnapshotReader snapshots, EffectivePermissions permissions) : IAuthService
 {
-    public class AuthService : IAuthService
+    public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
     {
-        private readonly AppDbContext _db;
-        private readonly JwtHelper _jwt;
-
-        public AuthService(AppDbContext db, JwtHelper jwt)
-        {
-            _db = db;
-            _jwt = jwt;
-        }
-
-        // =====================================================
-        // 1. تسجيل دخول الموظفين والإدارة (اسم مستخدم / بريد / هاتف)
-        // =====================================================
-        public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
-        {
-            var input = dto.UserName.Trim();
-
-            // 👈 مطابقة مرنة: اسم المستخدم أو البريد أو رقم الهاتف
-            var user = await _db.Users
-                .FirstOrDefaultAsync(u => (u.UserName == input
-                                        || u.UserName.ToLower() == input.ToLower()
-                                        || u.Phone == input)
-                                       && u.IsActive);
-
-            if (user == null)
-                throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
-
-            // 🛑 منع المستأجرين من الدخول إلى لوحة تحكم الإدارة
-            if (user.Role == UserRole.Tenant || user.Role == UserRole.TenantStaff)
-                throw new UnauthorizedAccessException("غير مصرح لك بالدخول من هنا، يرجى استخدام بوابة المستأجرين");
-
-            await CheckAndApplyLockoutAsync(user, dto.Password);
-
-            var token = _jwt.GenerateToken(user);
-
-            return new AuthResponseDto
-            {
-                Token = token,
-                FullName = user.FullName,
-                UserName = user.UserName,
-                Role = user.Role.ToString(),
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
-            };
-        }
-
-        // =====================================================
-        // 2. تسجيل دخول المستأجرين (اسم مستخدم / بريد / هاتف)
-        // =====================================================
-        public async Task<TenantAuthResponseDto> TenantLoginAsync(LoginDto dto)
-        {
-            var input = dto.UserName.Trim();
-
-            // 👈 مطابقة مرنة: اسم المستخدم أو البريد أو رقم الهاتف
-            var user = await _db.Users
-                .FirstOrDefaultAsync(u => (u.UserName == input
-                                        || u.UserName.ToLower() == input.ToLower()
-                                        || u.Phone == input)
-                                       && u.IsActive);
-
-            if (user == null)
-                throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
-
-            // 🛑 التحقق من الدور: يجب أن يكون مستأجراً أو موظف مستأجر ومرتبط بـ TenantId
-            if ((user.Role != UserRole.Tenant && user.Role != UserRole.TenantStaff) || !user.TenantId.HasValue)
-                throw new UnauthorizedAccessException("هذا الحساب ليس حساب مستأجر مسجل");
-
-            // التحقق من حالة القفل والتخمين
-            await CheckAndApplyLockoutAsync(user, dto.Password);
-
-            // توليد الـ JWT Token متضمناً الـ TenantId Claim
-            var token = _jwt.GenerateToken(user);
-
-            return new TenantAuthResponseDto
-            {
-                Token = token,
-                FullName = user.FullName,
-                UserName = user.UserName,
-                Role = user.Role.ToString(),
-                TenantId = user.TenantId.Value,
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
-            };
-        }
-
-        // تابع مساعد للتحقق من كلمة المرور ونظام القفل التلقائي
-        private async Task CheckAndApplyLockoutAsync(User user, string password)
-        {
-            if (user.IsLocked)
-            {
-                if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeHelper.LibyaNow)
-                {
-                    var remaining = Math.Ceiling((user.LockoutEnd.Value - DateTimeHelper.LibyaNow).TotalMinutes);
-                    throw new UnauthorizedAccessException($"الحساب مقفل مؤقتاً. حاول مجدداً بعد {remaining} دقيقة");
-                }
-                else
-                {
-                    user.IsLocked = false;
-                    user.FailedLoginAttempts = 0;
-                    user.LockoutEnd = null;
-                }
-            }
-
-            if (!VerifyPassword(password, user.PasswordHash))
-            {
-                user.FailedLoginAttempts++;
-                if (user.FailedLoginAttempts >= 5)
-                {
-                    user.IsLocked = true;
-                    user.LockoutEnd = DateTimeHelper.LibyaNow.AddMinutes(15);
-                    await _db.SaveChangesAsync();
-                    throw new UnauthorizedAccessException("تم قفل الحساب لمدة 15 دقيقة بسبب محاولات دخول خاطئة متعددة");
-                }
-
-                await _db.SaveChangesAsync();
-                throw new UnauthorizedAccessException("اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة");
-            }
-
-            // نجاح الدخول - تصفير العدادات
-            user.FailedLoginAttempts = 0;
-            user.IsLocked = false;
-            user.LockoutEnd = null;
-            user.LastLoginAt = DateTimeHelper.LibyaNow;
-            await _db.SaveChangesAsync();
-        }
-
-        public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
-        {
-            var exists = await _db.Users.AnyAsync(u => u.UserName == dto.UserName);
-            if (exists)
-                throw new InvalidOperationException("هذا الحساب مسجل مسبقاً");
-
-            var user = new User
-            {
-                FullName = dto.FullName,
-                UserName = dto.UserName,
-                PasswordHash = HashPassword(dto.Password),
-                Phone = dto.Phone,
-                Role = dto.Role
-            };
-
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-
-            var token = _jwt.GenerateToken(user);
-
-            return new AuthResponseDto
-            {
-                Token = token,
-                FullName = user.FullName,
-                UserName = user.UserName,
-                Role = user.Role.ToString(),
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(60)
-            };
-        }
-
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
-        }
-
-        private static bool VerifyPassword(string password, string hash)
-        {
-            return HashPassword(password) == hash;
-        }
+        var user = await AuthenticateAsync(dto, false);
+        var token = jwt.GenerateToken(user, out var expiration);
+        var snapshot = await snapshots.ReadAsync(user.Id) ?? throw new UnauthorizedAccessException();
+        var keys = user.RequiresPasswordChange ? Array.Empty<string>() : await permissions.GetAsync(snapshot);
+        return new() { Token = token, FullName = user.FullName, UserName = user.UserName, Role = user.Role.ToString(),
+            Expiration = expiration, Permissions = keys.ToList(), Modules = Andalos.API.Constants.Permissions.ModulesFor(keys),
+            PermissionsVersion = snapshot.PermissionsVersion, ReconciliationRequired = !snapshot.PermissionsReconciled,
+            RequiresPasswordChange = user.RequiresPasswordChange };
     }
+    public async Task<TenantAuthResponseDto> TenantLoginAsync(LoginDto dto)
+    {
+        var user = await AuthenticateAsync(dto, true);
+        var token = jwt.GenerateToken(user, out var expiration);
+        return new() { Token = token, FullName = user.FullName, UserName = user.UserName, Role = user.Role.ToString(),
+            TenantId = user.TenantId!.Value, Expiration = expiration, RequiresPasswordChange = user.RequiresPasswordChange };
+    }
+    private async Task<User> AuthenticateAsync(LoginDto dto, bool tenant)
+    {
+        // Rejected logins must COMMIT their failure counters. Throw only after the transaction returns.
+        var user = await db.AtomicAsync<User?>(async () =>
+        {
+            var input = dto.UserName.Trim();
+            var u = await db.Users.Include(u => u.Tenant).FirstOrDefaultAsync(u => u.IsActive && (u.UserName == input || u.Phone == input));
+            if (u is null) { passwords.VerifyDummy(dto.Password); return null; }
+            if (u.IsLocked)
+            {
+                if (u.LockoutEnd is null || u.LockoutEnd > DateTimeHelper.LibyaNow) { passwords.VerifyDummy(dto.Password); return null; }
+                u.IsLocked = false; u.LockoutEnd = null; u.FailedLoginAttempts = 0;
+            }
+            var validIdentity = tenant
+                ? (u.Role is UserRole.Tenant or UserRole.TenantStaff) && u.TenantId.HasValue && u.Tenant?.IsActive == true
+                : u.Role is UserRole.SuperAdmin or UserRole.Admin or UserRole.Accountant or UserRole.GateKeeper;
+            if (!validIdentity) { passwords.VerifyDummy(dto.Password); return null; }
+            if (!passwords.Verify(u, dto.Password, out var upgrade))
+            {
+                u.FailedLoginAttempts++;
+                if (u.FailedLoginAttempts >= 5) { u.IsLocked = true; u.LockoutEnd = DateTimeHelper.LibyaNow.AddMinutes(15); }
+                await db.SaveChangesAsync(); return null;
+            }
+            if (upgrade) u.PasswordHash = passwords.Upgrade(u, dto.Password);
+            u.FailedLoginAttempts = 0; u.IsLocked = false; u.LockoutEnd = null; u.LastLoginAt = DateTimeHelper.LibyaNow;
+            await db.SaveChangesAsync(); return u;
+        });
+        return user ?? throw new UnauthorizedAccessException("اسم المستخدم أو كلمة المرور غير صحيحة، أو الحساب غير متاح.");
+    }
+    public Task<AuthResponseDto> RegisterAsync(RegisterDto dto) => throw new ForbiddenOperationException(); // No public role-bearing registration, even via service.
 }

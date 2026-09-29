@@ -1,77 +1,45 @@
-﻿using Andalos.API.Data;
-using Andalos.API.Enums;
+using Andalos.API.Constants;
+using Andalos.API.Security;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
-namespace Andalos.API.Authorization
+namespace Andalos.API.Authorization;
+
+public sealed class PermissionRequirement(string permission) : IAuthorizationRequirement
 {
-    public class PermissionRequirement : IAuthorizationRequirement
+    public string Permission { get; } = permission;
+}
+
+public sealed class PermissionAuthorizationHandler(CurrentUser current, EffectivePermissions permissions)
+    : AuthorizationHandler<PermissionRequirement>
+{
+    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
     {
-        public string Permission { get; }
-        public PermissionRequirement(string permission)
+        var start = Stopwatch.GetTimestamp();
+        try
         {
-            Permission = permission;
+            // Only the live, stamp-validated identity set by JWT authentication can authorize.
+            var user = current.Snapshot;
+            if (context.User.Identity?.IsAuthenticated != true || user is null || !user.IsStaff ||
+                !user.IsActive || user.IsLocked || user.RequiresPasswordChange || !Permissions.IsKnown(requirement.Permission)) return;
+            if (await permissions.HasAsync(user, requirement.Permission)) context.Succeed(requirement);
         }
+        finally { SecurityMetrics.Duration.Record(Stopwatch.GetElapsedTime(start).TotalMilliseconds); }
     }
+}
 
-    public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
+public sealed class PermissionPolicyProvider(IOptions<AuthorizationOptions> options) : IAuthorizationPolicyProvider
+{
+    private readonly DefaultAuthorizationPolicyProvider _default = new(options);
+    private static readonly AuthorizationPolicy Deny = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser().RequireAssertion(_ => false).Build();
+    public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => _default.GetDefaultPolicyAsync();
+    public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => Task.FromResult<AuthorizationPolicy?>(Deny);
+    public async Task<AuthorizationPolicy?> GetPolicyAsync(string name)
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-
-        public PermissionAuthorizationHandler(IServiceScopeFactory scopeFactory)
-        {
-            _scopeFactory = scopeFactory;
-        }
-
-        protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
-        {
-            if (context.User == null || !context.User.Identity!.IsAuthenticated)
-                return;
-
-            // 1. إذا كان المستخدم SuperAdmin يملك كافة الصلاحيات مباشرة دون تقييد 🚀
-            if (context.User.IsInRole(UserRole.SuperAdmin.ToString()))
-            {
-                context.Succeed(requirement);
-                return;
-            }
-
-            var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdClaim, out var userId))
-                return;
-
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            // 2. التحقق مما إذا كانت الصلاحية المطلوبة موجودة لدى المستخدم في قاعدة البيانات
-            var hasPermission = await db.UserPermissions
-                .AnyAsync(p => p.UserId == userId && p.PermissionKey == requirement.Permission && p.IsActive);
-
-            if (hasPermission)
-            {
-                context.Succeed(requirement);
-            }
-        }
-    }
-
-    // Dynamic Policy Provider لإنشاء السياسات تلقائياً عند استدعاء [HasPermission("...")]
-    public class PermissionPolicyProvider : IAuthorizationPolicyProvider
-    {
-        public DefaultAuthorizationPolicyProvider FallbackPolicyProvider { get; }
-
-        public PermissionPolicyProvider(Microsoft.Extensions.Options.IOptions<AuthorizationOptions> options)
-        {
-            FallbackPolicyProvider = new DefaultAuthorizationPolicyProvider(options);
-        }
-
-        public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => FallbackPolicyProvider.GetDefaultPolicyAsync();
-        public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => FallbackPolicyProvider.GetFallbackPolicyAsync();
-
-        public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
-        {
-            var policy = new AuthorizationPolicyBuilder();
-            policy.AddRequirements(new PermissionRequirement(policyName));
-            return Task.FromResult<AuthorizationPolicy?>(policy.Build());
-        }
+        if (Permissions.IsKnown(name)) return new AuthorizationPolicyBuilder().RequireAuthenticatedUser()
+            .AddRequirements(new PermissionRequirement(name)).Build();
+        return await _default.GetPolicyAsync(name) ?? Deny; // Unknown strings fail closed.
     }
 }

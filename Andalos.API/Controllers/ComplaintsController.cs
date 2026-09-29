@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Complaints;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -42,7 +42,7 @@ namespace Andalos.API.Controllers
         {
             try
             {
-                int adminUserId = 1;
+                int adminUserId = HttpContext.RequestServices.GetRequiredService<Andalos.API.Security.CurrentUser>().UserId;
                 var reply = await _complaintService.ReplyToComplaintAsync(id, adminUserId, dto);
                 return Ok(ApiResponseDto<ComplaintReplyDto>.SuccessResponse(reply, "تم إرسال الرد بنجاح"));
             }

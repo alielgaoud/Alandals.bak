@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.DTOs.Users
 {
@@ -17,7 +18,10 @@ namespace Andalos.API.DTOs.Users
         public string? Description { get; set; }
 
         // الأقسام المختارة فقط (بسيطة)
-        public List<string> Modules { get; set; } = new(); // ["Maintenance"]
+        public List<string>? Modules { get; set; }
+        private List<string>? _permissionKeys;
+        public List<string>? PermissionKeys { get => _permissionKeys; set { _permissionKeys = value; PermissionKeysSpecified = true; } }
+        [JsonIgnore] public bool PermissionKeysSpecified { get; private set; }
     }
 
     public class UpdatePermissionPackageDto
@@ -27,13 +31,18 @@ namespace Andalos.API.DTOs.Users
         public string Name { get; set; } = string.Empty;
 
         public string? Description { get; set; }
-        public List<string> Modules { get; set; } = new();
+        public List<string>? Modules { get; set; }
+        private List<string>? _permissionKeys;
+        public List<string>? PermissionKeys { get => _permissionKeys; set { _permissionKeys = value; PermissionKeysSpecified = true; } }
+        [JsonIgnore] public bool PermissionKeysSpecified { get; private set; }
+        public Guid? ExpectedRevision { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
     public class PermissionPackageResponseDto
     {
         public int Id { get; set; }
+        public Guid Revision { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsActive { get; set; }
@@ -47,6 +56,9 @@ namespace Andalos.API.DTOs.Users
         [Required]
         public int UserId { get; set; }
 
-        public List<int> PackageIds { get; set; } = new();
+        public long? ExpectedVersion { get; set; }
+
+        [Required]
+        public List<int>? PackageIds { get; set; }
     }
 }

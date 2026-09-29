@@ -1,4 +1,4 @@
-﻿using Andalos.API.Enums;
+using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.DTOs.Visitors
@@ -207,6 +207,8 @@ namespace Andalos.API.DTOs.Visitors
     } // تقرير تفصيلي لكل تصريح مدفوع تم استلام كاشه في البوابة
     public class GateCashReceiptDetailDto
     {
+        public int ReceiptId { get; set; }
+        public string ReceiptKind { get; set; } = "Issue";
         public int PassId { get; set; }
         public string PassCode { get; set; } = string.Empty;
         public string VisitorName { get; set; } = string.Empty;
@@ -224,6 +226,7 @@ namespace Andalos.API.DTOs.Visitors
     // تقرير ملخص ورديات الحراس
     public class GateShiftCashSummaryDto
     {
+        public int? HandedOverByUserId { get; set; }
         public int ShiftId { get; set; }
         public int UserId { get; set; }
         public string GatekeeperName { get; set; } = string.Empty;
@@ -262,5 +265,17 @@ namespace Andalos.API.DTOs.Visitors
 
         // قائمة الحركات التفصيلية
         public List<PassTransactionDetailDto> Transactions { get; set; } = new();
+    }
+    public class AddBalanceToPassDto
+    {
+        [Required, MaxLength(64)] public string PassCode { get; set; } = "";
+        [Range(0.01, 100000)] public decimal Amount { get; set; }
+    }
+    public class AddBalanceToPassResponseDto
+    {
+        public int PassId { get; set; }
+        public decimal AddedAmount { get; set; }
+        public decimal RemainingBalance { get; set; }
+        public int ShiftId { get; set; }
     }
 }

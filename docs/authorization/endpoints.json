@@ -1,0 +1,2883 @@
+[
+  {
+    "http": "POST",
+    "route": "/api/Auth/login",
+    "action": "Auth.Login",
+    "scope": "Public",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "login منفصل staff/tenant؛ refresh/logout/password لصاحب الجلسة؛ register = 410؛ current DB identity/stamp"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Auth/tenant-login",
+    "action": "Auth.TenantLogin",
+    "scope": "Public",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "login منفصل staff/tenant؛ refresh/logout/password لصاحب الجلسة؛ register = 410؛ current DB identity/stamp"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Auth/register",
+    "action": "Auth.Register",
+    "scope": "Public",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "login منفصل staff/tenant؛ refresh/logout/password لصاحب الجلسة؛ register = 410؛ current DB identity/stamp"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Auth/me/permissions",
+    "action": "Auth.MePermissions",
+    "scope": "Staff",
+    "permissionKeys": [],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "login منفصل staff/tenant؛ refresh/logout/password لصاحب الجلسة؛ register = 410؛ current DB identity/stamp"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Auth/me/password",
+    "action": "Auth.ChangePassword",
+    "scope": "Authenticated",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "login منفصل staff/tenant؛ refresh/logout/password لصاحب الجلسة؛ register = 410؛ current DB identity/stamp"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Auth/logout",
+    "action": "Auth.Logout",
+    "scope": "Authenticated",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "login منفصل staff/tenant؛ refresh/logout/password لصاحب الجلسة؛ register = 410؛ current DB identity/stamp"
+  },
+  {
+    "http": "GET",
+    "route": "/api/BankTransfers",
+    "action": "BankTransfers.GetAllPending",
+    "scope": "Staff",
+    "permissionKeys": [
+      "BankTransfers.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/BankTransfers/{id}/review",
+    "action": "BankTransfers.Review",
+    "scope": "Staff",
+    "permissionKeys": [
+      "BankTransfers.Review"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Circulars",
+    "action": "Circulars.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Circulars.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Circulars/{id}",
+    "action": "Circulars.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Circulars.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Circulars",
+    "action": "Circulars.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Circulars.Create"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Circulars/{id}",
+    "action": "Circulars.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Circulars.Edit"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Circulars/{id}",
+    "action": "Circulars.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Circulars.Delete"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Complaints",
+    "action": "Complaints.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Complaints.View"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Complaints/{id}",
+    "action": "Complaints.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Complaints.View"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Complaints/{id}/reply",
+    "action": "Complaints.Reply",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Complaints.Reply"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Complaints/{id}/status",
+    "action": "Complaints.UpdateStatus",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Complaints.UpdateStatus"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Complaints/report/pdf",
+    "action": "Complaints.DownloadReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Complaints.ExportPdf"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Contracts",
+    "action": "Contracts.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Contracts/{id}",
+    "action": "Contracts.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Contracts",
+    "action": "Contracts.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.Create"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Contracts/{id}",
+    "action": "Contracts.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.Edit"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Contracts/{id}/status",
+    "action": "Contracts.UpdateStatus",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.UpdateStatus"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Contracts/{id}",
+    "action": "Contracts.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.Delete"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Contracts/{id}/renew",
+    "action": "Contracts.Renew",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.Renew"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/DemandLetters/pdf",
+    "action": "DemandLetters.GeneratePdf",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Demands.GeneratePdf"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/DemandLetters/send",
+    "action": "DemandLetters.SendDemand",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Demands.GeneratePdf",
+      "Demands.SendToTenant"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/DemandLetters/pdf",
+    "action": "DemandLetters.GeneratePdfGet",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Demands.GeneratePdf"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Expenses",
+    "action": "Expenses.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Expenses.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Expenses/unit/{unitId}",
+    "action": "Expenses.GetByUnit",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Expenses.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Expenses/tenant/{tenantId}",
+    "action": "Expenses.GetByTenant",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Expenses.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Expenses",
+    "action": "Expenses.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Expenses.Create"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Expenses/{id}",
+    "action": "Expenses.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Expenses.Delete"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Expenses/total",
+    "action": "Expenses.GetTotal",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Expenses.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Gate/scan",
+    "action": "Gate.Scan",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Gate.Scan"
+    ],
+    "roles": [
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Gate/logs",
+    "action": "Gate.GetLogs",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Gate.ViewLogs"
+    ],
+    "roles": [
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Maintenance",
+    "action": "Maintenance.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Maintenance/{id}",
+    "action": "Maintenance.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Maintenance/unit/{unitId}",
+    "action": "Maintenance.GetByUnit",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Maintenance",
+    "action": "Maintenance.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.Create"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Maintenance/{id}/status",
+    "action": "Maintenance.UpdateStatus",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.EditStatus"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Maintenance/{id}",
+    "action": "Maintenance.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.Delete"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Maintenance/{id}/charge",
+    "action": "Maintenance.ChargeTenant",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ChargeTenant"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Maintenance/charges",
+    "action": "Maintenance.GetCharges",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewCharges"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Maintenance/charges/{id}",
+    "action": "Maintenance.GetCharge",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewCharges"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Maintenance/charges/{id}/settle",
+    "action": "Maintenance.SettleCharge",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.SettleCharge"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Notifications/subscribe",
+    "action": "Notifications.SubscribeToPush",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Notifications/vapid-public-key",
+    "action": "Notifications.GetVapidPublicKey",
+    "scope": "Public",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Notifications/summary",
+    "action": "Notifications.GetSummary",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Notifications",
+    "action": "Notifications.GetAll",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Notifications/unread-count",
+    "action": "Notifications.GetUnreadCount",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Notifications/{id}/read",
+    "action": "Notifications.MarkAsRead",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Notifications/read-all",
+    "action": "Notifications.MarkAllAsRead",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Notifications/{id}",
+    "action": "Notifications.Delete",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Notifications/preferences",
+    "action": "Notifications.GetPreferences",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Notifications/preferences",
+    "action": "Notifications.UpdatePreferences",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Notifications/test-send",
+    "action": "Notifications.TestSend",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Notifications.Send"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Payments",
+    "action": "Payments.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Payments/contract/{contractId}",
+    "action": "Payments.GetByContract",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Payments/tenant/{tenantId}",
+    "action": "Payments.GetByTenant",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Payments",
+    "action": "Payments.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.CreatePayment"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Payments/{id}",
+    "action": "Payments.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.DeletePayment"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Payments/summary/{contractId}",
+    "action": "Payments.GetContractSummary",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.ViewBalances"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Payments/summary",
+    "action": "Payments.GetAllSummaries",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.ViewBalances"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/contract/{id}/view",
+    "action": "Pdf.ViewContract",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.ExportPdf"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/contract/{id}/download",
+    "action": "Pdf.DownloadContract",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.ExportPdf"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/receipt/{paymentId}/view",
+    "action": "Pdf.ViewReceipt",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/receipt/{paymentId}/download",
+    "action": "Pdf.DownloadReceipt",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/report/overdue",
+    "action": "Pdf.OverdueReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/report/occupancy",
+    "action": "Pdf.OccupancyReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewOccupancyReports",
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Pdf/report/financial/{year}",
+    "action": "Pdf.FinancialReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/PermissionPackages/modules",
+    "action": "PermissionPackages.GetModules",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/PermissionPackages",
+    "action": "PermissionPackages.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/PermissionPackages/{id}",
+    "action": "PermissionPackages.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "POST",
+    "route": "/api/PermissionPackages",
+    "action": "PermissionPackages.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/PermissionPackages/{id}",
+    "action": "PermissionPackages.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/PermissionPackages/{id}",
+    "action": "PermissionPackages.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "POST",
+    "route": "/api/PermissionPackages/assign-to-user",
+    "action": "PermissionPackages.AssignToUser",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/PermissionPackages/user/{userId}",
+    "action": "PermissionPackages.GetUserPackages",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/uploads/{**path}",
+    "action": "ProtectedFiles.Download",
+    "scope": "File",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "metadata DB + owning Tenant/capability أو exact file permission؛ لا مسارات traversal/symlink؛ legacy غير المراجع ممنوع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/PushSubscriptions/public-key",
+    "action": "PushSubscriptions.GetPublicKey",
+    "scope": "Public",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "POST",
+    "route": "/api/PushSubscriptions/subscribe",
+    "action": "PushSubscriptions.Subscribe",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "POST",
+    "route": "/api/PushSubscriptions/unsubscribe",
+    "action": "PushSubscriptions.Unsubscribe",
+    "scope": "Self",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "current user/tenant فقط؛ لا test IDs/headers؛ قراءة الإشعار تخضع كذلك لمفتاح نوعه؛ لا takeover/تعديل group broadcast"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Refunds",
+    "action": "Refunds.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewRefunds"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Refunds/contract/{contractId}",
+    "action": "Refunds.GetByContract",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewRefunds"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Refunds",
+    "action": "Refunds.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.CreateRefund"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Refunds/{id}",
+    "action": "Refunds.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.DeleteRefund"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/dashboard",
+    "action": "Reports.GetDashboardStats",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewDashboard",
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/financial-performance/{year}",
+    "action": "Reports.GetFinancialPerformance",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/overdue",
+    "action": "Reports.GetOverdueReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/occupancy",
+    "action": "Reports.GetOccupancyReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewOccupancyReports",
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/visitor-traffic",
+    "action": "Reports.GetVisitorTraffic",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewVisitorTrafficReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/revenue",
+    "action": "Reports.GetRevenueReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/expenses",
+    "action": "Reports.GetExpensesReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Reports/income-summary",
+    "action": "Reports.GetIncomeSummary",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Reports.ViewFinancialReports"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "صلاحيات أنواع البيانات كلّها مطلوبة (AND)؛ dashboard ليس مفتاح المالية/الإشغال"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Settings",
+    "action": "Settings.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.View"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Settings/group/{group}",
+    "action": "Settings.GetByGroup",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.View"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Settings/key/{key}",
+    "action": "Settings.GetByKey",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.View"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Settings",
+    "action": "Settings.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.Edit"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Settings/reset/{key}",
+    "action": "Settings.Reset",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.Reset"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Settings/reset-database",
+    "action": "Settings.ResetDatabase",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.ResetDatabase"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Settings/system-time",
+    "action": "Settings.GetSystemTime",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Settings.View"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "المفاتيح السرية لا تعرض/تعدل هنا؛ reset SA + password؛ لا defaults recovery"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantAccounts/{tenantId}/statement",
+    "action": "TenantAccounts.GetStatement",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.ViewStatement"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantAccounts/overview",
+    "action": "TenantAccounts.GetAllBalances",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.ViewBalances"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantAccounts/{tenantId}/deposit-advance",
+    "action": "TenantAccounts.DepositAdvance",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.DepositAdvance"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantAccounts/wallet-deductions",
+    "action": "TenantAccounts.GetWalletDeductions",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantAccounts/process-monthly-dues",
+    "action": "TenantAccounts.ProcessMonthlyDues",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ProcessMonthlyDues"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ tenant/contract/charge/purpose من DB متوافق؛ مبالغ وحالة وتخصيص ومحفظة؛ صلاحيات مالية شرطية إضافية"
+  },
+  {
+    "http": "POST",
+    "route": "/api/tenant-complaints/{tenantId}",
+    "action": "TenantComplaints.Submit",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "complaints",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=complaints"
+  },
+  {
+    "http": "GET",
+    "route": "/api/tenant-complaints/{tenantId}",
+    "action": "TenantComplaints.GetMyComplaints",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "complaints",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=complaints"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/statement/{tenantId}",
+    "action": "TenantPortal.GetStatement",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "statement",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=statement"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/contracts/{tenantId}",
+    "action": "TenantPortal.GetContracts",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "contracts",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=contracts"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/payments/{tenantId}",
+    "action": "TenantPortal.GetPayments",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "payments",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=payments"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/maintenance/{tenantId}",
+    "action": "TenantPortal.RequestMaintenance",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "maintenance",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=maintenance"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/visitor-pass/{tenantId}",
+    "action": "TenantPortal.CreateVisitorPass",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "visitors",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=visitors"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/visitor-passes/{tenantId}",
+    "action": "TenantPortal.GetVisitorPasses",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "visitors",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=visitors"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/create-account",
+    "action": "TenantPortal.CreateAccount",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.Create"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/maintenance/{tenantId}",
+    "action": "TenantPortal.GetMyMaintenance",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "maintenance",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=maintenance"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/maintenance/{tenantId}/charges/pending",
+    "action": "TenantPortal.GetMyPendingCharges",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "maintenance",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=maintenance"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/maintenance/{tenantId}/charges/{chargeId}/accept",
+    "action": "TenantPortal.AcceptCharge",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "maintenance",
+    "idempotency": true,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=maintenance"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/maintenance/{tenantId}/charges/{chargeId}/reject",
+    "action": "TenantPortal.RejectCharge",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "maintenance",
+    "idempotency": true,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=maintenance"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/maintenance/{tenantId}/{requestId}",
+    "action": "TenantPortal.GetMaintenanceById",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "maintenance",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=maintenance"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/{tenantId}/upload-receipt",
+    "action": "TenantPortal.UploadReceipt",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "payments",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=payments"
+  },
+  {
+    "http": "POST",
+    "route": "/api/TenantPortal/staff/{tenantId}",
+    "action": "TenantPortal.CreateStaff",
+    "scope": "TenantOwner",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ مالك فقط"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/{tenantId}/staff",
+    "action": "TenantPortal.GetMyStaff",
+    "scope": "TenantOwner",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ مالك فقط"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/wallet-history",
+    "action": "TenantPortal.GetMyWalletHistory",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "wallet",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=wallet"
+  },
+  {
+    "http": "GET",
+    "route": "/api/TenantPortal/circulars",
+    "action": "TenantPortal.GetMyCirculars",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "circulars",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=circulars"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants",
+    "action": "Tenants.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}",
+    "action": "Tenants.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Tenants",
+    "action": "Tenants.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.Create"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Tenants/{id}",
+    "action": "Tenants.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.Edit"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Tenants/{id}",
+    "action": "Tenants.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.Delete"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/info",
+    "action": "Tenants.GetPersonalInfo",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/units",
+    "action": "Tenants.GetRentedUnits",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/contracts",
+    "action": "Tenants.GetContracts",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Contracts.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/payments",
+    "action": "Tenants.GetPayments",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Financials.ViewPayments"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/maintenance",
+    "action": "Tenants.GetMaintenance",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Maintenance.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/visitor-passes",
+    "action": "Tenants.GetVisitorPasses",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Tenants/{id}/financial-summary",
+    "action": "Tenants.GetFinancialSummary",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Tenants.ViewBalances"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Units",
+    "action": "Units.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Units/{id}",
+    "action": "Units.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Units",
+    "action": "Units.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.Create"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Units/{id}",
+    "action": "Units.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.Edit"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Units/{id}",
+    "action": "Units.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.Delete"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Units/count/{status}",
+    "action": "Units.GetCountByStatus",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Units/{id}/history",
+    "action": "Units.GetUnitHistory",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Units.ViewHistory"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Users",
+    "action": "Users.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.View"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Users/{id}",
+    "action": "Users.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.View"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Users",
+    "action": "Users.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.Create"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Users/{id}",
+    "action": "Users.Update",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.Edit"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Users/{id}/reset-password",
+    "action": "Users.ResetPassword",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ResetPassword"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Users/{id}/toggle-lock",
+    "action": "Users.ToggleLock",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ToggleLock"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/Users/{id}",
+    "action": "Users.Delete",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.Delete"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Users/tenant/{tenantId}",
+    "action": "Users.GetUsersByTenant",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.View"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Users/permissions/list",
+    "action": "Users.GetAllAvailablePermissions",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Users/{id}/permissions",
+    "action": "Users.GetUserPermissions",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/Users/{id}/permissions",
+    "action": "Users.AssignPermissions",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "POST",
+    "route": "/api/Users/{id}/permissions/reconcile",
+    "action": "Users.ReconcilePermissions",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ManagePermissions"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/Users/audit-logs",
+    "action": "Users.GetAuditLogs",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Users.ViewAuditLogs"
+    ],
+    "roles": [
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "role fence لا تمنح المفتاح؛ mutations بواسطة SA حالي فقط؛ لا self-elevation/tenant grants؛ expected revision/version عند توفيره؛ reconciliation مراجع"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorBlacklist",
+    "action": "VisitorBlacklist.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.ManageBlacklist"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorBlacklist/{id}",
+    "action": "VisitorBlacklist.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.ManageBlacklist"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorBlacklist",
+    "action": "VisitorBlacklist.Add",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.ManageBlacklist"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "DELETE",
+    "route": "/api/VisitorBlacklist/{id}",
+    "action": "VisitorBlacklist.Remove",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.ManageBlacklist"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorBlacklist/check",
+    "action": "VisitorBlacklist.Check",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.CheckBlacklist"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorPasses",
+    "action": "VisitorPasses.GetAll",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global للمفتاح؛ ownership ثابت عند الإنشاء؛ blacklist/limits؛ scan مفتاح مستقل"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorPasses/paged",
+    "action": "VisitorPasses.GetPaged",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global للمفتاح؛ ownership ثابت عند الإنشاء؛ blacklist/limits؛ scan مفتاح مستقل"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorPasses/{id}",
+    "action": "VisitorPasses.GetById",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.View"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global للمفتاح؛ ownership ثابت عند الإنشاء؛ blacklist/limits؛ scan مفتاح مستقل"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorPasses",
+    "action": "VisitorPasses.Create",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.Create"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global للمفتاح؛ ownership ثابت عند الإنشاء؛ blacklist/limits؛ scan مفتاح مستقل"
+  },
+  {
+    "http": "PUT",
+    "route": "/api/VisitorPasses/{id}/revoke",
+    "action": "VisitorPasses.Revoke",
+    "scope": "Staff",
+    "permissionKeys": [
+      "Visitors.RevokePass"
+    ],
+    "roles": [
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global للمفتاح؛ ownership ثابت عند الإنشاء؛ blacklist/limits؛ scan مفتاح مستقل"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorWallet/issue-paid-pass",
+    "action": "VisitorWallet.IssuePaidPass",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.IssuePaidPass"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorWallet/shop/charge-qr",
+    "action": "VisitorWallet.ChargeQr",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "wallet",
+    "idempotency": true,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=wallet"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/shop/my-unsettled-balance",
+    "action": "VisitorWallet.GetMyUnsettledBalance",
+    "scope": "Tenant",
+    "permissionKeys": [],
+    "roles": [
+      "Tenant",
+      "TenantStaff"
+    ],
+    "capability": "wallet",
+    "idempotency": false,
+    "resource": "هوية DB النشطة؛ tenantId في المسار يجب أن يساوي هوية الجلسة؛ معرف المورد يعود للمستأجر؛ Tenant أو TenantStaff مع capability=wallet"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/admin/all-shops-balances",
+    "action": "VisitorWallet.GetAllShopsBalances",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.ViewAllShopsBalances"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorWallet/admin/settle-shop",
+    "action": "VisitorWallet.SettleShop",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.SettleShopBalance"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/gatekeeper/my-shift-summary",
+    "action": "VisitorWallet.GetMyShiftSummary",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.ViewMyShiftSummary"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "actor/shift من الهوية؛ pass اليوم/active/blacklist؛ purchase tenant+unit+active contract؛ handover ليس نفس cashier؛ مبالغ/ledger/replay"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorWallet/admin/handover-shift/{shiftId}",
+    "action": "VisitorWallet.HandoverShift",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.HandoverShift"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "actor/shift من الهوية؛ pass اليوم/active/blacklist؛ purchase tenant+unit+active contract؛ handover ليس نفس cashier؛ مبالغ/ledger/replay"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/admin/gate-cash-report",
+    "action": "VisitorWallet.GetGateCashReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.ViewGateCashReport"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/admin/gate-cash-receipts",
+    "action": "VisitorWallet.GetGateCashReceipts",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.ViewGateCashReport"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/admin/gate-shifts-report",
+    "action": "VisitorWallet.GetGateShiftsReport",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.ViewGateCashReport"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "actor/shift من الهوية؛ pass اليوم/active/blacklist؛ purchase tenant+unit+active contract؛ handover ليس نفس cashier؛ مبالغ/ledger/replay"
+  },
+  {
+    "http": "GET",
+    "route": "/api/VisitorWallet/admin/tenant-history/{tenantId}",
+    "action": "VisitorWallet.GetTenantWalletHistoryForAdmin",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.ViewTenantHistory"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  },
+  {
+    "http": "POST",
+    "route": "/api/VisitorWallet/gate/add-balance",
+    "action": "VisitorWallet.AddBalance",
+    "scope": "Staff",
+    "permissionKeys": [
+      "VisitorWallet.AddBalanceToPass"
+    ],
+    "roles": [
+      "Accountant",
+      "Admin",
+      "GateKeeper",
+      "SuperAdmin"
+    ],
+    "capability": null,
+    "idempotency": true,
+    "resource": "actor/shift من الهوية؛ pass اليوم/active/blacklist؛ purchase tenant+unit+active contract؛ handover ليس نفس cashier؛ مبالغ/ledger/replay"
+  },
+  {
+    "http": "GET",
+    "route": "/WeatherForecast",
+    "action": "WeatherForecast.Get",
+    "scope": "Denied",
+    "permissionKeys": [],
+    "roles": [],
+    "capability": null,
+    "idempotency": false,
+    "resource": "staff global بالنسبة للمفتاح؛ معرفات وعلاقات من DB؛ لا حقوق من role/module؛ 404 بعد السماح للمورد غير الموجود"
+  }
+]

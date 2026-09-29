@@ -1,4 +1,5 @@
-﻿using Andalos.API.DTOs.Circulars;
+using Andalos.API.Security;
+using Andalos.API.DTOs.Circulars;
 using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
@@ -43,17 +44,8 @@ namespace Andalos.API.Controllers
         // 🔒 دالة مساعدة لحماية الطلبات من هجمات التلاعب بـ IDs (IDOR)
         private bool ValidateCurrentUserTenant(int tenantId)
         {
-            // استخراج الدور من الـ Token
-            var role = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            // إذا كان المستخدم آدمن أو سوبر آدمن فله الحق في العرض دون قيود
-            if (role == "SuperAdmin" || role == "Admin") return true;
-
-            // استخراج الـ TenantId المشفر بالـ Token للمستأجر
-            var tokenTenantIdClaim = User.FindFirst("TenantId")?.Value;
-            if (string.IsNullOrEmpty(tokenTenantIdClaim)) return false;
-
-            return int.TryParse(tokenTenantIdClaim, out int tokenTenantId) && tokenTenantId == tenantId;
+            var current = HttpContext.RequestServices.GetRequiredService<CurrentUser>().Required;
+            return current.IsTenant && current.TenantId == tenantId;
         }
 
         // 1. كشف حساب المستأجر الشامل
@@ -154,7 +146,7 @@ namespace Andalos.API.Controllers
                 await _portalService.CreateTenantUserAccountAsync(dto);
                 return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم إنشاء حساب دخول المستأجر للمنظومة بنجاح"));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 return BadRequest(ApiResponseDto<bool>.FailResponse(ex.Message));
             }
@@ -253,9 +245,10 @@ namespace Andalos.API.Controllers
         }
         [HttpPost("{tenantId}/upload-receipt")]
         [Consumes("multipart/form-data")]
-        [DisableRequestSizeLimit] // 👈 لمنع Kestrel من قطع الاتصال أثناء رفع الملف
+        [RequestSizeLimit(6 * 1024 * 1024)]
         public async Task<IActionResult> UploadReceipt(int tenantId, [FromForm] SubmitTransferRequestDto dto)
         {
+            if (!ValidateCurrentUserTenant(tenantId)) throw new ForbiddenOperationException();
             try
             {
                 if (dto.ReceiptFile == null || dto.ReceiptFile.Length == 0)
@@ -277,10 +270,10 @@ namespace Andalos.API.Controllers
                 var result = await _bankTransferService.SubmitRequestAsync(tenantId, dto, webRootPath);
                 return Ok(ApiResponseDto<TransferRequestResponseDto>.SuccessResponse(result, "تم رفع الواصل بنجاح، بانتظار مراجعة الإدارة."));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 // 👈 إرجاع JSON واضح في حال حدوث أي خطأ بدلاً من قطع الاتصال
-                return BadRequest(ApiResponseDto<string>.FailResponse($"خطأ أثناء رفع الملف: {ex.Message}"));
+                return BadRequest(ApiResponseDto<string>.FailResponse("تعذر رفع الملف."));
             }
         }
 
@@ -295,7 +288,7 @@ namespace Andalos.API.Controllers
                 await _portalService.CreateTenantStaffAccountAsync(tenantId, dto);
                 return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم إنشاء حساب الموظف بنجاح"));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 return BadRequest(ApiResponseDto<bool>.FailResponse(ex.Message));
             }
@@ -314,12 +307,7 @@ namespace Andalos.API.Controllers
         }
         private int GetCurrentTenantId()
         {
-            var tenantIdClaim = User.FindFirst("TenantId")?.Value;
-            if (int.TryParse(tenantIdClaim, out int tid))
-            {
-                return tid;
-            }
-            throw new UnauthorizedAccessException("غير مصرح لك. التوكن لا يحتوي على بيانات المستأجر.");
+            return HttpContext.RequestServices.GetRequiredService<CurrentUser>().TenantId;
         }
 
         [HttpGet("wallet-history")]

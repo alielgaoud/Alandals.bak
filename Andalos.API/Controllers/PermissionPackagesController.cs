@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -52,7 +52,7 @@ namespace Andalos.API.Controllers
                 var result = await _service.CreateAsync(dto);
                 return Ok(ApiResponseDto<PermissionPackageResponseDto>.SuccessResponse(result, "تم إنشاء الصلاحية بنجاح"));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }
@@ -69,7 +69,7 @@ namespace Andalos.API.Controllers
 
                 return Ok(ApiResponseDto<PermissionPackageResponseDto>.SuccessResponse(result, "تم تحديث الصلاحية بنجاح"));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }
@@ -93,7 +93,7 @@ namespace Andalos.API.Controllers
                 if (!ok) return NotFound(ApiResponseDto<bool>.FailResponse("المستخدم غير موجود"));
                 return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تعيين الصلاحيات للمستخدم بنجاح"));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }

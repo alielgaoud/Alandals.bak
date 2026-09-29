@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andalos.API", "Andalos.API\Andalos.API.csproj", "{B23CD77C-82AD-4E55-8F0B-87AB63B1AADD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Andalos.API.Tests", "Andalos.API.Tests\Andalos.API.Tests.csproj", "{321F5762-14CA-49A1-8062-CE910F1B07E2}"
+EndProject
+Global
+  GlobalSection(SolutionConfigurationPlatforms) = preSolution
+    Debug|Any CPU = Debug|Any CPU
+    Release|Any CPU = Release|Any CPU
+  EndGlobalSection
+  GlobalSection(ProjectConfigurationPlatforms) = postSolution
+    {B23CD77C-82AD-4E55-8F0B-87AB63B1AADD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {B23CD77C-82AD-4E55-8F0B-87AB63B1AADD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {B23CD77C-82AD-4E55-8F0B-87AB63B1AADD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {B23CD77C-82AD-4E55-8F0B-87AB63B1AADD}.Release|Any CPU.Build.0 = Release|Any CPU
+    {321F5762-14CA-49A1-8062-CE910F1B07E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {321F5762-14CA-49A1-8062-CE910F1B07E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {321F5762-14CA-49A1-8062-CE910F1B07E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {321F5762-14CA-49A1-8062-CE910F1B07E2}.Release|Any CPU.Build.0 = Release|Any CPU
+  EndGlobalSection
+EndGlobal

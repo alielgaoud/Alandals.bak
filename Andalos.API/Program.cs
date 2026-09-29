@@ -1,3 +1,8 @@
+using Microsoft.AspNetCore.SignalR;
+using Andalos.API.Security;
+using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Andalos.API.Authorization;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
@@ -25,10 +30,8 @@ builder.Services.AddDbContextPool<AppDbContext>(options =>
 {
     options.UseSqlServer(connectionString, sqlOptions =>
     {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
+        // Do not transparently retry side-effecting writes. Serializable command transactions +
+        // persisted idempotency receipts allow the client to retry explicitly and safely.
         sqlOptions.CommandTimeout(60);
     });
 });
@@ -52,6 +55,17 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ISettingService, SettingService>();
 builder.Services.AddScoped<INumberGeneratorService, NumberGeneratorService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<CurrentUser>();
+builder.Services.AddScoped<UserSnapshotReader>();
+builder.Services.AddScoped<EffectivePermissions>();
+builder.Services.AddScoped<DelegationGuard>();
+builder.Services.AddScoped<FinancialOperationGuard>();
+builder.Services.AddSingleton<PasswordService>();
+builder.Services.AddSingleton<PermissionUnionCache>();
+builder.Services.AddSingleton<SecurityAuditWriter>();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationResultHandler>();
+builder.Services.AddScoped<AtomicOperationFilter>();
+builder.Services.AddHostedService<EndpointSecurityStartupCheck>();
 builder.Services.AddScoped<ITenantPortalService, TenantPortalService>();
 builder.Services.AddScoped<ContractPdfService>();
 builder.Services.AddScoped<ReceiptPdfService>();
@@ -63,29 +77,32 @@ builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<ComplaintReportPdfService>();
 builder.Services.AddScoped<IBankTransferService, BankTransferService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<INotificationService>(sp => sp.GetRequiredService<NotificationService>());
 builder.Services.AddScoped<IVisitorWalletService, VisitorWalletService>();
 builder.Services.AddScoped<DemandLetterPdfService>();
 builder.Services.AddScoped<ISystemResetService, SystemResetService>();
 builder.Services.AddScoped<ICircularService, CircularService>();
-builder.Services.AddScoped<IPermissionPackageService, PermissionPackageService>();
+builder.Services.AddScoped<PermissionPackageService>();
+builder.Services.AddScoped<IPermissionPackageService>(sp => sp.GetRequiredService<PermissionPackageService>());
 builder.Services.AddHostedService<SystemSchedulerService>();
-builder.Services.AddSignalR();
+builder.Services.AddHostedService<NotificationDispatcher>();
+builder.Services.AddSignalR(options => options.AddFilter<LiveIdentityHubFilter>());
+builder.Services.AddScoped<LiveIdentityHubFilter>();
 
 // 5. الصلاحيات المتقدمة
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, IdentityAuthorizationHandler>();
 
 // ═══════════════════════════════════════════════════════════
 // 6. 🌐 CORS Policy (محددة للنطاقات الأربعة المطلوبة حصرياً)
 // ═══════════════════════════════════════════════════════════
-var allowedOrigins = new[]
-{
-    "https://admin.marinaalandalus.com",
-    "https://tenant.marinaalandalus.com",
-    "http://localhost:4300",
-    "http://localhost:4200"
-};
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+if (builder.Environment.IsDevelopment())
+    allowedOrigins = allowedOrigins.Concat(new[] { "http://localhost:4300", "http://localhost:4200" }).Distinct().ToArray();
+if (allowedOrigins.Any(o => o == "*" || !Uri.TryCreate(o, UriKind.Absolute, out _)))
+    throw new InvalidOperationException("CORS requires exact approved origins.");
 
 builder.Services.AddCors(options =>
 {
@@ -105,6 +122,11 @@ var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"]
     ?? throw new InvalidOperationException("❌ المفتاح JwtSettings:SecretKey غير موجود في appsettings.json!");
 
+if (secretKey.Contains("SET_IN_", StringComparison.Ordinal) || Encoding.UTF8.GetByteCount(secretKey) < 32 ||
+    string.IsNullOrWhiteSpace(jwtSettings["Issuer"]) || string.IsNullOrWhiteSpace(jwtSettings["Audience"]) ||
+    jwtSettings.GetValue<int>("ExpiryMinutes", 60) is < 5 or > 1440)
+    throw new InvalidOperationException("Configure a random JWT key (at least 32 bytes), issuer, audience and an expiry of 5-1440 minutes through deployment secrets.");
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -112,8 +134,9 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
+    options.RequireHttpsMetadata = true;
+    options.SaveToken = false;
+    options.IncludeErrorDetails = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -123,6 +146,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = jwtSettings["Audience"],
         ValidateLifetime = true,
+        RequireExpirationTime = true,
+        RequireSignedTokens = true,
+        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
         ClockSkew = TimeSpan.Zero
     };
 
@@ -138,13 +164,55 @@ builder.Services.AddAuthentication(options =>
                 context.Token = accessToken;
             }
             return Task.CompletedTask;
+        },
+        OnTokenValidated = async context =>
+        {
+            context.HttpContext.Items["authorization.start"] = System.Diagnostics.Stopwatch.GetTimestamp();
+            try
+            {
+                var reader = context.HttpContext.RequestServices.GetRequiredService<UserSnapshotReader>();
+                var current = context.HttpContext.RequestServices.GetRequiredService<CurrentUser>();
+                if (!await reader.ValidateAsync(context.Principal!, current, context.HttpContext.RequestAborted)) context.Fail("Invalid session.");
+            }
+            catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException)
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>().LogError(ex, "Identity store unavailable.");
+                context.HttpContext.Items["identity-store-unavailable"] = true;
+                context.Fail("Identity store unavailable.");
+            }
+        },
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+            context.Response.StatusCode = context.HttpContext.Items.ContainsKey("identity-store-unavailable") ? 503 : 401;
+            context.Response.Headers.WWWAuthenticate = "Bearer";
+            await context.Response.WriteAsJsonAsync(new { success = false, message = "تعذر التحقق من جلسة الدخول." });
         }
     };
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var scope in new[] { IdentityPolicies.Authenticated, IdentityPolicies.Staff, IdentityPolicies.Tenant,
+        IdentityPolicies.TenantOwner, IdentityPolicies.Self, IdentityPolicies.File, IdentityPolicies.Denied })
+        options.AddPolicy(scope, p => p.RequireAuthenticatedUser().AddRequirements(new IdentityRequirement(scope)));
+    foreach (var capability in PortalCapabilities.All)
+        options.AddPolicy($"Portal.Capability.{capability}", p => p.RequireAuthenticatedUser().AddRequirements(new IdentityRequirement(IdentityPolicies.Tenant, capability)));
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().RequireAssertion(_ => false).Build();
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("auth-login", context => RateLimitPartition.GetSlidingWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new SlidingWindowRateLimiterOptions
+        { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), SegmentsPerWindow = 6, QueueLimit = 0 }));
+});
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Conventions.Add(new EndpointSecurityConvention());
+    options.Filters.AddService<AtomicOperationFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -180,57 +248,39 @@ var app = builder.Build();
 // ═══════════════════════════════════════════════════════════
 // 8. DB Migration & Seeder
 // ═══════════════════════════════════════════════════════════
-using (var scope = app.Services.CreateScope())
+if (args.Contains("--migrate") || args.Contains("--bootstrap-superadmin") || args.Contains("--rotate-superadmin"))
 {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    try
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (args.Contains("--migrate"))
     {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        logger.LogInformation("🔄 التحقق من اتصال قاعدة البيانات وتشغيل البيانات الأولية...");
         await db.Database.MigrateAsync();
         await SettingsSeeder.SeedAsync(db);
-        await UserSeeder.SeedAsync(db);
-        logger.LogInformation("✅ تم تجهيز قاعدة البيانات بنجاح.");
     }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "⚠️ تنبيه: فشل الاتصال بقاعدة البيانات أثناء الإقلاع.");
-    }
+    if (args.Contains("--bootstrap-superadmin") || args.Contains("--rotate-superadmin"))
+        await UserSeeder.BootstrapAsync(db, builder.Configuration, scope.ServiceProvider.GetRequiredService<PasswordService>(), args.Contains("--rotate-superadmin"));
+    return;
+}
+if (builder.Configuration.GetValue<bool>("Database:InitializeOnStartup"))
+{
+    if (!app.Environment.IsDevelopment()) throw new InvalidOperationException("Use the offline migration command for production.");
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await SettingsSeeder.SeedAsync(db);
 }
 
 // ═══════════════════════════════════════════════════════════
 // 9. خط سير المعالجة (Pipeline) المنضبط 100%
 // ═══════════════════════════════════════════════════════════
 
-// 👈 معالج سريع لطلبات OPTIONS قبل أي Middleware آخر لضمان عدم حجب المتصفح
-app.Use(async (context, next) =>
+app.UseMiddleware<ApiSecurityMiddleware>();
+// No unauthenticated static serving of uploads. ProtectedFilesController handles exact DB-owned files.
+if (app.Environment.IsDevelopment())
 {
-    var origin = context.Request.Headers["Origin"].ToString();
-    if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
-    {
-        context.Response.Headers.Append("Access-Control-Allow-Origin", origin);
-        context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
-        context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Test-Tenant-Id, X-Test-User-Id, access_token");
-        context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-
-        if (context.Request.Method == "OPTIONS")
-        {
-            context.Response.StatusCode = 200;
-            await context.Response.CompleteAsync();
-            return;
-        }
-    }
-    await next();
-});
-
-app.UseStaticFiles();
-
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Andalos API v1");
-    c.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Andalos API v1"));
+}
 
 app.UseRouting();
 
@@ -238,9 +288,15 @@ app.UseRouting();
 app.UseCors("AllowSpecificOrigins");
 
 app.UseAuthentication();
+app.UseMiddleware<ClassifiedEndpointMiddleware>();
 app.UseAuthorization();
+app.UseRateLimiter();
+app.UseMiddleware<IdempotencyRequestMiddleware>();
 
 app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<NotificationHub>("/hubs/notifications", options => options.CloseOnAuthenticationExpiration = true)
+    .RequireAuthorization(IdentityPolicies.Authenticated);
 
 app.Run();
+
+public partial class Program { }

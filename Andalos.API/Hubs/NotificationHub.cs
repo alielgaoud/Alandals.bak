@@ -1,77 +1,42 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using System.Collections.Concurrent;
-
-namespace Andalos.API.Hubs
+using Andalos.API.Security;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+namespace Andalos.API.Hubs;
+[Authorize]
+public sealed class NotificationHub(CurrentUser current) : Hub
 {
-    public class NotificationHub : Hub
+    public static string UserGroup(int userId, string stamp, long version) => $"user_{userId}_{stamp}_{version}";
+    public async Task RegisterAdmin(int userId)
     {
-        // قاموس لتتبع اتصالات كل مستخدم (مستخدم واحد قد يفتح عدة أجهزة)
-        private static readonly ConcurrentDictionary<string, HashSet<string>> _userConnections = new();
-        private static readonly ConcurrentDictionary<string, HashSet<string>> _tenantConnections = new();
-
-        // ===== 1. عند اتصال مستخدم إداري =====
-        public async Task RegisterAdmin(int userId)
-        {
-            var connectionId = Context.ConnectionId;
-            var key = $"user_{userId}";
-
-            _userConnections.AddOrUpdate(key,
-                new HashSet<string> { connectionId },
-                (_, connections) =>
-                {
-                    connections.Add(connectionId);
-                    return connections;
-                });
-
-            // إضافة للمجموعة لاستقبال الإشعارات العامة
-            await Groups.AddToGroupAsync(connectionId, "Admins");
-            await Groups.AddToGroupAsync(connectionId, key);
-
-            await Clients.Caller.SendAsync("Connected", new { message = "تم الاتصال بنجاح" });
-        }
-
-        // ===== 2. عند اتصال مستأجر =====
-        public async Task RegisterTenant(int tenantId, int userId)
-        {
-            var connectionId = Context.ConnectionId;
-            var tenantKey = $"tenant_{tenantId}";
-            var userKey = $"user_{userId}";
-
-            _tenantConnections.AddOrUpdate(tenantKey,
-                new HashSet<string> { connectionId },
-                (_, connections) =>
-                {
-                    connections.Add(connectionId);
-                    return connections;
-                });
-
-            await Groups.AddToGroupAsync(connectionId, "AllTenants");
-            await Groups.AddToGroupAsync(connectionId, tenantKey);
-            await Groups.AddToGroupAsync(connectionId, userKey);
-
-            await Clients.Caller.SendAsync("Connected", new { message = "تم الاتصال بنجاح" });
-        }
-
-        // ===== 3. عند قطع الاتصال =====
-        public override async Task OnDisconnectedAsync(Exception? exception)
-        {
-            var connectionId = Context.ConnectionId;
-
-            foreach (var kvp in _userConnections)
-            {
-                kvp.Value.Remove(connectionId);
-                if (!kvp.Value.Any())
-                    _userConnections.TryRemove(kvp.Key, out _);
-            }
-
-            foreach (var kvp in _tenantConnections)
-            {
-                kvp.Value.Remove(connectionId);
-                if (!kvp.Value.Any())
-                    _tenantConnections.TryRemove(kvp.Key, out _);
-            }
-
-            await base.OnDisconnectedAsync(exception);
-        }
+        var u = current.Required;
+        if (!u.IsStaff || u.RequiresPasswordChange || userId != u.Id) throw new HubException("Access denied.");
+        await JoinCurrentGroupAsync(u);
+        await Clients.Caller.SendAsync("Connected", new { message = "Connected" });
+    }
+    public async Task RegisterTenant(int tenantId, int userId)
+    {
+        var u = current.Required;
+        if (!u.IsTenant || u.RequiresPasswordChange || tenantId != u.TenantId || userId != u.Id) throw new HubException("Access denied.");
+        // No client-selected tenant/user/group memberships and no role-wide broadcasts.
+        await JoinCurrentGroupAsync(u);
+        await Clients.Caller.SendAsync("Connected", new { message = "Connected" });
+    }
+    private async Task JoinCurrentGroupAsync(UserSnapshot user)
+    {
+        var group = UserGroup(user.Id, user.SecurityStamp, user.PermissionsVersion);
+        if (Context.Items.TryGetValue("security.group", out var old) && old is string previous && previous != group)
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, previous);
+        await Groups.AddToGroupAsync(Context.ConnectionId, group);
+        Context.Items["security.group"] = group;
+    }
+}
+public sealed class LiveIdentityHubFilter(UserSnapshotReader reader, CurrentUser current) : IHubFilter
+{
+    public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext invocation, Func<HubInvocationContext, ValueTask<object?>> next)
+    {
+        if (invocation.HubMethodName is not ("RegisterAdmin" or "RegisterTenant")) throw new HubException("Access denied.");
+        if (invocation.Context.User is null || !await reader.ValidateAsync(invocation.Context.User, current, invocation.Context.ConnectionAborted))
+        { invocation.Context.Abort(); throw new HubException("Invalid session."); }
+        return await next(invocation);
     }
 }

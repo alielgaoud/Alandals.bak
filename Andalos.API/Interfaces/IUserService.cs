@@ -1,10 +1,11 @@
-﻿using Andalos.API.DTOs.System;
+using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
 
 namespace Andalos.API.Interfaces
 {
     public interface IUserService
     {
+        Task<bool> ReconcilePermissionsAsync(int id, ReconcilePermissionsDto dto);
         Task<List<UserResponseDto>> GetAllAsync();
         Task<UserResponseDto?> GetByIdAsync(int id);
         Task<UserResponseDto> CreateUserAsync(CreateUserByAdminDto dto);

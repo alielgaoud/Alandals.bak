@@ -1,4 +1,4 @@
-﻿using Andalos.API.Enums;
+using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.Models
@@ -25,6 +25,9 @@ namespace Andalos.API.Models
         public string? OldValues { get; set; } // القيم القديمة بصيغة JSON
         public string? NewValues { get; set; } // القيم الجديدة بصيغة JSON
         public string? AffectedColumns { get; set; } // الأعمدة التي تم تغييرها بصيغة JSON
+
+        [MaxLength(20)] public string Outcome { get; set; } = "Success";
+        [MaxLength(100)] public string? CorrelationId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

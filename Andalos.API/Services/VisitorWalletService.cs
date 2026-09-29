@@ -1,4 +1,5 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
@@ -32,13 +33,15 @@ namespace Andalos.API.Services
         // =====================================================
         // 1. البوابة: إصدار تصريح مدفوع برصيد + تحديث شفت الحارس
         // =====================================================
-        public async Task<VisitorPassResponseDto> CreatePaidPassAsync(CreatePaidVisitorPassDto dto, int gatekeeperUserId)
-        {
-            // قراءة السعر من الإعدادات إذا لم يُحدد
-            decimal passPrice = dto.Amount > 0
-                ? dto.Amount
-                : await _settings.GetValueAsync<decimal>(SettingKeys.VisitorDefaultValidity, 50);
+        public Task<VisitorPassResponseDto> CreatePaidPassAsync(CreatePaidVisitorPassDto dto, int gatekeeperUserId) => _db.AtomicAsync(() => CreatePaidPassAsyncCore(dto, gatekeeperUserId));
 
+        private async Task<VisitorPassResponseDto> CreatePaidPassAsyncCore(CreatePaidVisitorPassDto dto, int gatekeeperUserId)
+        {
+            FinancialOperationGuard.ValidateAmount(dto.Amount, 100_000m);
+            var now = DateTimeHelper.LibyaNow;
+            if (await _db.VisitorBlacklists.AnyAsync(b => b.IsActive && (b.IsPermanent || b.ExpiresAt == null || b.ExpiresAt > now) &&
+                (b.Phone == dto.VisitorPhone || (dto.NationalId != null && b.NationalId == dto.NationalId)))) throw new ForbiddenOperationException();
+            decimal passPrice = dto.Amount;
             string passCode = await GenerateUniquePaidPassCodeAsync();
 
             var pass = new VisitorPass
@@ -48,7 +51,7 @@ namespace Andalos.API.Services
                 VisitorPhone = dto.VisitorPhone,
                 NationalId = dto.NationalId,
                 VisitorType = VisitorType.Customer,
-                ValidDate = DateTimeHelper.LibyaNow,
+                ValidDate = DateTimeHelper.LibyaToday,
                 MaxEntries = 1,
                 UsedCount = 0,
                 Status = PassStatus.Active,
@@ -88,6 +91,9 @@ namespace Andalos.API.Services
             }
 
             await _db.SaveChangesAsync();
+            _db.GateCashReceipts.Add(new() { VisitorPassId = pass.Id, ShiftId = shift.Id, UserId = gatekeeperUserId,
+                Amount = passPrice, Kind = "Issue", CreatedAt = DateTimeHelper.LibyaNow });
+            await _db.SaveChangesAsync();
 
             return new VisitorPassResponseDto
             {
@@ -97,7 +103,7 @@ namespace Andalos.API.Services
                 VisitorPhone = pass.VisitorPhone,
                 NationalId = pass.NationalId,
                 VisitorType = pass.VisitorType.ToString(),
-                ValidDate = pass.ValidDate = DateTimeHelper.LibyaToday,
+                ValidDate = pass.ValidDate,
                 MaxEntries = pass.MaxEntries,
                 UsedCount = pass.UsedCount,
                 Status = pass.Status.ToString(),
@@ -107,11 +113,42 @@ namespace Andalos.API.Services
             };
         }
 
+        public Task<AddBalanceToPassResponseDto> AddBalanceToPassAsync(AddBalanceToPassDto dto, int userId) => _db.AtomicAsync(async () =>
+        {
+            FinancialOperationGuard.ValidateAmount(dto.Amount, 100_000m);
+            var pass = await _db.VisitorPasses.SingleOrDefaultAsync(p => p.IsActive && p.PassCode == dto.PassCode);
+            if (pass is null) throw new KeyNotFoundException();
+            if (await _db.VisitorBlacklists.AnyAsync(b => b.IsActive && (b.IsPermanent || b.ExpiresAt == null || b.ExpiresAt > DateTimeHelper.LibyaNow) &&
+                ((!string.IsNullOrEmpty(pass.VisitorPhone) && b.Phone == pass.VisitorPhone) ||
+                 (!string.IsNullOrEmpty(pass.NationalId) && b.NationalId == pass.NationalId)))) throw new ForbiddenOperationException();
+            if (!pass.IsPaidPass || pass.ValidDate.Date != DateTimeHelper.LibyaToday ||
+                pass.Status is PassStatus.Revoked or PassStatus.Expired || pass.WalletStatus == WalletStatus.Expired || pass.RemainingBalance + dto.Amount > 100_000m)
+                throw new ArgumentException("Pass cannot be topped up.");
+            var shift = await _db.GatekeeperShifts.SingleOrDefaultAsync(s => s.UserId == userId && s.IsActive && !s.IsHandedOver);
+            if (shift is null) { shift = new() { UserId = userId, StartTime = DateTimeHelper.LibyaNow }; _db.GatekeeperShifts.Add(shift); }
+            shift.TotalCashCollected += dto.Amount; shift.UpdatedAt = DateTimeHelper.LibyaNow;
+            pass.RemainingBalance += dto.Amount; pass.WalletStatus = WalletStatus.Active; pass.UpdatedAt = DateTimeHelper.LibyaNow;
+            await _db.SaveChangesAsync();
+            _db.GateCashReceipts.Add(new() { VisitorPassId = pass.Id, ShiftId = shift.Id, UserId = userId, Amount = dto.Amount,
+                Kind = "TopUp", CreatedAt = DateTimeHelper.LibyaNow });
+            await _db.SaveChangesAsync();
+            return new AddBalanceToPassResponseDto { PassId = pass.Id, AddedAmount = dto.Amount, RemainingBalance = pass.RemainingBalance, ShiftId = shift.Id };
+        });
+
         // =====================================================
         // 2. المحل: الخصم بالـ QR Code وحساب الفرق الكاش
         // =====================================================
-        public async Task<PassPurchaseResultDto> ProcessShopPurchaseAsync(ProcessPassPurchaseDto dto, int tenantId)
+        public Task<PassPurchaseResultDto> ProcessShopPurchaseAsync(ProcessPassPurchaseDto dto, int tenantId) => _db.AtomicAsync(() => ProcessShopPurchaseAsyncCore(dto, tenantId));
+
+        private async Task<PassPurchaseResultDto> ProcessShopPurchaseAsyncCore(ProcessPassPurchaseDto dto, int tenantId)
         {
+            FinancialOperationGuard.ValidateAmount(dto.PurchaseAmount, 100_000m);
+            if (dto.TenantId.HasValue && dto.TenantId != tenantId) throw new ForbiddenOperationException();
+            var units = await _db.Contracts.Where(c => c.TenantId == tenantId && c.IsActive && c.Status == ContractStatus.Active && c.Unit!.IsActive)
+                .Select(c => c.UnitId).Distinct().ToListAsync();
+            var unitId = dto.UnitId ?? (units.Count == 1 ? units[0] : 0);
+            if (!units.Contains(unitId)) throw new ForbiddenOperationException();
+
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
             if (tenant == null)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ حساب المحل غير موجود بالنظام" };
@@ -125,7 +162,7 @@ namespace Andalos.API.Services
             if (!pass.IsPaidPass)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ هذا التصريح مجاني ولا يحتوي على محفظة مالية" };
 
-            if (pass.ValidDate.Date != DateTimeHelper.LibyaNow)
+            if (pass.ValidDate.Date != DateTimeHelper.LibyaToday || pass.Status is PassStatus.Revoked or PassStatus.Expired)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ صلاحية كود الشراء انتهت (تاريخ اليوم فقط)" };
 
             if (pass.WalletStatus != WalletStatus.Active || pass.RemainingBalance <= 0)
@@ -162,7 +199,7 @@ namespace Andalos.API.Services
             {
                 VisitorPassId = pass.Id,
                 TenantId = tenantId,
-                UnitId = dto.UnitId,
+                UnitId = unitId,
                 Amount = chargedAmount,
                 TransactionDate = DateTimeHelper.LibyaNow,
                 IsSettled = false
@@ -229,26 +266,21 @@ namespace Andalos.API.Services
 
         public async Task<List<TenantPassBalanceDto>> GetAllShopsUnsettledBalancesAsync()
         {
-            var tenants = await _db.Tenants.Where(t => t.IsActive).ToListAsync();
-            var result = new List<TenantPassBalanceDto>();
-
-            foreach (var tenant in tenants)
-            {
-                var dto = await GetMyUnsettledBalanceAsync(tenant.Id);
-                if (dto.TotalUnsettledAmount > 0)
-                {
-                    result.Add(dto);
-                }
-            }
-
-            return result.OrderByDescending(r => r.TotalUnsettledAmount).ToList();
+            return await _db.PassTransactions.Where(t => t.IsActive && !t.IsSettled && t.Tenant != null && t.Tenant.IsActive)
+                .GroupBy(t => new { t.TenantId, t.Tenant!.FullName })
+                .Select(g => new TenantPassBalanceDto { TenantId = g.Key.TenantId!.Value, TenantName = g.Key.FullName,
+                    TotalUnsettledAmount = g.Sum(t => t.Amount), UnsettledTransactionsCount = g.Count(), LastTransactionDate = g.Max(t => t.TransactionDate) })
+                .OrderByDescending(t => t.TotalUnsettledAmount).ToListAsync();
         }
 
         // =====================================================
         // 4. الإدارة: تسديد مستحقات المحل (كاش / تحويل / خصم من الإيجار!)
         // =====================================================
-        public async Task<SettlementResponseDto> SettleShopBalanceAsync(ProcessSettlementDto dto, int adminUserId)
+        public Task<SettlementResponseDto> SettleShopBalanceAsync(ProcessSettlementDto dto, int adminUserId) => _db.AtomicAsync(() => SettleShopBalanceAsyncCore(dto, adminUserId));
+
+        private async Task<SettlementResponseDto> SettleShopBalanceAsyncCore(ProcessSettlementDto dto, int adminUserId)
         {
+            if (!Enum.IsDefined(dto.SettlementMethod)) throw new ArgumentException("Unknown settlement method.");
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == dto.TenantId && t.IsActive);
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
@@ -347,7 +379,7 @@ namespace Andalos.API.Services
                 ShiftId = shift.Id,
                 UserId = gatekeeperUserId,
                 GatekeeperName = user?.FullName ?? "حارس البوابة",
-                StartTime = shift.StartTime = DateTimeHelper.LibyaNow,
+                StartTime = shift.StartTime,
                 EndTime = shift.EndTime,
                 TotalPassesIssued = shift.TotalPassesIssued,
                 TotalCashCollected = shift.TotalCashCollected,
@@ -356,11 +388,15 @@ namespace Andalos.API.Services
             };
         }
 
-        public async Task<bool> HandoverShiftCashAsync(int shiftId, int adminUserId)
+        public Task<bool> HandoverShiftCashAsync(int shiftId, int adminUserId) => _db.AtomicAsync(() => HandoverShiftCashAsyncCore(shiftId, adminUserId));
+
+        private async Task<bool> HandoverShiftCashAsyncCore(int shiftId, int adminUserId)
         {
             var shift = await _db.GatekeeperShifts.FirstOrDefaultAsync(s => s.Id == shiftId && s.IsActive);
             if (shift == null || shift.IsHandedOver) return false;
 
+            if (shift.UserId == adminUserId) throw new ForbiddenOperationException(); // segregation of duties
+            shift.HandedOverByUserId = adminUserId;
             shift.IsHandedOver = true;
             shift.HandedOverAt = DateTimeHelper.LibyaNow;
             shift.EndTime = DateTimeHelper.LibyaNow;
@@ -373,9 +409,11 @@ namespace Andalos.API.Services
         // =====================================================
         // 6. Scheduler: تصفير الأرصدة المنتهية بنهاية اليوم
         // =====================================================
-        public async Task<decimal> ExpireUnusedBalancesAsync()
+        public Task<decimal> ExpireUnusedBalancesAsync() => _db.AtomicAsync(() => ExpireUnusedBalancesAsyncCore());
+
+        private async Task<decimal> ExpireUnusedBalancesAsyncCore()
         {
-            var today = DateTimeHelper.LibyaNow;
+            var today = DateTimeHelper.LibyaToday;
 
             // تصاريح الأيام السابقة التي لم تُصفر بعد
             var expiredPasses = await _db.VisitorPasses
@@ -472,39 +510,18 @@ namespace Andalos.API.Services
                 ? toDate.Value.Date.AddDays(1).AddTicks(-1)
                 : (DateTime?)null;
 
-            // 1) التصاريح المدفوعة (تفاصيل الكاش المستلم)
-            var passesQuery = _db.VisitorPasses
-                .Include(p => p.IssuedByUser)
-                .Where(p => p.IsActive && p.IsPaidPass);
-
-            if (gatekeeperUserId.HasValue)
-                passesQuery = passesQuery.Where(p => p.IssuedByUserId == gatekeeperUserId.Value);
-
-            if (from.HasValue)
-                passesQuery = passesQuery.Where(p => p.CreatedAt >= from.Value);
-
-            if (to.HasValue)
-                passesQuery = passesQuery.Where(p => p.CreatedAt <= to.Value);
-
-            var paidPasses = await passesQuery
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
-
-            var receipts = paidPasses.Select(p => new GateCashReceiptDetailDto
-            {
-                PassId = p.Id,
-                PassCode = p.PassCode,
-                VisitorName = p.VisitorName,
-                VisitorPhone = p.VisitorPhone,
-                AmountCollected = p.InitialBalance,
-                IssuedAt = p.CreatedAt,
-                ValidDate = p.ValidDate,
-                IssuedByUserId = p.IssuedByUserId,
-                GatekeeperName = p.IssuedByUser?.FullName ?? "حارس غير معروف",
-                Purpose = p.Purpose,
-                WalletStatus = p.WalletStatus.ToString(),
-                RemainingBalance = p.RemainingBalance
-            }).ToList();
+            var receiptsQuery = from r in _db.GateCashReceipts
+                join p in _db.VisitorPasses on r.VisitorPassId equals p.Id
+                join u in _db.Users on r.UserId equals u.Id
+                where (!isHandedOver.HasValue || _db.GatekeeperShifts.Any(s => s.Id == r.ShiftId && s.IsHandedOver == isHandedOver.Value)) &&
+                    (!gatekeeperUserId.HasValue || r.UserId == gatekeeperUserId.Value) &&
+                    (!from.HasValue || r.CreatedAt >= from.Value) && (!to.HasValue || r.CreatedAt <= to.Value)
+                orderby r.CreatedAt descending
+                select new GateCashReceiptDetailDto { ReceiptId = r.Id, ReceiptKind = r.Kind, PassId = p.Id, PassCode = p.PassCode,
+                    VisitorName = p.VisitorName, VisitorPhone = p.VisitorPhone, AmountCollected = r.Amount, IssuedAt = r.CreatedAt,
+                    ValidDate = p.ValidDate, IssuedByUserId = r.UserId, GatekeeperName = u.FullName, Purpose = p.Purpose,
+                    WalletStatus = p.WalletStatus.ToString(), RemainingBalance = p.RemainingBalance };
+            var receipts = await receiptsQuery.ToListAsync();
 
             // 2) ملخص الورديات
             var shiftsQuery = _db.GatekeeperShifts
@@ -537,7 +554,8 @@ namespace Andalos.API.Services
                 TotalPassesIssued = s.TotalPassesIssued,
                 TotalCashCollected = s.TotalCashCollected,
                 IsHandedOver = s.IsHandedOver,
-                HandedOverAt = s.HandedOverAt
+                HandedOverAt = s.HandedOverAt,
+                HandedOverByUserId = s.HandedOverByUserId
             }).ToList();
 
             // 3) الإجماليات

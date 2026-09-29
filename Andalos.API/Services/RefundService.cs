@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Refunds;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -48,8 +49,14 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
-        public async Task<RefundResponseDto> CreateAsync(CreateRefundDto dto)
+        public Task<RefundResponseDto> CreateAsync(CreateRefundDto dto) => _db.AtomicAsync(() => CreateAsyncCore(dto));
+
+        private async Task<RefundResponseDto> CreateAsyncCore(CreateRefundDto dto)
         {
+            FinancialOperationGuard.ValidateAmount(dto.Amount);
+            if (!Enum.IsDefined(dto.RefundType) || !Enum.IsDefined(dto.RefundMethod) || dto.RefundMethod == PaymentMethod.FromBalance)
+                throw new ArgumentException("Invalid refund type/method.");
+
             var contract = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
@@ -66,10 +73,27 @@ namespace Andalos.API.Services
                 if (originalPayment == null)
                     throw new KeyNotFoundException("سند القبض الأصلي غير موجود");
 
-                if (dto.Amount > originalPayment.Amount)
-                    throw new InvalidOperationException("لا يمكن إرجاع مبلغ أكبر من قيمة السند الأصلي");
+                if (originalPayment.ContractId != dto.ContractId || originalPayment.TenantId != contract.TenantId) throw new ForbiddenOperationException();
+                if (originalPayment.PaymentMethod == PaymentMethod.FromBalance || originalPayment.PaymentType == PaymentType.AdvancePayment ||
+                    originalPayment.WalletCreditAmount > 0 || originalPayment.AllocatedChargeAmount > 0 ||
+                    !originalPayment.AllocationRecorded)
+                    throw new ConcurrencyConflictException("Allocated payments require a reviewed accounting reversal, not a standalone refund.");
+                var previous = await _db.Refunds.Where(r => r.IsActive && r.OriginalPaymentId == originalPayment.Id).SumAsync(r => r.Amount);
+                if (dto.Amount + previous > originalPayment.Amount) throw new ArgumentException("Cumulative refunds exceed the original payment.");
             }
 
+
+            var eligible = _db.Payments.Where(p => p.ContractId == dto.ContractId && p.IsActive && p.PaymentMethod != PaymentMethod.FromBalance &&
+                p.PaymentType != PaymentType.AdvancePayment && p.WalletCreditAmount == 0 && p.AllocatedChargeAmount == 0 && p.AllocationRecorded);
+            var paid = await eligible.SumAsync(p => p.Amount);
+            var previousRefunds = await _db.Refunds.Where(r => r.ContractId == dto.ContractId && r.IsActive).SumAsync(r => r.Amount);
+            if (previousRefunds + dto.Amount > paid) throw new ArgumentException("Refund exceeds eligible collected funds.");
+            if (dto.RefundType == RefundType.DepositReturn)
+            {
+                var depositPaid = await eligible.Where(p => p.PaymentType == PaymentType.Deposit).SumAsync(p => p.Amount);
+                var returned = await _db.Refunds.Where(r => r.IsActive && r.ContractId == dto.ContractId && r.RefundType == RefundType.DepositReturn).SumAsync(r => r.Amount);
+                if (returned + dto.Amount > depositPaid) throw new ArgumentException("Deposit refund exceeds collected deposits.");
+            }
             string refundNumber = await _numberGen.GenerateAsync("Refund");
 
             var refund = new Refund
@@ -109,7 +133,9 @@ namespace Andalos.API.Services
             return MapToDto(saved);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public Task<bool> DeleteAsync(int id) => _db.AtomicAsync(() => DeleteAsyncCore(id));
+
+        private async Task<bool> DeleteAsyncCore(int id)
         {
             var refund = await _db.Refunds.FirstOrDefaultAsync(r => r.Id == id && r.IsActive);
             if (refund == null) return false;

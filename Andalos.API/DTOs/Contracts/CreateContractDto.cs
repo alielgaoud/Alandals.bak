@@ -1,4 +1,4 @@
-﻿using Andalos.API.Enums;
+using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.DTOs.Contracts
@@ -39,6 +39,13 @@ namespace Andalos.API.DTOs.Contracts
     }
 
     // 👈 1. DTO تجديد العقد
+    public class UpdateContractDto
+    {
+        [MaxLength(100)] public string? TradeName { get; set; }
+        [MaxLength(500)] public string? Notes { get; set; }
+        public bool AutoRenew { get; set; }
+    }
+
     public class RenewContractDto
     {
         [Required(ErrorMessage = "تاريخ بداية العقد الجديد مطلوب")]

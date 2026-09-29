@@ -1,4 +1,4 @@
-﻿using Andalos.API.Enums;
+using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.DTOs.Auth
@@ -23,7 +23,7 @@ namespace Andalos.API.DTOs.Auth
         public string UserName { get; set; } = string.Empty;
 
         [Required]
-        [MinLength(6, ErrorMessage = "كلمة المرور يجب أن تكون 6 أحرف على الأقل")]
+        [MinLength(12, ErrorMessage = "كلمة المرور يجب أن تكون 12 حرفاً على الأقل")]
         public string Password { get; set; } = string.Empty;
 
         [Compare("Password", ErrorMessage = "كلمة المرور غير متطابقة")]
@@ -41,6 +41,11 @@ namespace Andalos.API.DTOs.Auth
         public string UserName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
+        public List<string> Permissions { get; set; } = new();
+        public List<string> Modules { get; set; } = new();
+        public long PermissionsVersion { get; set; }
+        public bool ReconciliationRequired { get; set; }
+        public bool RequiresPasswordChange { get; set; }
     }
 
 

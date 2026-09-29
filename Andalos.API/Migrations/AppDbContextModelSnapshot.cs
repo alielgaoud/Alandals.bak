@@ -60,6 +60,15 @@ namespace Andalos.API.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
@@ -121,6 +130,16 @@ namespace Andalos.API.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ReviewedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -363,6 +382,10 @@ namespace Andalos.API.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -697,9 +720,16 @@ namespace Andalos.API.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("HandedOverByUserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId").IsUnique().HasDatabaseName("IX_GatekeeperShifts_OpenUser").HasFilter("[IsActive] = 1 AND [IsHandedOver] = 0");
 
                     b.ToTable("GatekeeperShifts", (string)null);
                 });
@@ -773,6 +803,10 @@ namespace Andalos.API.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -872,6 +906,9 @@ namespace Andalos.API.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("RealtimeDeliveredAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
@@ -881,6 +918,8 @@ namespace Andalos.API.Migrations
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("RealtimeDeliveredAt", "IsActive");
 
                     b.ToTable("Notifications", (string)null);
                 });
@@ -983,6 +1022,10 @@ namespace Andalos.API.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("SequenceKey")
@@ -1034,6 +1077,10 @@ namespace Andalos.API.Migrations
 
                     b.Property<int>("VisitorPassId")
                         .HasColumnType("int");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1105,12 +1152,39 @@ namespace Andalos.API.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("AllocationRecorded")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("WalletCreditAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("WalletDebitAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("AllocatedChargeAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("AllocatedChargeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SystemOperationKey")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContractId");
 
                     b.HasIndex("ReceiptNumber")
                         .IsUnique();
+
+                    b.HasIndex("AllocatedChargeId");
+
+                    b.HasIndex("SystemOperationKey").IsUnique().HasFilter("[SystemOperationKey] IS NOT NULL");
 
                     b.ToTable("Payments", (string)null);
                 });
@@ -1146,6 +1220,10 @@ namespace Andalos.API.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1190,6 +1268,8 @@ namespace Andalos.API.Migrations
 
                     b.HasIndex("PackageId", "PermissionKey")
                         .IsUnique();
+
+                    b.HasIndex("PackageId", "IsActive");
 
                     b.ToTable("PermissionPackageItems", (string)null);
                 });
@@ -1321,6 +1401,10 @@ namespace Andalos.API.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1458,6 +1542,10 @@ namespace Andalos.API.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NationalId")
@@ -1540,6 +1628,10 @@ namespace Andalos.API.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -1726,12 +1818,32 @@ namespace Andalos.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("PermissionsVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("PermissionsReconciled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("RequiresPasswordChange")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UserName")
                         .IsUnique();
+
+                    b.HasIndex("IsActive", "IsLocked", "Role");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -1810,6 +1922,8 @@ namespace Andalos.API.Migrations
 
                     b.HasIndex("UserId", "PackageId")
                         .IsUnique();
+
+                    b.HasIndex("PackageId", "IsActive", "UserId");
 
                     b.ToTable("UserPermissionPackages", (string)null);
                 });
@@ -1964,6 +2078,13 @@ namespace Andalos.API.Migrations
                     b.Property<int>("WalletStatus")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("OwnerTenantId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IssuedByUserId");
@@ -1973,7 +2094,178 @@ namespace Andalos.API.Migrations
 
                     b.HasIndex("UnitId");
 
+                    b.HasIndex("OwnerTenantId", "IsActive");
+
                     b.ToTable("VisitorPasses", (string)null);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.DirectUserPermission", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PermissionKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "PermissionKey").IsUnique();
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("DirectUserPermissions", (string)null);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.TenantStaffPermission", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Capability")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Capability").IsUnique();
+
+                    b.ToTable("TenantStaffPermissions", (string)null);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.IdempotencyRecord", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("KeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Operation", "KeyHash").IsUnique();
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("IdempotencyRecords", (string)null);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.GateCashReceipt", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("VisitorPassId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ShiftId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.HasIndex("VisitorPassId");
+
+                    b.HasIndex("ShiftId");
+
+                    b.ToTable("GateCashReceipts", (string)null);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.ProtectedDocument", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PermissionKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Path").IsUnique();
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("ProtectedDocuments", (string)null);
                 });
 
             modelBuilder.Entity("Andalos.API.Models.AuditLog", b =>
@@ -2414,6 +2706,44 @@ namespace Andalos.API.Migrations
 
                     b.Navigation("Transactions");
                 });
+            modelBuilder.Entity("Andalos.API.Models.DirectUserPermission", b =>
+                {
+                    b.HasOne("Andalos.API.Models.User", "User").WithMany().HasForeignKey("UserId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.TenantStaffPermission", b =>
+                {
+                    b.HasOne("Andalos.API.Models.User", null).WithMany().HasForeignKey("UserId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.IdempotencyRecord", b =>
+                {
+                    b.HasOne("Andalos.API.Models.User", null).WithMany().HasForeignKey("UserId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.GateCashReceipt", b =>
+                {
+                    b.HasOne("Andalos.API.Models.User", null).WithMany().HasForeignKey("UserId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("Andalos.API.Models.VisitorPass", null).WithMany().HasForeignKey("VisitorPassId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("Andalos.API.Models.GatekeeperShift", null).WithMany().HasForeignKey("ShiftId").OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.ProtectedDocument", b =>
+                {
+                    b.HasOne("Andalos.API.Models.Tenant", null).WithMany().HasForeignKey("TenantId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.Payment", b =>
+                {
+                    b.HasOne("Andalos.API.Models.TenantCharge", null).WithMany().HasForeignKey("AllocatedChargeId").OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Andalos.API.Models.VisitorPass", b =>
+                {
+                    b.HasOne("Andalos.API.Models.Tenant", null).WithMany().HasForeignKey("OwnerTenantId").OnDelete(DeleteBehavior.Restrict);
+                });
+
 #pragma warning restore 612, 618
         }
     }

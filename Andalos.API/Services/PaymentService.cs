@@ -1,4 +1,6 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Constants;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -11,15 +13,17 @@ namespace Andalos.API.Services
     public class PaymentService : IPaymentService
     {
         private readonly AppDbContext _db;
+        private readonly FinancialOperationGuard _guard;
         private readonly INotificationService _notification; // 👈 حقن الإشعارات
         private readonly INumberGeneratorService _numberGen; // 👈 جديد: مولّد الأرقام الموحد (يمنع تكرار الإيصالات)
 
         public PaymentService(
             AppDbContext db,
             INotificationService notification,
-            INumberGeneratorService numberGen)
+            INumberGeneratorService numberGen, FinancialOperationGuard guard)
         {
             _db = db;
+            _guard = guard;
             _notification = notification;
             _numberGen = numberGen;
         }
@@ -63,8 +67,18 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
-        public async Task<PaymentResponseDto> CreateAsync(CreatePaymentDto dto)
+        public Task<PaymentResponseDto> CreateAsync(CreatePaymentDto dto) => _db.AtomicAsync(() => CreateAsyncCore(dto));
+
+        private async Task<PaymentResponseDto> CreateAsyncCore(CreatePaymentDto dto)
         {
+            FinancialOperationGuard.ValidateAmount(dto.Amount);
+            if (!Enum.IsDefined(dto.PaymentType) || !Enum.IsDefined(dto.PaymentMethod) || !Enum.IsDefined(dto.AllocationMode) || dto.PaymentMethod == PaymentMethod.FromBalance)
+                throw new ArgumentException("Invalid payment type/method/allocation; FromBalance is server-only.");
+            if (dto.AllocationMode == PaymentAllocationMode.OnAccount) await _guard.RequireAsync(Permissions.Financials.DepositAdvance);
+            if (dto.AllocationMode == PaymentAllocationMode.SettleCharge) await _guard.RequireAsync(Permissions.Financials.SettleCharge);
+            if (dto.PaymentType == PaymentType.AdvancePayment && dto.AllocationMode != PaymentAllocationMode.OnAccount)
+                throw new ArgumentException("Advance payments must use OnAccount allocation.");
+
             var contract = await _db.Contracts
                 .Include(c => c.Tenant)
                 .Include(c => c.Unit)
@@ -78,6 +92,7 @@ namespace Andalos.API.Services
             var tenant = contract.Tenant;
             string? allocationNote = null;
             decimal overflowToBalance = 0;
+            decimal allocatedAmount = 0;
 
             // ============================================================
             // 👈 جديد: توجيه الدفعة حسب النمط المختار
@@ -107,6 +122,13 @@ namespace Andalos.API.Services
                 // 👈 التسوية الجزئية: نسدد ما تكفيه الدفعة والفائض يبقى رصيداً بحسابه
                 decimal settledPart = Math.Min(dto.Amount, chargeRemaining);
                 overflowToBalance = dto.Amount - settledPart;
+                allocatedAmount = settledPart;
+                if (overflowToBalance > 0)
+                {
+                    await _guard.RequireAsync(Permissions.Financials.DepositAdvance);
+                    if (tenant is null) throw new InvalidOperationException("Tenant missing.");
+                    tenant.CreditBalance += overflowToBalance;
+                }
 
                 targetCharge.SettledAmount += settledPart;
                 if (targetCharge.SettledAmount >= targetCharge.Amount)
@@ -134,6 +156,10 @@ namespace Andalos.API.Services
             var payment = new Payment
             {
                 ReceiptNumber = receiptNumber,
+                AllocationRecorded = true,
+                WalletCreditAmount = dto.AllocationMode == PaymentAllocationMode.OnAccount ? dto.Amount : overflowToBalance,
+                AllocatedChargeId = dto.AllocationMode == PaymentAllocationMode.SettleCharge ? dto.ChargeId : null,
+                AllocatedChargeAmount = allocatedAmount,
                 ContractId = dto.ContractId,
                 TenantId = contract.TenantId,
                 UnitId = contract.UnitId,
@@ -173,13 +199,33 @@ namespace Andalos.API.Services
             return MapToDto(payment);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public Task<bool> DeleteAsync(int id) => _db.AtomicAsync(() => DeleteAsyncCore(id));
+
+        private async Task<bool> DeleteAsyncCore(int id)
         {
             var payment = await _db.Payments
                 .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
 
             if (payment == null) return false;
 
+
+            if (await _db.Refunds.AnyAsync(r => r.IsActive && r.OriginalPaymentId == id)) throw new ConcurrencyConflictException("Payment has active refunds.");
+            if (!payment.AllocationRecorded)
+                throw new ConcurrencyConflictException("Legacy allocated payment requires a reviewed accounting reversal.");
+            var tenant = await _db.Tenants.SingleAsync(t => t.Id == payment.TenantId);
+            if (tenant.CreditBalance < payment.WalletCreditAmount) throw new ConcurrencyConflictException("Credited funds have already been consumed.");
+            if (payment.AllocatedChargeId.HasValue)
+            {
+                var charge = await _db.TenantCharges.SingleAsync(c => c.Id == payment.AllocatedChargeId);
+                if (charge.SettledAmount < payment.AllocatedChargeAmount) throw new ConcurrencyConflictException();
+                charge.SettledAmount -= payment.AllocatedChargeAmount; charge.IsSettled = false; charge.ChargeStatus = ChargeStatus.Approved;
+                if (charge.SettlementReceiptNumber == payment.ReceiptNumber) charge.SettlementReceiptNumber = null;
+            }
+            tenant.CreditBalance = tenant.CreditBalance - payment.WalletCreditAmount + payment.WalletDebitAmount;
+            var eligiblePaid = await _db.Payments.Where(p => p.ContractId == payment.ContractId && p.Id != id && p.IsActive &&
+                p.PaymentMethod != PaymentMethod.FromBalance && p.WalletCreditAmount == 0 && p.AllocatedChargeAmount == 0 && p.AllocationRecorded && p.PaymentType != PaymentType.AdvancePayment).SumAsync(p => p.Amount);
+            var refunded = await _db.Refunds.Where(r => r.ContractId == payment.ContractId && r.IsActive).SumAsync(r => r.Amount);
+            if (eligiblePaid < refunded) throw new ConcurrencyConflictException("Payment cancellation would leave an unfunded refund.");
             payment.IsActive = false;
             payment.UpdatedAt = DateTimeHelper.LibyaNow;
             await _db.SaveChangesAsync();

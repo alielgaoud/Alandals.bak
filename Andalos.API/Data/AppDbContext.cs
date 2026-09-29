@@ -1,3 +1,6 @@
+using Andalos.API.Security;
+using Andalos.API.Common;
+using System.Data;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
 using Andalos.API.Models;
@@ -20,6 +23,11 @@ namespace Andalos.API.Data
 
         // ===== 1. الجداول (DbSets) =====
         public DbSet<User> Users { get; set; }
+        public DbSet<DirectUserPermission> DirectUserPermissions { get; set; }
+        public DbSet<IdempotencyRecord> IdempotencyRecords { get; set; }
+        public DbSet<GateCashReceipt> GateCashReceipts { get; set; }
+        public DbSet<ProtectedDocument> ProtectedDocuments { get; set; }
+        public DbSet<TenantStaffPermission> TenantStaffPermissions { get; set; }
         public DbSet<UserPermission> UserPermissions { get; set; }
         public DbSet<Unit> Units { get; set; }
         public DbSet<Tenant> Tenants { get; set; }
@@ -57,12 +65,54 @@ namespace Andalos.API.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            foreach (var type in ConcurrencyEntities.Types)
+                modelBuilder.Entity(type).Property<Guid>("Revision").IsConcurrencyToken();
+            modelBuilder.Entity<DirectUserPermission>(e =>
+            {
+                e.ToTable("DirectUserPermissions");
+                e.HasIndex(x => new { x.UserId, x.PermissionKey }).IsUnique();
+                e.HasIndex(x => new { x.UserId, x.IsActive });
+                e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+            modelBuilder.Entity<IdempotencyRecord>(e =>
+            {
+                e.ToTable("IdempotencyRecords");
+                e.HasIndex(x => new { x.UserId, x.Operation, x.KeyHash }).IsUnique();
+                e.HasIndex(x => x.CreatedAt);
+                e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<GateCashReceipt>(e =>
+            {
+                e.ToTable("GateCashReceipts");
+                e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                e.HasIndex(x => new { x.UserId, x.CreatedAt });
+                e.HasIndex(x => x.VisitorPassId);
+                e.HasIndex(x => x.ShiftId);
+                e.HasOne<VisitorPass>().WithMany().HasForeignKey(x => x.VisitorPassId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<GatekeeperShift>().WithMany().HasForeignKey(x => x.ShiftId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<ProtectedDocument>(e =>
+            {
+                e.ToTable("ProtectedDocuments");
+                e.HasIndex(x => x.Path).IsUnique();
+                e.HasIndex(x => x.TenantId);
+                e.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<TenantStaffPermission>(e =>
+            {
+                e.ToTable("TenantStaffPermissions");
+                e.HasIndex(x => new { x.UserId, x.Capability }).IsUnique();
+                e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
             // User Configuration
             modelBuilder.Entity<User>(entity =>
             {
                 entity.ToTable("Users");
                 entity.HasIndex(e => e.UserName).IsUnique();
                 entity.Property(e => e.Role).HasConversion<int>();
+                entity.HasIndex(e => new { e.IsActive, e.IsLocked, e.Role });
 
                 entity.HasOne(u => u.Tenant)
                       .WithMany()
@@ -95,6 +145,7 @@ namespace Andalos.API.Data
             modelBuilder.Entity<Notification>(entity =>
             {
                 entity.ToTable("Notifications");
+                entity.HasIndex(n => new { n.RealtimeDeliveredAt, n.IsActive });
                 entity.Property(e => e.Type).HasConversion<int>();
                 entity.Property(e => e.Priority).HasConversion<int>();
                 entity.Property(e => e.Channel).HasConversion<int>();
@@ -141,6 +192,7 @@ namespace Andalos.API.Data
             modelBuilder.Entity<PermissionPackageItem>(entity =>
             {
                 entity.ToTable("PermissionPackageItems");
+                entity.HasIndex(e => new { e.PackageId, e.IsActive });
                 entity.HasIndex(e => new { e.PackageId, e.PermissionKey }).IsUnique();
 
                 entity.HasOne(i => i.Package)
@@ -152,6 +204,7 @@ namespace Andalos.API.Data
             modelBuilder.Entity<UserPermissionPackage>(entity =>
             {
                 entity.ToTable("UserPermissionPackages");
+                entity.HasIndex(e => new { e.PackageId, e.IsActive, e.UserId });
                 entity.HasIndex(e => new { e.UserId, e.PackageId }).IsUnique();
 
                 entity.HasOne(x => x.User)
@@ -338,6 +391,11 @@ namespace Andalos.API.Data
             modelBuilder.Entity<Payment>(entity =>
             {
                 entity.ToTable("Payments");
+                entity.HasOne<TenantCharge>().WithMany().HasForeignKey(p => p.AllocatedChargeId).OnDelete(DeleteBehavior.Restrict);
+                entity.Property(e => e.WalletCreditAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.WalletDebitAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.AllocatedChargeAmount).HasColumnType("decimal(18,2)");
+                entity.HasIndex(e => e.SystemOperationKey).IsUnique().HasFilter("[SystemOperationKey] IS NOT NULL");
                 entity.HasIndex(e => e.ReceiptNumber).IsUnique();
                 entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.PaymentType).HasConversion<int>();
@@ -448,6 +506,8 @@ namespace Andalos.API.Data
             modelBuilder.Entity<VisitorPass>(entity =>
             {
                 entity.ToTable("VisitorPasses");
+                entity.HasOne<Tenant>().WithMany().HasForeignKey(p => p.OwnerTenantId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.OwnerTenantId, e.IsActive });
                 entity.HasIndex(e => e.PassCode).IsUnique();
                 entity.Property(e => e.VisitorType).HasConversion<int>();
                 entity.Property(e => e.Status).HasConversion<int>();
@@ -506,6 +566,7 @@ namespace Andalos.API.Data
             modelBuilder.Entity<GatekeeperShift>(entity =>
             {
                 entity.ToTable("GatekeeperShifts");
+                entity.HasIndex(s => s.UserId).IsUnique().HasDatabaseName("IX_GatekeeperShifts_OpenUser").HasFilter("[IsActive] = 1 AND [IsHandedOver] = 0");
 
                 entity.HasOne(s => s.User)
                       .WithMany()
@@ -528,12 +589,75 @@ namespace Andalos.API.Data
         // =========================================================
         // 3. تتبع الحركات تلقائياً (Audit Trail Engine)
         // =========================================================
-        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        public override int SaveChanges() => SaveChangesAsync().GetAwaiter().GetResult();
+        public override int SaveChanges(bool acceptAllChangesOnSuccess) =>
+            SaveChangesAsync(acceptAllChangesOnSuccess).GetAwaiter().GetResult();
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) =>
+            SaveChangesAsync(true, cancellationToken);
+        public string? RequestCorrelationId => _httpContextAccessor.HttpContext?.TraceIdentifier;
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
         {
-            var auditEntries = OnBeforeSaveChanges();
-            var result = await base.SaveChangesAsync(cancellationToken);
-            await OnAfterSaveChanges(auditEntries);
-            return result;
+            if (!acceptAllChangesOnSuccess) throw new NotSupportedException("Audited contexts require AcceptAllChangesOnSuccess=true.");
+            // Business rows + audit + identity/permission invalidation always share one commit.
+            var ownsTransaction = Database.CurrentTransaction is null;
+            await using var tx = ownsTransaction ? await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken) : null;
+            try
+            {
+                await InvalidatePermissionsAsync(cancellationToken);
+                PrepareIdentityAndConcurrency();
+                var auditEntries = OnBeforeSaveChanges();
+                var result = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                await OnAfterSaveChanges(auditEntries, cancellationToken);
+                if (tx is not null) await tx.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch
+            {
+                if (tx is not null) await tx.RollbackAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        private async Task InvalidatePermissionsAsync(CancellationToken ct)
+        {
+            ChangeTracker.DetectChanges();
+            var changes = ChangeTracker.Entries().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToArray();
+            // The old mixed table is immutable after migration. No synchronization back into it.
+            if (changes.Any(e => e.Entity is UserPermission))
+                throw new InvalidOperationException("Legacy UserPermissions is read-only. Reconcile into DirectUserPermissions.");
+            // Include ORIGINAL and current owners: reparenting a tracked grant/item must invalidate the withdrawn source too.
+            var userEntries = changes.Where(e => e.Entity is DirectUserPermission or TenantStaffPermission or UserPermissionPackage);
+            var ids = userEntries.SelectMany(e => new[] { (int)e.Property("UserId").CurrentValue!, (int)e.Property("UserId").OriginalValue! })
+                .Where(id => id > 0).ToHashSet();
+            var packageIds = changes.Where(e => e.Entity is PermissionPackage).Select(e => ((PermissionPackage)e.Entity).Id)
+                .Concat(changes.Where(e => e.Entity is PermissionPackageItem).SelectMany(e =>
+                    new[] { (int)e.Property("PackageId").CurrentValue!, (int)e.Property("PackageId").OriginalValue! }))
+                .Where(id => id > 0).Distinct().ToArray();
+            if (packageIds.Length > 0)
+                ids.UnionWith(await UserPermissionPackages.Where(x => packageIds.Contains(x.PackageId)).Select(x => x.UserId).Distinct().ToListAsync(ct));
+            ids.UnionWith(changes.Where(e => e.Entity is User && e.State == EntityState.Modified && e.Property(nameof(User.PermissionsReconciled)).IsModified)
+                .Select(e => ((User)e.Entity).Id));
+            if (ids.Count == 0) return;
+            var users = await Users.Where(u => ids.Contains(u.Id)).ToListAsync(ct);
+            foreach (var user in users)
+            {
+                user.PermissionsVersion = checked(user.PermissionsVersion + 1);
+                user.UpdatedAt = DateTimeHelper.LibyaNow;
+            }
+        }
+
+        private void PrepareIdentityAndConcurrency()
+        {
+            ChangeTracker.DetectChanges();
+            foreach (var entry in ChangeTracker.Entries().Where(e => e.State is EntityState.Added or EntityState.Modified).ToArray())
+            {
+                if (ConcurrencyEntities.Types.Contains(entry.Entity.GetType())) entry.Property("Revision").CurrentValue = Guid.NewGuid();
+                if (entry.Entity is User u && entry.State == EntityState.Modified &&
+                    new[] { nameof(User.Role), nameof(User.TenantId), nameof(User.PasswordHash), nameof(User.IsLocked), nameof(User.IsActive), nameof(User.RequiresPasswordChange) }
+                        .Any(p => entry.Property(p).IsModified && !Equals(entry.Property(p).OriginalValue, entry.Property(p).CurrentValue)))
+                    u.SecurityStamp = Guid.NewGuid().ToString("N");
+            }
         }
 
         private List<AuditEntry> OnBeforeSaveChanges()
@@ -548,18 +672,20 @@ namespace Andalos.API.Data
 
             foreach (var entry in ChangeTracker.Entries())
             {
-                if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                if (entry.Entity is AuditLog or IdempotencyRecord || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
                     continue;
 
                 var auditEntry = new AuditEntry(entry)
                 {
                     TableName = entry.Entity.GetType().Name,
-                    UserId = userId
+                    UserId = userId,
+                    CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier
                 };
                 auditEntries.Add(auditEntry);
 
                 foreach (var property in entry.Properties)
                 {
+                    if (AuditRedaction.IsSensitive(entry.Entity, property.Metadata.Name)) continue;
                     if (property.IsTemporary)
                     {
                         auditEntry.TemporaryProperties.Add(property);
@@ -606,10 +732,10 @@ namespace Andalos.API.Data
             return auditEntries.Where(_ => _.HasTemporaryProperties).ToList();
         }
 
-        private Task OnAfterSaveChanges(List<AuditEntry> auditEntries)
+        private async Task OnAfterSaveChanges(List<AuditEntry> auditEntries, CancellationToken ct)
         {
             if (auditEntries == null || auditEntries.Count == 0)
-                return Task.CompletedTask;
+                return;
 
             foreach (var auditEntry in auditEntries)
             {
@@ -627,7 +753,7 @@ namespace Andalos.API.Data
                 AuditLogs.Add(auditEntry.ToAudit());
             }
 
-            return SaveChangesAsync();
+            await base.SaveChangesAsync(true, ct);
         }
     }
 
@@ -639,6 +765,7 @@ namespace Andalos.API.Data
         public AuditEntry(EntityEntry entry) { Entry = entry; }
         public EntityEntry Entry { get; }
         public int? UserId { get; set; }
+        public string? CorrelationId { get; set; }
         public string TableName { get; set; } = string.Empty;
         public Dictionary<string, object?> KeyValues { get; } = new();
         public Dictionary<string, object?> OldValues { get; } = new();
@@ -660,6 +787,8 @@ namespace Andalos.API.Data
             var audit = new AuditLog
             {
                 UserId = UserId,
+                CorrelationId = CorrelationId,
+                Outcome = "Success",
                 AuditType = AuditType.ToString(),
                 TableName = TableName,
                 CreatedAt = DateTimeHelper.LibyaNow, // 👈 تم التحديث ليحفظ التوقيت بـ +2 ساعات

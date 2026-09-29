@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Blacklist;
+using Andalos.API.DTOs.Blacklist;
 using Andalos.API.DTOs.Common;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -68,7 +68,6 @@ namespace Andalos.API.Controllers
 
         // GET: api/VisitorBlacklist/check (فحص أمني سريع ومفتوح للبوابة والإنشاء)
         [HttpGet("check")]
-        [AllowAnonymous]
         public async Task<IActionResult> Check(
             [FromQuery] string? phone,
             [FromQuery] string? nationalId,
@@ -78,4 +77,4 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<CheckBlacklistResultDto>.SuccessResponse(result));
         }
     }
-}  
+}

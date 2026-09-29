@@ -1,4 +1,5 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.Security;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Settings;
 using Andalos.API.DTOs.System;
 using Andalos.API.Helpers;
@@ -42,6 +43,7 @@ namespace Andalos.API.Controllers
         [HttpGet("key/{key}")]
         public async Task<IActionResult> GetByKey(string key)
         {
+            if (AuditRedaction.IsSecretSetting(key)) throw new ForbiddenOperationException();
             var value = await _settingService.GetValueAsync(key);
             return Ok(ApiResponseDto<string?>.SuccessResponse(value));
         }
@@ -50,6 +52,7 @@ namespace Andalos.API.Controllers
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] UpdateSettingsDto dto)
         {
+            if (dto.Values is null || dto.Values.Keys.Any(AuditRedaction.IsSecretSetting)) throw new ForbiddenOperationException();
             string user = User.Identity?.Name ?? "Admin";
             foreach (var kv in dto.Values)
             {
@@ -62,6 +65,7 @@ namespace Andalos.API.Controllers
         [HttpPost("reset/{key}")]
         public async Task<IActionResult> Reset(string key)
         {
+            if (AuditRedaction.IsSecretSetting(key)) throw new ForbiddenOperationException();
             await _settingService.ResetToDefaultAsync(key);
             return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم إعادة الإعداد للقيمة الافتراضية"));
         }
@@ -75,7 +79,7 @@ namespace Andalos.API.Controllers
         {
             try
             {
-                int currentUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : 1;
+                int currentUserId = HttpContext.RequestServices.GetRequiredService<CurrentUser>().UserId;
                 var result = await resetService.ResetDatabaseToFactoryDefaultsAsync(dto, currentUserId);
 
                 return Ok(ApiResponseDto<bool>.SuccessResponse(result, "تم تفريغ كافة بيانات المنظومة التشغيلية وإعادتها لوضع المصنع بنجاح."));
@@ -84,15 +88,14 @@ namespace Andalos.API.Controllers
             {
                 return StatusCode(403, ApiResponseDto<bool>.FailResponse(ex.Message));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
-                return BadRequest(ApiResponseDto<bool>.FailResponse($"حدث خطأ أثناء إعادة ضبط النظام: {ex.Message}"));
+                return BadRequest(ApiResponseDto<bool>.FailResponse("تعذر إعادة ضبط النظام."));
             }
         }
 
         // GET: api/settings/system-time (فحص واختبار التوقيت الحالي المعتمد بالنظام)
         [HttpGet("system-time")]
-        [AllowAnonymous] // 👈 متاح بدون توكن لسهولة الفحص السريع من المتصفح
         public IActionResult GetSystemTime()
         {
             var libyaNow = DateTimeHelper.LibyaNow;

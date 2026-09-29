@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -19,6 +19,9 @@ namespace Andalos.API.Models
         // المبلغ الفعلي بعد مراجعة وتعديل الإدارة (إن وُجد خطأ)
         [Column(TypeName = "decimal(18,2)")]
         public decimal? ApprovedAmount { get; set; }
+
+        public int? ReviewedByUserId { get; set; }
+        public DateTime? ReviewedAt { get; set; }
 
         public DateTime TransferDate { get; set; }
 

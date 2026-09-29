@@ -1,4 +1,4 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
@@ -240,11 +240,10 @@ namespace Andalos.API.Services
                 .Select(c => c.UnitId)
                 .ToListAsync();
 
-            if (!unitIds.Any()) return new List<VisitorPassResponseDto>();
 
             var passes = await _db.VisitorPasses
                 .Include(p => p.Unit)
-                .Where(p => p.IsActive && p.UnitId.HasValue && unitIds.Contains(p.UnitId.Value))
+                .Where(p => p.IsActive && p.OwnerTenantId == tenantId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 

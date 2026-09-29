@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -43,6 +43,8 @@ namespace Andalos.API.Models
         public int? RelatedEntityId { get; set; } // مثل: ComplaintId, PaymentId
         [MaxLength(50)]
         public string? RelatedEntityType { get; set; } // "Complaint", "Payment"
+
+        public DateTime? RealtimeDeliveredAt { get; set; }
 
         public bool IsRead { get; set; } = false;
         public DateTime? ReadAt { get; set; }

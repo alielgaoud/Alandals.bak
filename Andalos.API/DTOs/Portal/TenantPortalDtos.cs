@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Contracts;
+using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Payments;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
@@ -76,7 +76,7 @@ namespace Andalos.API.DTOs.Portal
         public string UserName { get; set; } = string.Empty;
 
         [Required]
-        [MinLength(6)]
+        [MinLength(12)]
         public string Password { get; set; } = string.Empty;
     }
     public class CreateTenantStaffDto
@@ -90,7 +90,7 @@ namespace Andalos.API.DTOs.Portal
         public string UserName { get; set; } = string.Empty; // بريد الموظف للدخول
 
         [Required]
-        [MinLength(6)]
+        [MinLength(12)]
         public string Password { get; set; } = string.Empty;
 
         [MaxLength(20)]

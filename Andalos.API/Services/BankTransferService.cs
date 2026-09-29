@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -17,17 +18,28 @@ namespace Andalos.API.Services
     public class BankTransferService : IBankTransferService
     {
         private readonly AppDbContext _db;
+        private readonly CurrentUser _current;
         private readonly ITenantAccountService _accountService; // 👈 لاستدعاء المحفظة
 
-        public BankTransferService(AppDbContext db, ITenantAccountService accountService)
+        public BankTransferService(AppDbContext db, ITenantAccountService accountService, CurrentUser current)
         {
             _db = db;
+            _current = current;
             _accountService = accountService;
         }
 
         // ===== 1. المستأجر يرفع الطلب =====
-        public async Task<TransferRequestResponseDto> SubmitRequestAsync(int tenantId, SubmitTransferRequestDto dto, string uploadsFolder)
+        public Task<TransferRequestResponseDto> SubmitRequestAsync(int tenantId, SubmitTransferRequestDto dto, string uploadsFolder) => _db.AtomicAsync(() => SubmitRequestAsyncCore(tenantId, dto, uploadsFolder));
+
+        private async Task<TransferRequestResponseDto> SubmitRequestAsyncCore(int tenantId, SubmitTransferRequestDto dto, string uploadsFolder)
         {
+            if (_current.TenantId != tenantId) throw new ForbiddenOperationException();
+            FinancialOperationGuard.ValidateAmount(dto.RequestedAmount);
+            var extension = Path.GetExtension(dto.ReceiptFile.FileName).ToLowerInvariant();
+            if (dto.ReceiptFile.Length is <= 0 or > 5 * 1024 * 1024 || !new[] { ".jpg", ".jpeg", ".png", ".pdf" }.Contains(extension))
+                throw new ArgumentException("Only JPG/PNG/PDF receipts up to 5 MiB are supported.");
+            await UploadValidation.ValidateSignatureAsync(dto.ReceiptFile, extension);
+
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود أو غير نشط");
@@ -80,7 +92,9 @@ namespace Andalos.API.Services
         }
 
         // ===== 3. الإدارة توافق وتعدل المبلغ أو ترفض =====
-        public async Task<TransferRequestResponseDto> ReviewRequestAsync(int requestId, ReviewTransferRequestDto dto)
+        public Task<TransferRequestResponseDto> ReviewRequestAsync(int requestId, ReviewTransferRequestDto dto) => _db.AtomicAsync(() => ReviewRequestAsyncCore(requestId, dto));
+
+        private async Task<TransferRequestResponseDto> ReviewRequestAsyncCore(int requestId, ReviewTransferRequestDto dto)
         {
             var request = await _db.BankTransferRequests.Include(r => r.Tenant)
                                    .FirstOrDefaultAsync(r => r.Id == requestId && r.IsActive);
@@ -93,6 +107,7 @@ namespace Andalos.API.Services
                 request.Status = TransferRequestStatus.Approved;
                 // إذا أدخلت الإدارة مبلغاً مصححاً، اعتمده، وإلا اعتمد مبلغ المستأجر
                 decimal finalAmount = dto.CorrectedAmount ?? request.RequestedAmount;
+                FinancialOperationGuard.ValidateAmount(finalAmount);
                 request.ApprovedAmount = finalAmount;
                 request.AdminNotes = dto.AdminNotes;
 
@@ -113,6 +128,8 @@ namespace Andalos.API.Services
             }
 
             request.UpdatedAt = DateTime.UtcNow;
+            request.ReviewedByUserId = _current.UserId;
+            request.ReviewedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
             return MapToDto(request, request.Tenant?.FullName ?? "");

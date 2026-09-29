@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Notifications;
 using Microsoft.AspNetCore.Authorization;
@@ -34,11 +35,14 @@ namespace Andalos.API.Controllers
         [HttpPost("subscribe")]
         public async Task<IActionResult> Subscribe([FromBody] SubscribeToPushDto dto)
         {
-            int? userId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : null;
-            int? tenantId = int.TryParse(User.FindFirst("TenantId")?.Value, out var tid) ? tid : null;
+            var current = HttpContext.RequestServices.GetRequiredService<CurrentUser>().Required;
+            int? userId = current.Id;
+            int? tenantId = current.IsTenant ? current.TenantId : null;
+            PushSubscriptionSecurity.ValidateEndpoint(dto.Endpoint);
 
             var existing = await _db.PushSubscriptions.FirstOrDefaultAsync(p => p.Endpoint == dto.Endpoint);
 
+            if (existing is not null && existing.UserId != userId) throw new ForbiddenOperationException();
             if (existing == null)
             {
                 _db.PushSubscriptions.Add(new Models.PushSubscription
@@ -74,6 +78,7 @@ namespace Andalos.API.Controllers
             var existing = await _db.PushSubscriptions.FirstOrDefaultAsync(p => p.Endpoint == endpoint);
             if (existing != null)
             {
+                if (existing.UserId != HttpContext.RequestServices.GetRequiredService<CurrentUser>().UserId) throw new ForbiddenOperationException();
                 _db.PushSubscriptions.Remove(existing);
                 await _db.SaveChangesAsync();
             }

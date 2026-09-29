@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -24,6 +24,12 @@ namespace Andalos.API.Models
 
         public int? TenantId { get; set; }
         public Tenant? Tenant { get; set; }
+
+        [MaxLength(32)]
+        public string SecurityStamp { get; set; } = Guid.NewGuid().ToString("N");
+        public long PermissionsVersion { get; set; } = 1;
+        public bool PermissionsReconciled { get; set; } = true;
+        public bool RequiresPasswordChange { get; set; }
 
         public bool IsLocked { get; set; } = false;
         public int FailedLoginAttempts { get; set; } = 0;

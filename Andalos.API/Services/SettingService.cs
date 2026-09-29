@@ -1,4 +1,5 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Settings;
 using Andalos.API.Helpers;
@@ -79,6 +80,7 @@ namespace Andalos.API.Services
             };
 
             return settings
+                .Where(s => !AuditRedaction.IsSecretSetting(s.SettingKey))
                 .GroupBy(s => s.SettingGroup)
                 .Select(g => new SettingGroupDto
                 {
@@ -102,9 +104,8 @@ namespace Andalos.API.Services
 
         public async Task<Dictionary<string, string?>> GetGroupAsync(string group)
         {
-            return await _db.Settings
-                .Where(s => s.SettingGroup == group && s.IsActive)
-                .ToDictionaryAsync(s => s.SettingKey, s => s.SettingValue);
+            var rows = await _db.Settings.Where(s => s.SettingGroup == group && s.IsActive).ToListAsync();
+            return rows.Where(s => !AuditRedaction.IsSecretSetting(s.SettingKey)).ToDictionary(s => s.SettingKey, s => s.SettingValue);
         }
 
         public async Task ResetToDefaultAsync(string key)

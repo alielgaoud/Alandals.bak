@@ -1,4 +1,5 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -58,14 +59,11 @@ namespace Andalos.API.Services
             // 🛡️ حماية التزامن تحت الضغط: قفل صف العداد بـ (UPDLOCK, ROWLOCK) داخل معاملة صريحة
             // بحيث ينتظر أي طلب متزامن حتى يُحفظ الرقم الحالي — لا تكرار أرقام إطلاقاً
             // ملاحظة: EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy
-            var strategy = _db.Database.CreateExecutionStrategy();
-            var generatedNumber = await strategy.ExecuteAsync(async () =>
+            var generatedNumber = await _db.AtomicAsync(async () =>
             {
-                await using var tx = await _db.Database.BeginTransactionAsync();
-
-                var rows = await _db.NumberSequences
-                    .FromSqlInterpolated($"SELECT * FROM NumberSequences WITH (UPDLOCK, ROWLOCK) WHERE SequenceKey = {sequenceKey}")
-                    .ToListAsync();
+                var rows = _db.Database.IsSqlServer()
+                    ? await _db.NumberSequences.FromSqlInterpolated($"SELECT * FROM NumberSequences WITH (UPDLOCK, HOLDLOCK) WHERE SequenceKey = {sequenceKey}").ToListAsync()
+                    : await _db.NumberSequences.Where(s => s.SequenceKey == sequenceKey).ToListAsync();
                 var sequence = rows.FirstOrDefault();
 
                 if (sequence == null)
@@ -104,7 +102,6 @@ namespace Andalos.API.Services
                 while (exists);
 
                 await _db.SaveChangesAsync();
-                await tx.CommitAsync();
 
                 return number;
             });

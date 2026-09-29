@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
@@ -154,6 +154,13 @@ namespace Andalos.API.Controllers
                 return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
             }
         }
+        [HttpPost("{id}/permissions/reconcile")]
+        public async Task<IActionResult> ReconcilePermissions(int id, [FromBody] ReconcilePermissionsDto dto)
+        {
+            var result = await _userService.ReconcilePermissionsAsync(id, dto);
+            return result ? Ok(ApiResponseDto<bool>.SuccessResponse(true)) : NotFound();
+        }
+
         [HttpGet("audit-logs")]
         [Authorize(Roles = "SuperAdmin")] // 👈 صلاحية قوية جداً
         public async Task<IActionResult> GetAuditLogs(

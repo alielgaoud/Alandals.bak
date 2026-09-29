@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -23,6 +23,8 @@ namespace Andalos.API.Models
         public string? NationalId { get; set; } // رقم الهوية إن وُجد
 
         public VisitorType VisitorType { get; set; } = VisitorType.Customer;
+
+        public int? OwnerTenantId { get; set; } // historical issuer tenant, not the current occupant of UnitId
 
         public int? UnitId { get; set; } // المحل المرتبط بالزيارة (null إذا كانت الزيارة خاصة بالإدارة)
         public Unit? Unit { get; set; }

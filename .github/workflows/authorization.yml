@@ -1,0 +1,54 @@
+name: Authorization acceptance
+on:
+  pull_request:
+  push:
+    branches: ["arena/01a0ee77-alandals-bak"]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install tree-sitter==0.26.0 tree-sitter-c-sharp==0.23.5
+      - run: python tools/validate_authorization_source.py
+      - name: Disposable SQL Server (never production credentials)
+        shell: bash
+        run: |
+          password="Aa!$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          docker run -d --name authorization-sql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$password" -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+          echo "ANDALOS_TEST_SQL=Server=localhost,1433;User ID=sa;Password=$password;TrustServerCertificate=true;Encrypt=true;Connect Timeout=60" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            if docker exec -e SQLCMDPASSWORD="$password" authorization-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -Q 'SELECT 1' >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          docker logs authorization-sql
+          exit 1
+      - run: dotnet restore Andalos.API.Tests/Andalos.API.Tests.csproj
+      - run: dotnet build Andalos.API.Tests/Andalos.API.Tests.csproj -c Release --no-restore
+      - run: dotnet test Andalos.API.Tests/Andalos.API.Tests.csproj -c Release --no-build --logger 'trx;LogFileName=authorization.trx' --results-directory artifacts/tests
+      - run: dotnet tool install dotnet-ef --version 8.0.26 --tool-path "$RUNNER_TEMP/ef"
+      - name: Frozen model parity + real upgrade SQL generation (no application)
+        env:
+          JwtSettings__SecretKey: ONLY-CI-SQL-GENERATION-EPHEMERAL-KEY-NOT-A-DEPLOYMENT-KEY-2026
+        run: |
+          export ConnectionStrings__DefaultConnection="$ANDALOS_TEST_SQL"
+          "$RUNNER_TEMP/ef/dotnet-ef" migrations has-pending-model-changes --project Andalos.API -c AppDbContext
+          "$RUNNER_TEMP/ef/dotnet-ef" migrations script 20260926230000_AddChargeApprovalWorkflow 20260929190000_DetailedAuthorization --idempotent --project Andalos.API -o artifacts/authorization-up.sql
+      - name: Two-replica benchmark smoke (not capacity certification)
+        run: dotnet run -c Release --project tools/Authorization.Bench -- 10 100 4 > artifacts/authorization-bench-smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: authorization-verification
+          path: artifacts/
+      - run: docker rm -f authorization-sql
+        if: always()

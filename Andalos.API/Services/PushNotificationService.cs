@@ -1,4 +1,5 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
@@ -16,6 +17,7 @@ namespace Andalos.API.Services
     public class PushNotificationService : IPushNotificationService
     {
         private readonly AppDbContext _db;
+        private readonly IConfiguration _configuration;
         private readonly ISettingService _settings;
         private readonly ILogger<PushNotificationService> _logger;
         private readonly PushServiceClient _pushClient;
@@ -23,9 +25,10 @@ namespace Andalos.API.Services
         public PushNotificationService(
             AppDbContext db,
             ISettingService settings,
-            ILogger<PushNotificationService> logger)
+            ILogger<PushNotificationService> logger, IConfiguration configuration)
         {
             _db = db;
+            _configuration = configuration;
             _settings = settings;
             _logger = logger;
             _pushClient = new PushServiceClient();
@@ -42,13 +45,13 @@ namespace Andalos.API.Services
                     return;
                 }
 
-                var subject = await _settings.GetValueAsync(SettingKeys.NotificationVapidSubject) ?? "mailto:info@andalos.ly";
-                var publicKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
-                var privateKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPrivateKey);
+                var subject = _configuration["VapidDetails:Subject"] ?? "mailto:info@andalos.ly";
+                var publicKey = _configuration["VapidDetails:PublicKey"];
+                var privateKey = _configuration["VapidDetails:PrivateKey"];
 
-                if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
+                if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey) || privateKey.Contains("SET_IN_"))
                 {
-                    _logger.LogWarning("مفاتيح VAPID غير موجودة في قاعدة البيانات.");
+                    _logger.LogWarning("VAPID deployment configuration is missing.");
                     return;
                 }
 
@@ -57,12 +60,12 @@ namespace Andalos.API.Services
                     Subject = subject
                 };
 
+                // No tenant-wide fallback: each caller must resolve one live, authorized account first.
+                if (!userId.HasValue) throw new ForbiddenOperationException();
                 var query = _db.PushSubscriptions.Where(p => p.IsActive);
 
                 if (tenantId.HasValue && userId.HasValue)
-                    query = query.Where(p => p.TenantId == tenantId.Value || p.UserId == userId.Value);
-                else if (tenantId.HasValue)
-                    query = query.Where(p => p.TenantId == tenantId.Value);
+                    query = query.Where(p => p.UserId == userId.Value && p.TenantId == tenantId.Value);
                 else if (userId.HasValue)
                     query = query.Where(p => p.UserId == userId.Value);
                 else
@@ -94,8 +97,10 @@ namespace Andalos.API.Services
 
                 _logger.LogInformation($"جاري إرسال إشعار الهاتف إلى {subscriptions.Count} جهاز...");
 
+                bool transientFailure = false;
                 foreach (var sub in subscriptions)
                 {
+                    if (!PushSubscriptionSecurity.IsAllowedEndpoint(sub.Endpoint)) { sub.IsActive = false; continue; }
                     try
                     {
                         var pushSubscription = new PushSubscription
@@ -117,15 +122,18 @@ namespace Andalos.API.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "فشل إرسال Push للاشتراك: {Endpoint}", sub.Endpoint);
+                        transientFailure = true;
+                        _logger.LogWarning("Push delivery failed for subscription {Id}; details redacted.", sub.Id);
                     }
                 }
 
                 await _db.SaveChangesAsync();
+                if (transientFailure) throw new InvalidOperationException("Push transport unavailable.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "خطأ غير متوقع أثناء إرسال Web Push.");
+                _logger.LogError("Push transport unavailable; details redacted.");
+                throw new InvalidOperationException("Push transport unavailable.");
             }
         }
     }

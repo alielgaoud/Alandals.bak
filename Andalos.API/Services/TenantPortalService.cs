@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.DTOs.Maintenance;
 using Andalos.API.DTOs.Payments;
@@ -20,6 +21,7 @@ namespace Andalos.API.Services
     public class TenantPortalService : ITenantPortalService
     {
         private readonly AppDbContext _db;
+        private readonly PasswordService _passwords;
         private readonly IMaintenanceService _maintenanceService;
         private readonly IVisitorPassService _passService;
 
@@ -29,9 +31,10 @@ namespace Andalos.API.Services
             AppDbContext db,
             IMaintenanceService maintenanceService,
             IVisitorPassService passService,
-            ITenantAccountService tenantAccountService)
+            ITenantAccountService tenantAccountService, PasswordService passwords)
         {
             _db = db;
+            _passwords = passwords;
             _maintenanceService = maintenanceService;
             _passService = passService;
             _tenantAccountService = tenantAccountService;
@@ -219,7 +222,7 @@ namespace Andalos.API.Services
 
             return await _db.VisitorPasses
                 .Include(p => p.Unit)
-                .Where(p => p.IsActive && p.UnitId.HasValue && unitIds.Contains(p.UnitId.Value))
+                .Where(p => p.IsActive && p.OwnerTenantId == tenantId)
                 .OrderByDescending(p => p.CreatedAt)
                 .Select(p => new VisitorPassResponseDto
                 {
@@ -243,8 +246,11 @@ namespace Andalos.API.Services
                 .ToListAsync();
         }
 
-        public async Task<bool> CreateTenantUserAccountAsync(CreateTenantUserAccountDto dto)
+        public Task<bool> CreateTenantUserAccountAsync(CreateTenantUserAccountDto dto) => _db.AtomicAsync(() => CreateTenantUserAccountAsyncCore(dto));
+
+        private async Task<bool> CreateTenantUserAccountAsyncCore(CreateTenantUserAccountDto dto)
         {
+            PasswordService.ValidateNew(dto.Password);
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == dto.TenantId && t.IsActive);
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
@@ -258,7 +264,7 @@ namespace Andalos.API.Services
                 FullName = tenant.FullName,
                 UserName = dto.UserName,
                 Phone = tenant.Phone,
-                PasswordHash = HashPassword(dto.Password),
+                PasswordHash = _passwords.Upgrade(new User(), dto.Password),
                 Role = UserRole.Tenant,
                 TenantId = tenant.Id,
                 IsActive = true
@@ -295,8 +301,11 @@ namespace Andalos.API.Services
 
         }
         // 🆕 إنشاء الحساب وحقنه بالرقم 6 (TenantStaff)
-        public async Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto)
+        public Task<bool> CreateTenantStaffAccountAsync(int tenantId, CreateTenantStaffDto dto) => _db.AtomicAsync(() => CreateTenantStaffAccountAsyncCore(tenantId, dto));
+
+        private async Task<bool> CreateTenantStaffAccountAsyncCore(int tenantId, CreateTenantStaffDto dto)
         {
+            PasswordService.ValidateNew(dto.Password);
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
@@ -305,21 +314,24 @@ namespace Andalos.API.Services
             if (emailExists)
                 throw new InvalidOperationException("البريد الإلكتروني مستخدم لحساب آخر بالفعل");
 
-            // ندمج الهاتف والصلاحيات في حقل واحد مفصول بـ | لتفادي خطأ التكرار وبدون تعديل قاعدة البيانات
-            var combinedPhoneAndPermissions = (dto.Phone ?? tenant.Phone) + "|" + string.Join(",", dto.Permissions);
+            if (dto.Permissions is null || dto.Permissions.Any(p => !PortalCapabilities.All.Contains(p, StringComparer.Ordinal)))
+                throw new ArgumentException("Unknown portal capability. Employee permissions cannot be assigned to tenant staff.");
 
             var user = new User
             {
                 FullName = dto.FullName,
                 UserName = dto.UserName,
-                Phone = combinedPhoneAndPermissions, // 👈 تم التهيئة هنا مرة واحدة فقط بنجاح
-                PasswordHash = HashPassword(dto.Password),
+                Phone = dto.Phone ?? tenant.Phone,
+                PasswordHash = _passwords.Upgrade(new User(), dto.Password),
                 Role = UserRole.TenantStaff, // قيمتها 6
                 TenantId = tenant.Id,
                 IsActive = true
             };
 
             _db.Users.Add(user);
+            await _db.SaveChangesAsync();
+            foreach (var capability in dto.Permissions.Distinct(StringComparer.Ordinal))
+                _db.TenantStaffPermissions.Add(new() { UserId = user.Id, Capability = capability });
             await _db.SaveChangesAsync();
             return true;
         }
@@ -363,13 +375,6 @@ namespace Andalos.API.Services
         {
             return await _maintenanceService.RespondToChargeAsync(chargeId, tenantId, dto);
         }
-        private static string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(bytes);
-        }
-
         // 👈 جلب موظفي المستأجر وتفكيك الهاتف والصلاحيات بأمان
         public async Task<List<TenantStaffResponseDto>> GetMyStaffAsync(int tenantId)
         {
@@ -378,26 +383,13 @@ namespace Andalos.API.Services
                 .OrderByDescending(u => u.Id)
                 .ToListAsync();
 
-            return users.Select(u =>
+            var ids = users.Select(u => u.Id).ToArray();
+            var grants = await _db.TenantStaffPermissions.Where(p => ids.Contains(p.UserId)).ToListAsync();
+            return users.Select(u => new TenantStaffResponseDto
             {
-                // فك تشفير حقل الهاتف والصلاحيات المفصول بـ |
-                var parts = (u.Phone ?? "").Split('|');
-                var phone = parts.Length > 0 ? parts[0] : "";
-                var permissions = parts.Length > 1
-                    ? parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
-                    : new List<string>();
-
-                return new TenantStaffResponseDto
-                {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    UserName = u.UserName,
-                    Phone = phone,
-                    Permissions = permissions,
-                    Role = u.Role.ToString(),
-                    IsActive = u.IsActive,
-                    CreatedAt = u.CreatedAt
-                };
+                Id = u.Id, FullName = u.FullName, UserName = u.UserName, Phone = u.Phone ?? "",
+                Permissions = grants.Where(p => p.UserId == u.Id).Select(p => p.Capability).ToList(),
+                Role = u.Role.ToString(), IsActive = u.IsActive, CreatedAt = u.CreatedAt
             }).ToList();
         }
     }

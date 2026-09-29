@@ -1,4 +1,7 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.Data;
+using Andalos.API.Models;
+using Andalos.API.Constants;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Reports;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -39,9 +42,9 @@ namespace Andalos.API.Controllers
                 var fileName = $"مطالبة_مالية_{dto.TenantId}_{DateTime.Now:yyyyMMddHHmm}.pdf";
                 return File(bytes, "application/pdf", fileName);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                return BadRequest(ApiResponseDto<string>.FailResponse("تعذر تنفيذ العملية."));
             }
         }
 
@@ -65,13 +68,17 @@ namespace Andalos.API.Controllers
                 string folder = Path.Combine(webRoot, "uploads", "demands");
                 if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
 
-                string fileName = $"Demand_T{dto.TenantId}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                string fileName = $"Demand_{Guid.NewGuid():N}.pdf";
                 string fullPath = Path.Combine(folder, fileName);
 
                 await System.IO.File.WriteAllBytesAsync(fullPath, pdfBytes);
 
                 // الرابط المباشر الذي سيفتح عند ضغط المستأجر على الإشعار
                 string relativeUrl = $"/uploads/demands/{fileName}";
+
+                var db = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                db.ProtectedDocuments.Add(new ProtectedDocument { Path = relativeUrl, TenantId = dto.TenantId, PermissionKey = Permissions.Demands.GeneratePdf });
+                await db.SaveChangesAsync();
 
                 // ج) إرسال إشعار فوري للمستأجر عبر النظام (In-App + Push)
                 if (dto.SendNotification)
@@ -107,11 +114,11 @@ namespace Andalos.API.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(ApiResponseDto<string>.FailResponse(ex.Message));
+                return NotFound(ApiResponseDto<string>.FailResponse("تعذر تنفيذ العملية."));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                return BadRequest(ApiResponseDto<string>.FailResponse("تعذر تنفيذ العملية."));
             }
         }
 
@@ -149,9 +156,9 @@ namespace Andalos.API.Controllers
                 var fileName = $"مطالبة_مالية_{tenantId}_{DateTime.Now:yyyyMMdd}.pdf";
                 return File(bytes, "application/pdf", fileName);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                return BadRequest(ApiResponseDto<string>.FailResponse("تعذر تنفيذ العملية."));
             }
         }
     }

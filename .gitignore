@@ -9,3 +9,8 @@ appsettings.Development.json
 appsettings.*.Local.json
 *.pfx
 *.pem
+
+# Authorization verification artifacts; may contain private environment diagnostics.
+artifacts/
+TestResults/
+*.trx

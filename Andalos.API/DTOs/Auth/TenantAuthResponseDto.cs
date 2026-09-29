@@ -1,4 +1,4 @@
-﻿namespace Andalos.API.DTOs.Auth
+namespace Andalos.API.DTOs.Auth
 {
     public class TenantAuthResponseDto
     {
@@ -7,6 +7,7 @@
         public string UserName { get; set; } = string.Empty;
         public string Role { get; set; } = "Tenant";
         public int TenantId { get; set; }
+        public bool RequiresPasswordChange { get; set; }
         public DateTime Expiration { get; set; }
     }
 }

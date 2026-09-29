@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -12,16 +13,24 @@ namespace Andalos.API.Services
     public class VisitorPassService : IVisitorPassService
     {
         private readonly AppDbContext _db;
+        private readonly CurrentUser _current;
         private readonly INotificationService _notification; // 👈 حقن الإشعارات
 
-        public VisitorPassService(AppDbContext db, INotificationService notification)
+        public VisitorPassService(AppDbContext db, INotificationService notification, CurrentUser current)
         {
             _db = db;
+            _current = current;
             _notification = notification;
         }
 
         public async Task<VisitorPassResponseDto> CreatePassAsync(CreateVisitorPassDto dto, string createdBy)
         {
+            if (dto.MaxEntries is < 1 or > 1000 || !Enum.IsDefined(dto.VisitorType)) throw new ArgumentException("Invalid pass limits/type.");
+            if (await IsBlacklistedAsync(dto.VisitorPhone, dto.NationalId)) throw new ForbiddenOperationException();
+            int? owner = _current.Snapshot?.IsTenant == true ? _current.TenantId : null;
+            if (owner is null && dto.UnitId.HasValue)
+                owner = await _db.Contracts.Where(c => c.UnitId == dto.UnitId && c.IsActive && c.Status == ContractStatus.Active)
+                    .Select(c => (int?)c.TenantId).FirstOrDefaultAsync();
             if (dto.UnitId.HasValue)
             {
                 var unitExists = await _db.Units.AnyAsync(u => u.Id == dto.UnitId.Value && u.IsActive);
@@ -43,6 +52,7 @@ namespace Andalos.API.Services
                     NationalId = dto.NationalId,
                     VisitorType = dto.VisitorType,
                     UnitId = dto.UnitId,
+                    OwnerTenantId = owner,
                     ValidDate = dto.ValidDate.Date,
                     MaxEntries = dto.MaxEntries > 0 ? dto.MaxEntries : 1,
                     UsedCount = 0,
@@ -244,26 +254,12 @@ namespace Andalos.API.Services
         // مستحيل رياضياً تجاوز MaxEntries مهما كان عدد المحاولات المتزامنة
         public async Task<ScanResultDto> ScanAndValidatePassAsync(ScanPassDto dto, string scannedBy)
         {
-            // EnableRetryOnFailure يستلزم تغليف المعاملة اليدوية بـ ExecutionStrategy
-            var strategy = _db.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
-            {
-                await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-                ScanResultDto result;
-                try
-                {
-                    result = await ScanCoreAsync(dto, scannedBy);
-                    // نُثبّت كل كتابات المسار (سواء سماح أو رفض + سجل الدخول) دفعة واحدة
-                    await tx.CommitAsync();
-                }
-                catch
-                {
-                    await tx.RollbackAsync();
-                    throw;
-                }
-                return result;
-            });
+            return await _db.AtomicAsync(() => ScanCoreAsync(dto, scannedBy));
         }
+
+        private Task<bool> IsBlacklistedAsync(string? phone, string? nationalId) => _db.VisitorBlacklists.AnyAsync(b =>
+            b.IsActive && (b.IsPermanent || b.ExpiresAt == null || b.ExpiresAt > DateTimeHelper.LibyaNow) &&
+            ((phone != null && phone != "" && b.Phone == phone) || (nationalId != null && nationalId != "" && b.NationalId == nationalId)));
 
         private async Task<ScanResultDto> ScanCoreAsync(ScanPassDto dto, string scannedBy)
         {
@@ -271,7 +267,7 @@ namespace Andalos.API.Services
                 .Include(p => p.Unit)
                 .FirstOrDefaultAsync(p => p.PassCode == dto.PassCode && p.IsActive);
 
-            var today = DateTime.Today;
+            var today = DateTimeHelper.LibyaToday;
 
             if (pass == null)
             {
@@ -280,6 +276,12 @@ namespace Andalos.API.Services
                     IsSuccess = false,
                     Message = "❌ رمز التصريح غير صحيح أو غير موجود بالنظام"
                 };
+            }
+
+            if (await IsBlacklistedAsync(pass.VisitorPhone, pass.NationalId))
+            {
+                await LogEntryAsync(pass.Id, dto.GateName, scannedBy, false, "Security restriction");
+                return FailResult(pass, "", "غير مسموح بالدخول.");
             }
 
             string destination = pass.Unit != null
@@ -331,24 +333,9 @@ namespace Andalos.API.Services
             await LogEntryAsync(pass.Id, dto.GateName, scannedBy, true, null);
 
             // 💡 [سحر الربط]: رصد المستأجر الحالي للمحل لإرسال إشعار لحظي له يفيد بدخول زائره الآن 💡
-            if (pass.UnitId.HasValue)
-            {
-                // جلب العقد النشط الحالي للمحل للوصول للمستأجر
-                var activeContract = await _db.Contracts
-                    .FirstOrDefaultAsync(c => c.UnitId == pass.UnitId.Value && c.Status == ContractStatus.Active && c.IsActive);
-
-                if (activeContract != null)
-                {
-                    await _notification.SendToTenantAsync(
-                        activeContract.TenantId,
-                        "وصول زائر للمحل 🚪",
-                        $"نعلمكم بأن زائرك ({pass.VisitorName}) قد تم تسجيل دخوله الآن من بوابة: {dto.GateName}.",
-                        NotificationType.VisitorEntered,
-                        "/tenant/visitors",
-                        pass.Id
-                    );
-                }
-            }
+            if (pass.OwnerTenantId.HasValue)
+                await _notification.SendToTenantAsync(pass.OwnerTenantId.Value, "وصول زائر للمحل", $"تم تسجيل دخول زائركم من بوابة {dto.GateName}.",
+                    NotificationType.VisitorEntered, "/tenant/visitors", pass.Id);
 
             return new ScanResultDto
             {

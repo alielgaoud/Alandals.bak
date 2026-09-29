@@ -1,4 +1,5 @@
-﻿using Andalos.API.Constants;
+using Andalos.API.Security;
+using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Notifications;
@@ -48,7 +49,9 @@ namespace Andalos.API.Controllers
                 return BadRequest(ApiResponseDto<bool>.FailResponse("بيانات اشتراك الجهاز غير مكتملة"));
             }
 
+            PushSubscriptionSecurity.ValidateEndpoint(dto.Endpoint);
             var existing = await _db.PushSubscriptions.FirstOrDefaultAsync(p => p.Endpoint == dto.Endpoint);
+            if (existing is not null && existing.UserId != userId) throw new ForbiddenOperationException();
 
             if (existing == null)
             {
@@ -93,37 +96,10 @@ namespace Andalos.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetVapidPublicKey()
         {
-            var publicKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
-            var privateKey = await _settings.GetValueAsync(SettingKeys.NotificationVapidPrivateKey);
+            var publicKey = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["VapidDetails:PublicKey"]
+                ?? await _settings.GetValueAsync(SettingKeys.NotificationVapidPublicKey);
+            return Ok(new { publicKey }); // Public reads never generate or rotate secret keys.
 
-            // إذا لم تكن المفاتيح موجودة في قاعدة البيانات، نقوم بتوليدها وتخزينها
-            if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
-            {
-                using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-                var parameters = ecdsa.ExportExplicitParameters(true);
-
-                var x = parameters.Q.X!;
-                var y = parameters.Q.Y!;
-                var publicKeyBytes = new byte[1 + x.Length + y.Length];
-                publicKeyBytes[0] = 0x04;
-                Buffer.BlockCopy(x, 0, publicKeyBytes, 1, x.Length);
-                Buffer.BlockCopy(y, 0, publicKeyBytes, 1 + x.Length, y.Length);
-
-                publicKey = WebEncoders.Base64UrlEncode(publicKeyBytes);
-                privateKey = WebEncoders.Base64UrlEncode(parameters.D!);
-
-                // 👈 تم تمرير المعامل الثالث "System" بنجاح
-                await _settings.SetValueAsync(SettingKeys.NotificationVapidPublicKey, publicKey, "System");
-                await _settings.SetValueAsync(SettingKeys.NotificationVapidPrivateKey, privateKey, "System");
-                await _settings.SetValueAsync(SettingKeys.NotificationVapidSubject, "mailto:info@andalos.ly", "System");
-                await _settings.SetValueAsync(SettingKeys.NotificationPushEnabled, "true", "System");
-            }
-
-            return Ok(new
-            {
-                publicKey = publicKey,
-                subject = "mailto:info@andalos.ly"
-            });
         }
 
         // 3. ملخص الإشعارات (للجرس 🔔)
@@ -220,23 +196,11 @@ namespace Andalos.API.Controllers
 
         private (int? userId, int? tenantId) ResolveContext(int? queryUserId = null, int? queryTenantId = null)
         {
-            if (queryUserId.HasValue || queryTenantId.HasValue) return (queryUserId, queryTenantId);
-
-            int? headerUserId = null;
-            int? headerTenantId = null;
-
-            if (Request.Headers.TryGetValue("X-Test-User-Id", out var hUserId) && int.TryParse(hUserId, out var uid))
-                headerUserId = uid;
-
-            if (Request.Headers.TryGetValue("X-Test-Tenant-Id", out var hTenantId) && int.TryParse(hTenantId, out var tid))
-                headerTenantId = tid;
-
-            if (headerUserId.HasValue || headerTenantId.HasValue) return (headerUserId, headerTenantId);
-
-            int? claimsUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var cUid) ? cUid : null;
-            int? claimsTenantId = int.TryParse(User.FindFirst("TenantId")?.Value, out var cTid) ? cTid : null;
-
-            return (claimsUserId, claimsTenantId);
+            var user = HttpContext.RequestServices.GetRequiredService<CurrentUser>().Required;
+            var tenantId = user.IsTenant ? user.TenantId : null;
+            if ((queryUserId.HasValue && queryUserId != user.Id) || (queryTenantId.HasValue && queryTenantId != tenantId) ||
+                Request.Headers.ContainsKey("X-Test-User-Id") || Request.Headers.ContainsKey("X-Test-Tenant-Id")) throw new ForbiddenOperationException();
+            return (user.Id, tenantId);
         }
     }
 }

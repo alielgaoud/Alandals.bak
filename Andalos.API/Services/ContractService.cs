@@ -1,4 +1,5 @@
-﻿using Andalos.API.Data;
+using Andalos.API.Security;
+using Andalos.API.Data;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.Enums;
 using Andalos.API.Helpers;
@@ -51,7 +52,9 @@ namespace Andalos.API.Services
             return contract == null ? null : MapToDto(contract);
         }
 
-        public async Task<ContractResponseDto> CreateAsync(CreateContractDto dto)
+        public Task<ContractResponseDto> CreateAsync(CreateContractDto dto) => _db.AtomicAsync(() => CreateAsyncCore(dto));
+
+        private async Task<ContractResponseDto> CreateAsyncCore(CreateContractDto dto)
         {
             var tenantExists = await _db.Tenants.AnyAsync(t => t.Id == dto.TenantId && t.IsActive);
             if (!tenantExists) throw new KeyNotFoundException("المستأجر المحدد غير موجود");
@@ -154,7 +157,21 @@ namespace Andalos.API.Services
             });
         }
 
-        public async Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus)
+        public Task<ContractResponseDto?> UpdateAsync(int id, UpdateContractDto dto) => _db.AtomicAsync(() => UpdateAsyncCore(id, dto));
+
+        private async Task<ContractResponseDto?> UpdateAsyncCore(int id, UpdateContractDto dto)
+        {
+            var contract = await _db.Contracts.SingleOrDefaultAsync(c => c.Id == id && c.IsActive);
+            if (contract is null) return null;
+            contract.TradeName = dto.TradeName; contract.Notes = dto.Notes; contract.AutoRenew = dto.AutoRenew;
+            contract.UpdatedAt = DateTimeHelper.LibyaNow;
+            await _db.SaveChangesAsync();
+            return await GetByIdAsync(id);
+        }
+
+        public Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus) => _db.AtomicAsync(() => UpdateStatusAsyncCore(id, newStatus));
+
+        private async Task<bool> UpdateStatusAsyncCore(int id, ContractStatus newStatus)
         {
             var contract = await _db.Contracts
                 .Include(c => c.Unit)
@@ -211,7 +228,9 @@ namespace Andalos.API.Services
             });
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public Task<bool> DeleteAsync(int id) => _db.AtomicAsync(() => DeleteAsyncCore(id));
+
+        private async Task<bool> DeleteAsyncCore(int id)
         {
             var contract = await _db.Contracts
                 .Include(c => c.Unit)
@@ -247,7 +266,9 @@ namespace Andalos.API.Services
             });
         }
 
-        public async Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto)
+        public Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto) => _db.AtomicAsync(() => RenewAsyncCore(contractId, dto));
+
+        private async Task<ContractResponseDto> RenewAsyncCore(int contractId, RenewContractDto dto)
         {
             var oldContract = await _db.Contracts
                 .Include(c => c.ContractFees)

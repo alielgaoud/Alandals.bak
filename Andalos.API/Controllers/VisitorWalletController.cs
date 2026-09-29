@@ -1,4 +1,5 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.Security;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Visitors;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -32,22 +33,7 @@ namespace Andalos.API.Controllers
         [HttpPost("shop/charge-qr")]
         public async Task<IActionResult> ChargeQr([FromBody] ProcessPassPurchaseDto dto)
         {
-            // 👇 الحل: قراءة TenantId من الـ Header إذا لم يكن في الـ Claims
             int tenantId = GetCurrentTenantId();
-
-            // 👇 Fallback: إذا لم نجده في الـ Claims، نقرأه من الـ Header
-            if (tenantId == 0)
-            {
-                var headerTenantId = Request.Headers["X-Tenant-Id"].FirstOrDefault();
-                if (int.TryParse(headerTenantId, out var parsedId) && parsedId > 0)
-                {
-                    tenantId = parsedId;
-                }
-            }
-
-            if (tenantId == 0)
-                return BadRequest(ApiResponseDto<string>.FailResponse("يجب الدخول بحساب مستأجر لاستخدام كاسحة الـ QR"));
-
             var result = await _walletService.ProcessShopPurchaseAsync(dto, tenantId);
             if (!result.IsSuccess)
             {
@@ -66,21 +52,7 @@ namespace Andalos.API.Controllers
         [HttpGet("shop/my-unsettled-balance")]
         public async Task<IActionResult> GetMyUnsettledBalance()
         {
-            // 👇 نفس الحل
             int tenantId = GetCurrentTenantId();
-
-            if (tenantId == 0)
-            {
-                var headerTenantId = Request.Headers["X-Tenant-Id"].FirstOrDefault();
-                if (int.TryParse(headerTenantId, out var parsedId) && parsedId > 0)
-                {
-                    tenantId = parsedId;
-                }
-            }
-
-            if (tenantId == 0)
-                return BadRequest(ApiResponseDto<string>.FailResponse("لم يتم التعرف على حساب المستأجر"));
-
             var result = await _walletService.GetMyUnsettledBalanceAsync(tenantId);
             return Ok(ApiResponseDto<TenantPassBalanceDto>.SuccessResponse(result));
         }
@@ -105,9 +77,9 @@ namespace Andalos.API.Controllers
                 var result = await _walletService.SettleShopBalanceAsync(dto, adminUserId);
                 return Ok(ApiResponseDto<SettlementResponseDto>.SuccessResponse(result, "تم تسديد مستحقات المحل وتأكيد الحركات بنجاح"));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                return BadRequest(ApiResponseDto<string>.FailResponse("تعذر تنفيذ التسوية."));
             }
         }
 
@@ -219,25 +191,13 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<TenantWalletFullHistoryDto>.SuccessResponse(history));
         }
 
-        private int GetCurrentUserId()
+        [HttpPost("gate/add-balance")]
+        public async Task<IActionResult> AddBalance([FromBody] AddBalanceToPassDto dto)
         {
-            return int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid) ? uid : 1;
+            var result = await _walletService.AddBalanceToPassAsync(dto, GetCurrentUserId());
+            return Ok(ApiResponseDto<AddBalanceToPassResponseDto>.SuccessResponse(result));
         }
-
-        private int GetCurrentTenantId()
-        {
-            // 👇 محاولة 1: قراءة من Claim مخصص
-            if (int.TryParse(User.FindFirst("TenantId")?.Value, out var tid) && tid > 0)
-                return tid;
-
-            // 👇 محاولة 2: قراءة من NameIdentifier (إذا كان التوكن يخص مستأجر)
-            if (int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var uid) && uid > 0)
-            {
-                // يمكن هنا البحث في قاعدة البيانات عن Tenant المرتبط بهذا UserId
-                // لكن كحل سريع نرجع 0 ونعتمد على الـ Header
-            }
-
-            return 0;
-        }
+        private int GetCurrentUserId() => HttpContext.RequestServices.GetRequiredService<CurrentUser>().UserId;
+        private int GetCurrentTenantId() => HttpContext.RequestServices.GetRequiredService<CurrentUser>().TenantId;
     }
 }

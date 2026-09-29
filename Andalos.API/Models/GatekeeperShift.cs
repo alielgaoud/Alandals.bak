@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -17,6 +17,8 @@ namespace Andalos.API.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalCashCollected { get; set; } = 0; // إجمالي الأموال التي قبضها
+
+        public int? HandedOverByUserId { get; set; }
 
         public bool IsHandedOver { get; set; } = false; // هل تم تسليم النقدية للإدارة؟
         public DateTime? HandedOverAt { get; set; }

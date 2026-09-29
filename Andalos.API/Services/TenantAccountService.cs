@@ -1,3 +1,4 @@
+using Andalos.API.Security;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.DTOs.Visitors;
@@ -38,8 +39,13 @@ namespace Andalos.API.Services
         // =====================================================
         // 1. إيداع دفعة مقدمة في حساب المستأجر (Wallet)
         // =====================================================
-        public async Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes)
+        public Task<Payment> DepositAdvancePaymentAsync(int tenantId, decimal amount, PaymentMethod method, string notes) => _db.AtomicAsync(() => DepositAdvancePaymentAsyncCore(tenantId, amount, method, notes));
+
+        private async Task<Payment> DepositAdvancePaymentAsyncCore(int tenantId, decimal amount, PaymentMethod method, string notes)
         {
+            FinancialOperationGuard.ValidateAmount(amount);
+            if (!Enum.IsDefined(method) || method == PaymentMethod.FromBalance) throw new ArgumentException("Invalid deposit method.");
+
             var tenant = await _db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId && t.IsActive);
             if (tenant == null)
                 throw new KeyNotFoundException("المستأجر غير موجود");
@@ -64,6 +70,9 @@ namespace Andalos.API.Services
             {
                 TenantId = tenantId,
                 ContractId = activeContract.Id,
+                UnitId = activeContract.UnitId,
+                AllocationRecorded = true,
+                WalletCreditAmount = amount,
                 Amount = amount,
                 PaymentDate = DateTimeHelper.LibyaNow, // 👈 تم التحديث
                 PaymentType = PaymentType.AdvancePayment,
@@ -82,7 +91,9 @@ namespace Andalos.API.Services
         // =====================================================
         // 2. المعالجة الشهرية: الخصم التلقائي
         // =====================================================
-        public async Task ProcessMonthlyRentDuesAsync()
+        public Task ProcessMonthlyRentDuesAsync() => _db.AtomicAsync(() => ProcessMonthlyRentDuesAsyncCore());
+
+        private async Task ProcessMonthlyRentDuesAsyncCore()
         {
             var today = DateTimeHelper.LibyaToday; // 👈 تم التحديث
             var startOfMonth = new DateTime(today.Year, today.Month, 1);
@@ -103,7 +114,9 @@ namespace Andalos.API.Services
                     p.PaymentDate <= endOfMonth &&
                     p.IsActive);
 
-                if (alreadyProcessedThisMonth) continue;
+                var operationKey = $"monthly-rent:{contract.Id}:{today:yyyyMM}";
+                if (alreadyProcessedThisMonth || await _db.Payments.AnyAsync(p => p.SystemOperationKey == operationKey)) continue;
+                if (contract.StartDate.Date > today || contract.EndDate.Date < startOfMonth || !contract.Tenant!.IsActive) continue;
 
                 var tenant = contract.Tenant;
                 int durationMonths = Math.Max(1, (int)((contract.EndDate - contract.StartDate).TotalDays / 30));
@@ -124,7 +137,11 @@ namespace Andalos.API.Services
                     {
                         TenantId = tenant.Id,
                         ContractId = contract.Id,
+                        UnitId = contract.UnitId,
+                        AllocationRecorded = true,
+                        SystemOperationKey = operationKey,
                         Amount = totalMonthlyDue,
+                        WalletDebitAmount = totalMonthlyDue,
                         PaymentDate = today, // 👈 تاريخ اليوم المحلي
                         PaymentType = PaymentType.Rent,
                         PaymentMethod = PaymentMethod.FromBalance,
@@ -144,7 +161,11 @@ namespace Andalos.API.Services
                     {
                         TenantId = tenant.Id,
                         ContractId = contract.Id,
+                        UnitId = contract.UnitId,
+                        AllocationRecorded = true,
+                        SystemOperationKey = operationKey,
                         Amount = partialAmount,
+                        WalletDebitAmount = partialAmount,
                         PaymentDate = today, // 👈 تاريخ اليوم المحلي
                         PaymentType = PaymentType.Rent,
                         PaymentMethod = PaymentMethod.FromBalance,

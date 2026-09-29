@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Tenants;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -38,13 +38,13 @@ namespace Andalos.API.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(ApiResponseDto<string>.FailResponse(ex.Message));
+                return NotFound(ApiResponseDto<string>.FailResponse("تعذر تنفيذ العملية."));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Andalos.API.Security.ForbiddenOperationException and not Andalos.API.Security.ConcurrencyConflictException and not Microsoft.EntityFrameworkCore.DbUpdateException and not System.Data.Common.DbException)
             {
                 // 👈 إظهار تفاصيل الخطأ الداخلي الدقيقة إن وُجدت
                 string errorDetails = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                return BadRequest(ApiResponseDto<string>.FailResponse($"حدث خطأ أثناء اعتماد الحوالة: {errorDetails}"));
+                return BadRequest(ApiResponseDto<string>.FailResponse("تعذر اعتماد الحوالة."));
             }
         }
     }

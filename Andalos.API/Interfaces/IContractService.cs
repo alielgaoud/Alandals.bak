@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Contracts;
+using Andalos.API.DTOs.Contracts;
 using Andalos.API.Enums;
 
 namespace Andalos.API.Interfaces
@@ -9,6 +9,7 @@ namespace Andalos.API.Interfaces
         Task<ContractResponseDto?> GetByIdAsync(int id);
         Task<ContractResponseDto> CreateAsync(CreateContractDto dto);
         Task<bool> UpdateStatusAsync(int id, ContractStatus newStatus);
+        Task<ContractResponseDto?> UpdateAsync(int id, UpdateContractDto dto);
         Task<bool> DeleteAsync(int id);
         Task<ContractResponseDto> RenewAsync(int contractId, RenewContractDto dto);
     }

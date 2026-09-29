@@ -1,4 +1,5 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.Security;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Complaints;
 using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -23,7 +24,9 @@ namespace Andalos.API.Controllers
         {
             try
             {
-                int userId = 1;
+                var current = HttpContext.RequestServices.GetRequiredService<CurrentUser>();
+                if (tenantId != current.TenantId) throw new ForbiddenOperationException();
+                int userId = current.UserId;
                 var result = await _complaintService.SubmitComplaintAsync(tenantId, userId, dto);
                 return Ok(ApiResponseDto<TenantComplaintDto>.SuccessResponse(result, "تم إرسال الشكوى بنجاح"));
             }
@@ -36,6 +39,7 @@ namespace Andalos.API.Controllers
         [HttpGet("{tenantId}")]
         public async Task<IActionResult> GetMyComplaints(int tenantId)
         {
+            if (tenantId != HttpContext.RequestServices.GetRequiredService<CurrentUser>().TenantId) throw new ForbiddenOperationException();
             var list = await _complaintService.GetTenantComplaintsAsync(tenantId);
             return Ok(ApiResponseDto<List<TenantComplaintDto>>.SuccessResponse(list));
         }

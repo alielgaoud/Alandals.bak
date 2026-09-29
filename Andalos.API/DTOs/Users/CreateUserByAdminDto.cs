@@ -1,4 +1,4 @@
-﻿using Andalos.API.Enums;
+using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.DTOs.Users
@@ -14,7 +14,7 @@ namespace Andalos.API.DTOs.Users
         public string UserName { get; set; } = string.Empty; // 👈 تم التحديث
 
         [Required(ErrorMessage = "كلمة المرور مطلوبة")]
-        [MinLength(6, ErrorMessage = "كلمة المرور يجب ألا تقل عن 6 خانات")]
+        [MinLength(12, ErrorMessage = "كلمة المرور يجب ألا تقل عن 12 خانة")]
         public string Password { get; set; } = string.Empty;
 
         [MaxLength(20)]
@@ -43,7 +43,7 @@ namespace Andalos.API.DTOs.Users
     public class AdminResetPasswordDto
     {
         [Required(ErrorMessage = "كلمة المرور الجديدة مطلوبة")]
-        [MinLength(6, ErrorMessage = "كلمة المرور يجب ألا تقل عن 6 خانات")]
+        [MinLength(12, ErrorMessage = "كلمة المرور يجب ألا تقل عن 12 خانة")]
         public string NewPassword { get; set; } = string.Empty;
     }
     public class UserResponseDto
@@ -62,7 +62,8 @@ namespace Andalos.API.DTOs.Users
     public class AssignUserPermissionsDto
     {
         public int UserId { get; set; }
-        public List<string> Permissions { get; set; } = new();
+        [Required] public List<string>? Permissions { get; set; }
+        public long? ExpectedVersion { get; set; }
     }
 
     public class UserPermissionsResponseDto
@@ -70,7 +71,12 @@ namespace Andalos.API.DTOs.Users
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
-        public List<string> GrantedPermissions { get; set; } = new();
+        public List<string> GrantedPermissions { get; set; } = new(); // verified DIRECT only; PUT replaces these only.
+        public List<string> EffectivePermissions { get; set; } = new();
+        public List<string> PackagePermissions { get; set; } = new();
+        public List<string> LegacyPermissions { get; set; } = new();
+        public bool ReconciliationRequired { get; set; }
+        public long PermissionsVersion { get; set; }
     }
     public class TenantStaffResponseDto
     {

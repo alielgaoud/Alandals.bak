@@ -1,9 +1,10 @@
-﻿using Andalos.API.DTOs.Visitors;
+using Andalos.API.DTOs.Visitors;
 
 namespace Andalos.API.Interfaces
 {
     public interface IVisitorWalletService
     {
+        Task<AddBalanceToPassResponseDto> AddBalanceToPassAsync(AddBalanceToPassDto dto, int userId);
         // 1. البوابة: إصدار تصريح مدفوع بـ 50 دينار وتحديث شفت الحارس
         Task<VisitorPassResponseDto> CreatePaidPassAsync(CreatePaidVisitorPassDto dto, int gatekeeperUserId);
 

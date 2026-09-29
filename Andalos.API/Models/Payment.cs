@@ -1,4 +1,4 @@
-﻿using Andalos.API.Common;
+using Andalos.API.Common;
 using Andalos.API.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -17,6 +17,14 @@ namespace Andalos.API.Models
         // نضعها مباشرة لتسهيل التقارير بدون Join
         public int TenantId { get; set; }
         public int UnitId { get; set; }
+
+        // Exact reversible allocation for new payments. Old allocated payments require manual reconciliation.
+        public bool AllocationRecorded { get; set; }
+        public decimal WalletCreditAmount { get; set; }
+        public decimal WalletDebitAmount { get; set; }
+        public int? AllocatedChargeId { get; set; }
+        public decimal AllocatedChargeAmount { get; set; }
+        [MaxLength(80)] public string? SystemOperationKey { get; set; }
 
         public PaymentType PaymentType { get; set; } = PaymentType.Rent;
 

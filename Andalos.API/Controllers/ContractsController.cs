@@ -1,4 +1,4 @@
-﻿using Andalos.API.DTOs.Common;
+using Andalos.API.DTOs.Common;
 using Andalos.API.DTOs.Contracts;
 using Andalos.API.Enums;
 using Andalos.API.Interfaces;
@@ -57,6 +57,14 @@ namespace Andalos.API.Controllers
             {
                 return BadRequest(ApiResponseDto<ContractResponseDto>.FailResponse(ex.Message));
             }
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateContractDto dto)
+        {
+            var result = await _contractService.UpdateAsync(id, dto);
+            return result is null ? NotFound() : Ok(ApiResponseDto<ContractResponseDto>.SuccessResponse(result));
         }
 
         // PUT: api/contracts/5/status
