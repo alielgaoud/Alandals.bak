@@ -29,18 +29,16 @@ export function setup() {
 export default function (data) {
   const H = authHeaders(data.token);
 
-  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, timeout: '150000', tags: { name: 'list-passes' } });
+  let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
   check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
-  // 🔍 طباعة التشخيص دائماً — حتى مع الخطأ
-  try {
-    const b = res.json();
-    if (b && b.data) {
-      console.log(`🔍 DIAG count=${b.data.diagCountMs}ms | معرفات=${b.data.diagIdsMs}ms | جلب=${b.data.diagFetchMs}ms | كامل≈${res.timings.duration.toFixed(0)}ms`);
-    } else if (b) {
+  // عند الخطأ فقط: اطبع جسم الاستجابة للتشخيص السريع
+  if (res.status >= 300) {
+    try {
+      const b = res.json();
       console.log(`❌ استجابة خطأ (${res.status}): ${(b.message || JSON.stringify(b)).substring(0, 300)}`);
+    } catch (e) {
+      console.log(`❌ استجابة غير قابلة للتحليل (${res.status}): ${(res.body || '').substring(0, 200)}`);
     }
-  } catch (e) {
-    console.log(`❌ استجابة غير قابلة للتحليل (${res.status}): ${(res.body || '').substring(0, 200)}`);
   }
 
   res = http.get(`${BASE}/api/TenantAccounts/${data.tenantId}/statement`, { headers: H, tags: { name: 'statement' } });

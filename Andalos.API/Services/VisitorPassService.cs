@@ -169,22 +169,17 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
-            var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalCount = await query.CountAsync();
-            long countMs = sw.ElapsedMilliseconds;
 
             // 🛡️ المرحلة 1: معرفات الصفحة فقط — شكل مُثبت السرعة (كان 9ms في كل القياسات)
-            sw.Restart();
             var ids = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(p => p.Id)
                 .ToListAsync();
-            long idsMs = sw.ElapsedMilliseconds;
 
             // 🛡️ المرحلة 2: الصفوف عبر IN بإسقاط SQL مسطّح (يتجاوز الخطة المرضية للصيغة المتشعبة العريضة)
-            sw.Restart();
             var rows = await query
                 .Where(p => ids.Contains(p.Id))
                 .Select(p => new
@@ -206,7 +201,6 @@ namespace Andalos.API.Services
                     p.CreatedAt
                 })
                 .ToListAsync();
-            long fetchMs = sw.ElapsedMilliseconds;
 
             // IN لا يضمن الترتيب — نعيد الترتيب في الذاكرة على 20 صفاً
             var order = new Dictionary<int, int>();
@@ -241,10 +235,7 @@ namespace Andalos.API.Services
                 page,
                 pageSize,
                 totalCount,
-                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
-                diagCountMs = countMs,
-                diagIdsMs = idsMs,
-                diagFetchMs = fetchMs
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
             };
         }
 
