@@ -161,7 +161,6 @@ namespace Andalos.API.Services
             if (pageSize > 100) pageSize = 100;
 
             var query = _db.VisitorPasses
-                .Include(p => p.Unit)
                 .Where(p => p.IsActive);
 
             if (date.HasValue)
@@ -170,99 +169,71 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
-            // 🔍 تشخيص + إصلاح: إسقاط SQL خالص (بلا client-eval) ثم تحويل في الذاكرة
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalCount = await query.CountAsync();
             long countMs = sw.ElapsedMilliseconds;
 
-            var pagedQuery = query
+            // 🛡️ المرحلة 1: معرفات الصفحة فقط — شكل مُثبت السرعة (كان 9ms في كل القياسات)
+            sw.Restart();
+            var ids = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
-                .Take(pageSize);
+                .Take(pageSize)
+                .Select(p => p.Id)
+                .ToListAsync();
+            long idsMs = sw.ElapsedMilliseconds;
 
-            // ✅ الإصلاح: استعلام مسطّح (scalars فقط) — يُترجم SQL بالكامل مع JOIN للمحل
+            // 🛡️ المرحلة 2: الصفوف عبر IN بإسقاط SQL مسطّح (يتجاوز الخطة المرضية للصيغة المتشعبة العريضة)
             sw.Restart();
-            var rows = await pagedQuery.Select(p => new
-            {
-                p.Id,
-                p.PassCode,
-                p.VisitorName,
-                p.VisitorPhone,
-                p.NationalId,
-                p.VisitorType,
-                p.UnitId,
-                UnitNumber = p.Unit != null ? p.Unit.UnitNumber : null,
-                p.ValidDate,
-                p.MaxEntries,
-                p.UsedCount,
-                p.Status,
-                p.Purpose,
-                p.Notes,
-                p.CreatedAt
-            }).ToListAsync();
-            long rowsMs = sw.ElapsedMilliseconds;
+            var rows = await query
+                .Where(p => ids.Contains(p.Id))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.PassCode,
+                    p.VisitorName,
+                    p.VisitorPhone,
+                    p.NationalId,
+                    p.VisitorType,
+                    p.UnitId,
+                    UnitNumber = p.Unit != null ? p.Unit.UnitNumber : null,
+                    p.ValidDate,
+                    p.MaxEntries,
+                    p.UsedCount,
+                    p.Status,
+                    p.Purpose,
+                    p.Notes,
+                    p.CreatedAt
+                })
+                .ToListAsync();
+            long fetchMs = sw.ElapsedMilliseconds;
 
-            // التحويل للـ DTO في الذاكرة (على 20 صفاً — microseconds)
-            sw.Restart();
-            var items = rows.Select(r => new VisitorPassResponseDto
-            {
-                Id = r.Id,
-                PassCode = r.PassCode,
-                VisitorName = r.VisitorName,
-                VisitorPhone = r.VisitorPhone,
-                NationalId = r.NationalId,
-                VisitorType = r.VisitorType.ToString(),
-                UnitId = r.UnitId,
-                UnitNumber = r.UnitNumber,
-                UnitName = r.UnitNumber,
-                ValidDate = r.ValidDate,
-                MaxEntries = r.MaxEntries,
-                UsedCount = r.UsedCount,
-                Status = r.Status.ToString(),
-                Purpose = r.Purpose,
-                Notes = r.Notes,
-                CreatedAt = r.CreatedAt
-            }).ToList();
-            long mapMs = sw.ElapsedMilliseconds;
+            // IN لا يضمن الترتيب — نعيد الترتيب في الذاكرة على 20 صفاً
+            var order = new Dictionary<int, int>();
+            for (int i = 0; i < ids.Count; i++) order[ids[i]] = i;
 
-            // 🔍 حسم مطلق: نفس الاستعلامات عبر ADO الخام على نفس الاتصال (بلا EF إطلاقاً)
-            var conn = _db.Database.GetDbConnection();
-            bool wasOpen = conn.State == System.Data.ConnectionState.Open;
-            if (!wasOpen) await conn.OpenAsync();
-
-            string adoError = "";
-            long adoJoinMs = -1, adoNolockMs = -1, adoNoJoinMs = -1, adoParamMs = -1;
-            string diagOpenTrx = "", diagOldestLogin = "", diagWaits = "";
-
-            var pNoJoin = await ProbeAsync(conn,
-                "SELECT p.Id FROM VisitorPasses p ORDER BY p.CreatedAt DESC OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY");
-            adoNoJoinMs = pNoJoin.ms; if (pNoJoin.err != "") adoError = "بلاJoin: " + pNoJoin.err;
-
-            var pNolock = await ProbeAsync(conn,
-                "SELECT p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p WITH (NOLOCK) LEFT JOIN Units u WITH (NOLOCK) ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY");
-            adoNolockMs = pNolock.ms; if (pNolock.err != "") adoError += " | NOLOCK: " + pNolock.err;
-
-            var pJoin = await ProbeAsync(conn,
-                "SELECT p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY");
-            adoJoinMs = pJoin.ms; if (pJoin.err != "") adoError += " | JOIN: " + pJoin.err;
-
-            // 🎯 ج) نفس الاستعلام لكن بمعاملات — محاكاة EF حرفياً (الفارق الوحيد المتبقي)
-            var pParam = await ProbeParamAsync(conn, 0, pageSize);
-            adoParamMs = pParam.ms; if (pParam.err != "") adoError += " | Param: " + pParam.err;
-
-            // 🎯 د) اسم الانتظار الفعلي للجلسة (نفس الاتصال = نفس session) — سيقول ماذا انتظرنا
-            var pWaits = await ProbeAsync(conn,
-                "SELECT ISNULL(STRING_AGG(w, ' | '), 'لا انتظارات') FROM (SELECT TOP(3) wait_type + '=' + CAST(wait_time_ms AS varchar(20)) + 'ms' AS w FROM sys.dm_exec_session_wait_stats WHERE session_id = @@SPID AND wait_time_ms > 1000 ORDER BY wait_time_ms DESC) x");
-            diagWaits = pWaits.first ?? ("خطأ: " + pWaits.err);
-
-            // 🎯 هـ) صائداً الجلسات الجاثمة بمعاملات مفتوحة (احتياط)
-            var pTrx = await ProbeAsync(conn,
-                "SELECT CAST(COUNT(*) AS varchar(20)) FROM sys.dm_exec_sessions WHERE open_transaction_count > 0 AND session_id <> @@SPID");
-            diagOpenTrx = pTrx.first ?? ("خطأ: " + pTrx.err);
-
-            var pOld = await ProbeAsync(conn,
-                "SELECT CONVERT(varchar(19), MIN(login_time), 120) FROM sys.dm_exec_sessions WHERE open_transaction_count > 0 AND session_id <> @@SPID");
-            diagOldestLogin = pOld.first ?? ("خطأ: " + pOld.err);
+            var items = rows
+                .OrderBy(r => order[r.Id])
+                .Select(r => new VisitorPassResponseDto
+                {
+                    Id = r.Id,
+                    PassCode = r.PassCode,
+                    VisitorName = r.VisitorName,
+                    VisitorPhone = r.VisitorPhone,
+                    NationalId = r.NationalId,
+                    VisitorType = r.VisitorType.ToString(),
+                    UnitId = r.UnitId,
+                    UnitNumber = r.UnitNumber,
+                    UnitName = r.UnitNumber,
+                    ValidDate = r.ValidDate,
+                    MaxEntries = r.MaxEntries,
+                    UsedCount = r.UsedCount,
+                    Status = r.Status.ToString(),
+                    Purpose = r.Purpose,
+                    Notes = r.Notes,
+                    CreatedAt = r.CreatedAt
+                })
+                .ToList();
 
             return new
             {
@@ -272,16 +243,8 @@ namespace Andalos.API.Services
                 totalCount,
                 totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 diagCountMs = countMs,
-                diagRowsMs = rowsMs,
-                diagMapMs = mapMs,
-                diagAdoJoinMs = adoJoinMs,
-                diagAdoNolockMs = adoNolockMs,
-                diagAdoNoJoinMs = adoNoJoinMs,
-                diagAdoError = adoError,
-                diagAdoParamMs = adoParamMs,
-                diagWaits = diagWaits,
-                diagOpenTrx = diagOpenTrx,
-                diagOldestLogin = diagOldestLogin
+                diagIdsMs = idsMs,
+                diagFetchMs = fetchMs
             };
         }
 
@@ -496,52 +459,6 @@ namespace Andalos.API.Services
             while (exists);
 
             return passCode;
-        }
-
-        // 🔍 مساعد تشخيصي: ينفذ SQL خام ويرجع المدة + أول قيمة + نص الخطأ
-        private static async Task<(long ms, string err, string? first)> ProbeAsync(System.Data.Common.DbConnection conn, string sql)
-        {
-            try
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 20;
-                cmd.CommandText = sql;
-                string? first = null;
-                using (var r = await cmd.ExecuteReaderAsync())
-                {
-                    if (await r.ReadAsync()) first = r.GetValue(0)?.ToString();
-                }
-                return (sw.ElapsedMilliseconds, "", first);
-            }
-            catch (Exception ex)
-            {
-                var msg = ex.Message;
-                if (msg.Length > 200) msg = msg.Substring(0, 200);
-                return (-1, msg, null);
-            }
-        }
-
-        // 🔍 مسبر بمعاملات — مطابق لطريقة EF في الإرسال (OFFSET/FETCH كمعاملات)
-        private static async Task<(long ms, string err, string? first)> ProbeParamAsync(System.Data.Common.DbConnection conn, int offset, int take)
-        {
-            try
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandTimeout = 60;
-                cmd.CommandText = "SELECT p.Id, p.PassCode, u.UnitNumber FROM VisitorPasses p LEFT JOIN Units u ON u.Id = p.UnitId ORDER BY p.CreatedAt DESC OFFSET @p0 ROWS FETCH NEXT @p1 ROWS ONLY";
-                var a = cmd.CreateParameter(); a.ParameterName = "@p0"; a.Value = offset; cmd.Parameters.Add(a);
-                var b = cmd.CreateParameter(); b.ParameterName = "@p1"; b.Value = take; cmd.Parameters.Add(b);
-                using (var r = await cmd.ExecuteReaderAsync()) { while (await r.ReadAsync()) { } }
-                return (sw.ElapsedMilliseconds, "", null);
-            }
-            catch (Exception ex)
-            {
-                var msg = ex.Message;
-                if (msg.Length > 200) msg = msg.Substring(0, 200);
-                return (-1, msg, null);
-            }
         }
 
         private static VisitorPassResponseDto MapToDto(VisitorPass p)
