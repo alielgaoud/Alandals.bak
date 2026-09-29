@@ -35,7 +35,8 @@ export default function (data) {
   try {
     const b = res.json();
     if (b && b.data) {
-      console.log(`🔍 DIAG count=${b.data.diagCountMs}ms | items=${b.data.diagItemsMs}ms | totalCount=${b.data.totalCount} | الطلب الكامل ≈ ${res.timings.duration.toFixed(0)}ms`);
+      console.log(`🔍 DIAG count=${b.data.diagCountMs}ms | items=${b.data.diagItemsMs}ms | idsOnly=${b.data.diagIdsMs}ms (${b.data.diagIdsCount}) | كامل≈${res.timings.duration.toFixed(0)}ms`);
+      console.log(`📋 SQL: ${(b.data.diagSql || '').substring(0, 450)}`);
     }
   } catch (_) {}
 

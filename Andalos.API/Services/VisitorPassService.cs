@@ -133,19 +133,28 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
-            // 🔍 تشخيص مؤقت: تقسيم زمن النداء بين الاستعلامين
+            // 🔍 تشخيص مؤقت: ثلاثة قياسات + نص SQL المولَّد
             var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalCount = await query.CountAsync();
             long countMs = sw.ElapsedMilliseconds;
 
-            sw.Restart();
-            var items = await query
+            var pagedQuery = query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(p => MapToDto(p))
-                .ToListAsync();
+                .Take(pageSize);
+
+            // أ) ids فقط — ترجمة SQL كاملة بلا أي معالجة client-side
+            sw.Restart();
+            var idsOnly = await pagedQuery.Select(p => p.Id).ToListAsync();
+            long idsMs = sw.ElapsedMilliseconds;
+
+            // ب) الجلب الحقيقي (بصيغة MapToDto عبر client-eval)
+            sw.Restart();
+            var items = await pagedQuery.Select(p => MapToDto(p)).ToListAsync();
             long itemsMs = sw.ElapsedMilliseconds;
+
+            var sqlText = pagedQuery.Select(p => MapToDto(p)).ToQueryString();
+            if (sqlText.Length > 900) sqlText = sqlText.Substring(0, 900) + "...";
 
             return new
             {
@@ -155,7 +164,10 @@ namespace Andalos.API.Services
                 totalCount,
                 totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
                 diagCountMs = countMs,
-                diagItemsMs = itemsMs
+                diagItemsMs = itemsMs,
+                diagIdsMs = idsMs,
+                diagIdsCount = idsOnly.Count,
+                diagSql = sqlText
             };
         }
 
