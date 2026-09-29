@@ -133,14 +133,19 @@ namespace Andalos.API.Services
             if (unitId.HasValue)
                 query = query.Where(p => p.UnitId == unitId.Value);
 
+            // 🔍 تشخيص مؤقت: تقسيم زمن النداء بين الاستعلامين
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             int totalCount = await query.CountAsync();
+            long countMs = sw.ElapsedMilliseconds;
 
+            sw.Restart();
             var items = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(p => MapToDto(p))
                 .ToListAsync();
+            long itemsMs = sw.ElapsedMilliseconds;
 
             return new
             {
@@ -148,7 +153,9 @@ namespace Andalos.API.Services
                 page,
                 pageSize,
                 totalCount,
-                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                diagCountMs = countMs,
+                diagItemsMs = itemsMs
             };
         }
 

@@ -31,6 +31,13 @@ export default function (data) {
 
   let res = http.get(`${BASE}/api/VisitorPasses/paged?page=1&pageSize=20`, { headers: H, tags: { name: 'list-passes' } });
   check(res, { 'قائمة التصاريح 2xx': (r) => r.status < 300 });
+  // 🔍 طباعة مجزئ الزمن من الاستجابة
+  try {
+    const b = res.json();
+    if (b && b.data) {
+      console.log(`🔍 DIAG count=${b.data.diagCountMs}ms | items=${b.data.diagItemsMs}ms | totalCount=${b.data.totalCount} | الطلب الكامل ≈ ${res.timings.duration.toFixed(0)}ms`);
+    }
+  } catch (_) {}
 
   res = http.get(`${BASE}/api/TenantAccounts/${data.tenantId}/statement`, { headers: H, tags: { name: 'statement' } });
   check(res, { 'كشف الحساب 2xx': (r) => r.status < 300 });
