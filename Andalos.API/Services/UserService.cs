@@ -2,6 +2,7 @@
 using Andalos.API.Data;
 using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
+using Andalos.API.Enums;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -42,59 +43,162 @@ namespace Andalos.API.Services
         }
 
         // 👈 جلب الصلاحيات الممنوحة لمستخدم معين
-        public async Task<UserPermissionsResponseDto?> GetUserPermissionsAsync(int userId)
+        public async Task<UserPermissionsResponseDto?> GetUserPermissionsAsync(
+      int userId)
         {
             var user = await _db.Users
-                .Include(u => u.Permissions)
-                .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u =>
+                    u.Id == userId && u.IsActive);
 
-            if (user == null) return null;
+            if (user == null)
+                return null;
+
+            var direct = await _db.UserPermissions
+                .AsNoTracking()
+                .Where(p => p.UserId == userId && p.IsActive)
+                .Select(p => p.PermissionKey)
+                .ToListAsync();
+
+            var fromPackages = await _db.UserPermissionPackages
+                .AsNoTracking()
+                .Where(link =>
+                    link.UserId == userId &&
+                    link.IsActive &&
+                    link.Package != null &&
+                    link.Package.IsActive)
+                .SelectMany(link =>
+                    link.Package!.Items.Select(item => item.PermissionKey))
+                .ToListAsync();
+
+            direct = direct
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToList();
+
+            fromPackages = fromPackages
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToList();
+
+            var effective = direct
+                .Concat(fromPackages)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToList();
+
+            var knownKeys = Permissions.GetAllPermissions()
+                .ToHashSet(StringComparer.Ordinal);
+
+            var legacy = effective
+                .Where(key => !knownKeys.Contains(key))
+                .ToList();
+
+            // التداخل التاريخي يحتاج مراجعة: المزامنة القديمة ربما
+            // نسخت مفتاح الباقة إلى جدول UserPermissions أيضاً.
+            var overlap = direct
+                .Intersect(fromPackages, StringComparer.Ordinal)
+                .Any();
 
             return new UserPermissionsResponseDto
             {
                 UserId = user.Id,
                 UserName = user.UserName,
                 FullName = user.FullName,
-                GrantedPermissions = user.Permissions.Select(p => p.PermissionKey).ToList()
+                GrantedPermissions = direct,
+                PackagePermissions = fromPackages,
+                EffectivePermissions = effective,
+                LegacyPermissions = legacy,
+                ReconciliationRequired = legacy.Count > 0 || overlap,
+                PermissionsVersion = user.PermissionsVersion
             };
         }
 
-        // 👈 تحديث الصلاحيات الممنوحة للمستخدم (حذف القديم وإضافة الجديد)
-        public async Task<bool> AssignPermissionsAsync(AssignUserPermissionsDto dto)
+        public async Task<bool> AssignPermissionsAsync(
+     AssignUserPermissionsDto dto)
         {
-            var user = await _db.Users
-                .Include(u => u.Permissions)
-                .FirstOrDefaultAsync(u => u.Id == dto.UserId && u.IsActive);
-
-            if (user == null) return false;
-
-            // منع المساس بصلاحيات مدير النظام الافتراضي المحمي
-            if (IsProtectedSystemUser(user))
-                throw new InvalidOperationException("❌ غير مسموح: مدير النظام الرئيسي يمتلك كافة الصلاحيات ضمناً ولا يمكن تعديلها.");
-
-            // حذف الصلاحيات القديمة
-            _db.UserPermissions.RemoveRange(user.Permissions);
-
-            // التحقق من أن الصلاحيات المدخلة صحيحة وموجودة فعلياً في النظام
-            var validPermissions = Permissions.GetAllPermissions();
-
-            // إضافة الصلاحيات الجديدة
-            foreach (var permission in dto.Permissions)
+            if (dto.Permissions == null ||
+                !dto.ExpectedVersion.HasValue ||
+                dto.ExpectedVersion.Value < 0)
             {
-                if (validPermissions.Contains(permission))
-                {
-                    _db.UserPermissions.Add(new UserPermission
-                    {
-                        UserId = dto.UserId,
-                        PermissionKey = permission
-                    });
-                }
+                throw new InvalidOperationException(
+                    "يجب إرسال permissions و expectedVersion صراحة");
             }
 
-            await _db.SaveChangesAsync();
+            var requested = dto.Permissions
+                .Distinct(StringComparer.Ordinal)
+                .ToHashSet(StringComparer.Ordinal);
+
+            var knownKeys = Permissions.GetAllPermissions()
+                .ToHashSet(StringComparer.Ordinal);
+
+            if (requested.Any(key => !knownKeys.Contains(key)))
+            {
+                throw new InvalidOperationException(
+                    "توجد مفاتيح صلاحيات غير معروفة للخادم؛ لم يُحفظ أي تعديل");
+            }
+
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u =>
+                    u.Id == dto.UserId && u.IsActive);
+
+            if (user == null)
+                return false;
+
+            if (IsProtectedSystemUser(user) ||
+                user.Role == UserRole.SuperAdmin)
+            {
+                throw new InvalidOperationException(
+                    "لا يمكن تعديل منح مدير النظام");
+            }
+
+            if (user.PermissionsVersion != dto.ExpectedVersion.Value)
+                throw new PermissionVersionConflictException();
+
+            // اجلب النشط وغير النشط حتى يمكن إعادة تنشيط سجل قديم
+            // بدلاً من إنشاء سجل مكرر يصطدم بقيد فريد في قاعدة البيانات.
+            var existing = await _db.UserPermissions
+                .Where(p => p.UserId == dto.UserId)
+                .ToListAsync();
+
+            foreach (var permission in existing)
+            {
+                permission.IsActive =
+                    requested.Contains(permission.PermissionKey);
+            }
+
+            var existingKeys = existing
+                .Select(p => p.PermissionKey)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var key in requested.Except(
+                         existingKeys, StringComparer.Ordinal))
+            {
+                _db.UserPermissions.Add(new UserPermission
+                {
+                    UserId = dto.UserId,
+                    PermissionKey = key,
+                    IsActive = true
+                });
+            }
+
+            // [ConcurrencyCheck] يجعل تحديث User مشروطاً بالإصدار
+            // الذي قرأته هذه العملية. SaveChanges يحفظ التغيير كوحدة واحدة.
+            user.PermissionsVersion++;
+            user.UpdatedAt = DateTimeHelper.LibyaNow;
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _db.ChangeTracker.Clear();
+                throw new PermissionVersionConflictException(ex);
+            }
+
             return true;
         }
-
         public async Task<List<AuditLogDto>> GetAuditLogsAsync(DateTime? fromDate, DateTime? toDate, string? tableName, int? userId)
         {
             var query = _db.AuditLogs.Include(a => a.User).AsQueryable();

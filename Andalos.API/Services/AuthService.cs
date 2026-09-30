@@ -66,8 +66,8 @@ namespace Andalos.API.Services
                     .ToList();
             }
 
-            // 👈 2. توليد التوكن شاملاً الصلاحيات
-            var token = _jwt.GenerateToken(user, permissions);
+            var token = _jwt.GenerateToken(
+     user, permissions, out var expirationUtc);
 
             return new AuthResponseDto
             {
@@ -75,7 +75,7 @@ namespace Andalos.API.Services
                 FullName = user.FullName,
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(1440), // متوافق مع مدة التوكن
+                Expiration = expirationUtc,
                 Permissions = permissions, // 👈 إرجاعها في الـ Response للفرونت اند
                 Modules = modules          // 👈 إرجاع الأقسام المسموحة للفرونت اند
             };
@@ -116,8 +116,8 @@ namespace Andalos.API.Services
             };
 
             // 👈 2. توليد التوكن شاملاً صلاحيات المستأجر
-            var token = _jwt.GenerateToken(user, tenantPermissions);
-
+            var token = _jwt.GenerateToken(
+                user, tenantPermissions, out var expirationUtc);
             return new TenantAuthResponseDto
             {
                 Token = token,
@@ -125,7 +125,7 @@ namespace Andalos.API.Services
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
                 TenantId = user.TenantId.Value,
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(1440),
+                Expiration = expirationUtc,
                 Permissions = tenantPermissions // 👈 إرجاعها في الـ Response
             };
         }
@@ -189,15 +189,15 @@ namespace Andalos.API.Services
 
             // عند تسجيل مستخدم جديد لا يمتلك أي صلاحيات بعد حتى يتم تعيينها له من لوحة التحكم
             var emptyPermissions = new List<string>();
-            var token = _jwt.GenerateToken(user, emptyPermissions);
-
+            var token = _jwt.GenerateToken(
+                user, emptyPermissions, out var expirationUtc);
             return new AuthResponseDto
             {
                 Token = token,
                 FullName = user.FullName,
                 UserName = user.UserName,
                 Role = user.Role.ToString(),
-                Expiration = DateTimeHelper.LibyaNow.AddMinutes(1440),
+                Expiration = expirationUtc,
                 Permissions = emptyPermissions,
                 Modules = new List<string>()
             };

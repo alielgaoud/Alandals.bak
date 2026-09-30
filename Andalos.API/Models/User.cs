@@ -29,6 +29,8 @@ namespace Andalos.API.Models
         public int FailedLoginAttempts { get; set; } = 0;
         public DateTime? LastLoginAt { get; set; }
         public DateTime? LockoutEnd { get; set; }
+        [ConcurrencyCheck]
+        public int PermissionsVersion { get; set; } = 0;
 
         // 👈 جديد: قائمة الصلاحيات التفصيلية الممنوحة للمستخدم
         public ICollection<UserPermission> Permissions { get; set; } = new List<UserPermission>();

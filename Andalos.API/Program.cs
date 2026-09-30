@@ -7,6 +7,7 @@ using Andalos.API.Seed;
 using Andalos.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -20,16 +21,16 @@ var builder = WebApplication.CreateBuilder(args);
 // 2. Database
 // ═══════════════════════════════════════════════════════════
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-// 🛡️ تجميع السياقات (Pooling) لتحمّل الضغط: إعادة استخدام بدل إنشاء سياق لكل طلب
+
 builder.Services.AddDbContextPool<AppDbContext>(options =>
 {
     options.UseSqlServer(connectionString, sqlOptions =>
     {
         sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
             errorNumbersToAdd: null);
-        sqlOptions.CommandTimeout(60);
+        sqlOptions.CommandTimeout(30);
     });
 });
 
@@ -77,13 +78,15 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProv
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
 // ═══════════════════════════════════════════════════════════
-// 6. 🌐 CORS Policy (محددة للنطاقات الأربعة المطلوبة حصرياً)
+// 6. 🌐 CORS Policy (دعم النطاقات المحددة مع أي Subdomain اختياري)
 // ═══════════════════════════════════════════════════════════
 var allowedOrigins = new[]
 {
     "https://admin.marinaalandalus.com",
     "https://tenant.marinaalandalus.com",
+    "https://marinaalandalus.com",
     "http://localhost:4300",
+    "http://localhost:4050",
     "http://localhost:4200"
 };
 
@@ -94,7 +97,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials(); // ضروري جداً لـ SignalR وتمرير التوكن
+              .AllowCredentials()
+              .SetPreflightMaxAge(TimeSpan.FromHours(1)); // تخزين نتيجة preflight مؤقتاً لتسريع الاستجابة
     });
 });
 
@@ -126,7 +130,6 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // دعم SignalR لاستخراج التوكن من الـ Query String
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -147,41 +150,48 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddSwaggerGen();
+
+// إعداد Forwarded Headers لدعم البروكسي العكسي (Nginx / IIS / Cloudflare)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "Andalos API", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "أدخل التوكن بهذا الشكل: Bearer {your token}"
-    });
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
-        {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 var app = builder.Build();
 
 // ═══════════════════════════════════════════════════════════
-// 8. DB Migration & Seeder
+// 8. خط سير المعالجة (Pipeline) المنضبط
 // ═══════════════════════════════════════════════════════════
-using (var scope = app.Services.CreateScope())
+app.UseForwardedHeaders();
+
+// 👈 تفعيل CORS في المكان الصحيح قبل Authentication و Routing
+app.UseRouting();
+app.UseCors("AllowSpecificOrigins");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseStaticFiles();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Andalos API v1");
+    c.RoutePrefix = "swagger";
+});
+
+app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
+
+// ═══════════════════════════════════════════════════════════
+// 9. DB Migration & Seeder (بدون إيقاف السيرفر في حال بطء الاتصال)
+// ═══════════════════════════════════════════════════════════
+_ = Task.Run(async () =>
+{
+    using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     try
     {
@@ -194,53 +204,8 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "⚠️ تنبيه: فشل الاتصال بقاعدة البيانات أثناء الإقلاع.");
+        logger.LogError(ex, "⚠️ تنبيه: فشل تشغيل Migrations/Seeder أثناء الإقلاع. تحقق من الاتصال بقاعدة البيانات.");
     }
-}
-
-// ═══════════════════════════════════════════════════════════
-// 9. خط سير المعالجة (Pipeline) المنضبط 100%
-// ═══════════════════════════════════════════════════════════
-
-// 👈 معالج سريع لطلبات OPTIONS قبل أي Middleware آخر لضمان عدم حجب المتصفح
-app.Use(async (context, next) =>
-{
-    var origin = context.Request.Headers["Origin"].ToString();
-    if (!string.IsNullOrEmpty(origin) && allowedOrigins.Contains(origin))
-    {
-        context.Response.Headers.Append("Access-Control-Allow-Origin", origin);
-        context.Response.Headers.Append("Access-Control-Allow-Credentials", "true");
-        context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-Test-Tenant-Id, X-Test-User-Id, access_token");
-        context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-
-        if (context.Request.Method == "OPTIONS")
-        {
-            context.Response.StatusCode = 200;
-            await context.Response.CompleteAsync();
-            return;
-        }
-    }
-    await next();
 });
-
-app.UseStaticFiles();
-
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Andalos API v1");
-    c.RoutePrefix = "swagger";
-});
-
-app.UseRouting();
-
-// 👈 تفعيل الـ CORS Policy المحددة
-app.UseCors("AllowSpecificOrigins");
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

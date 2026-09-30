@@ -61,8 +61,16 @@ namespace Andalos.API.DTOs.Users
     }
     public class AssignUserPermissionsDto
     {
+        [Range(1, int.MaxValue)]
         public int UserId { get; set; }
-        public List<string> Permissions { get; set; } = new();
+
+        // [] تعني سحب جميع المنح المباشرة.
+        // غياب الحقل ليس هو [] ويجب رفضه.
+        [Required]
+        public List<string>? Permissions { get; set; }
+
+        [Required]
+        public int? ExpectedVersion { get; set; }
     }
 
     public class UserPermissionsResponseDto
@@ -70,7 +78,14 @@ namespace Andalos.API.DTOs.Users
         public int UserId { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+
         public List<string> GrantedPermissions { get; set; } = new();
+        public List<string> PackagePermissions { get; set; } = new();
+        public List<string> EffectivePermissions { get; set; } = new();
+        public List<string> LegacyPermissions { get; set; } = new();
+
+        public bool ReconciliationRequired { get; set; }
+        public int PermissionsVersion { get; set; }
     }
     public class TenantStaffResponseDto
     {

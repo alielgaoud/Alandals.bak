@@ -1,6 +1,7 @@
 ﻿using Andalos.API.Constants;
 using Andalos.API.Data;
 using Andalos.API.DTOs.Users;
+using Andalos.API.Enums;
 using Andalos.API.Helpers;
 using Andalos.API.Interfaces;
 using Andalos.API.Models;
@@ -51,22 +52,44 @@ namespace Andalos.API.Services
             return package == null ? null : MapToDto(package);
         }
 
-        public async Task<PermissionPackageResponseDto> CreateAsync(CreatePermissionPackageDto dto)
+        public async Task<PermissionPackageResponseDto> CreateAsync(
+      CreatePermissionPackageDto dto)
         {
-            var nameExists = await _db.PermissionPackages.AnyAsync(p => p.Name == dto.Name && p.IsActive);
-            if (nameExists)
-                throw new InvalidOperationException("اسم الصلاحية موجود مسبقاً");
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                throw new InvalidOperationException("اسم الباقة مطلوب");
 
-            var keys = ExpandModulesToKeys(dto.Modules);
+            if (dto.PermissionKeys == null)
+                throw new InvalidOperationException(
+                    "يجب إرسال permissionKeys صراحة");
+
+            var validKeys = Permissions.GetAllPermissions()
+                .ToHashSet(StringComparer.Ordinal);
+
+            var keys = dto.PermissionKeys
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (keys.Any(key => !validKeys.Contains(key)))
+                throw new InvalidOperationException(
+                    "تتضمن الباقة مفاتيح صلاحيات غير معروفة للخادم");
+
+            var name = dto.Name.Trim();
+
+            if (await _db.PermissionPackages.AnyAsync(
+                    p => p.Name == name && p.IsActive))
+            {
+                throw new InvalidOperationException(
+                    "اسم باقة الصلاحيات موجود مسبقاً");
+            }
 
             var package = new PermissionPackage
             {
-                Name = dto.Name.Trim(),
+                Name = name,
                 Description = dto.Description,
                 IsActive = true
             };
 
-            foreach (var key in keys.Distinct())
+            foreach (var key in keys)
             {
                 package.Items.Add(new PermissionPackageItem
                 {
@@ -79,7 +102,6 @@ namespace Andalos.API.Services
 
             return MapToDto(package);
         }
-
         public async Task<PermissionPackageResponseDto?> UpdateAsync(int id, UpdatePermissionPackageDto dto)
         {
             var package = await _db.PermissionPackages
@@ -129,38 +151,7 @@ namespace Andalos.API.Services
             return true;
         }
 
-        public async Task<bool> AssignPackagesToUserAsync(AssignPackagesToUserDto dto)
-        {
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == dto.UserId && u.IsActive);
-            if (user == null) return false;
-
-            // حماية superadmin
-            if (user.UserName.Equals(SystemConstants.SuperAdminUserName, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("لا يمكن تعديل صلاحيات مدير النظام الرئيسي");
-
-            var old = await _db.UserPermissionPackages.Where(x => x.UserId == dto.UserId).ToListAsync();
-            _db.UserPermissionPackages.RemoveRange(old);
-
-            var validPackageIds = await _db.PermissionPackages
-                .Where(p => dto.PackageIds.Contains(p.Id) && p.IsActive)
-                .Select(p => p.Id)
-                .ToListAsync();
-
-            foreach (var packageId in validPackageIds)
-            {
-                _db.UserPermissionPackages.Add(new UserPermissionPackage
-                {
-                    UserId = dto.UserId,
-                    PackageId = packageId
-                });
-            }
-
-            // مزامنة اختيارية مع UserPermissions (للتوافق مع النظام الحالي)
-            await SyncUserPermissionsFromPackagesAsync(dto.UserId);
-
-            await _db.SaveChangesAsync();
-            return true;
-        }
+      
 
         public async Task<List<PermissionPackageResponseDto>> GetUserPackagesAsync(int userId)
         {
@@ -173,43 +164,121 @@ namespace Andalos.API.Services
             return packages.Select(MapToDto).ToList();
         }
 
-        public async Task<List<string>> GetEffectivePermissionsForUserAsync(int userId)
+        public async Task<List<string>> GetEffectivePermissionsForUserAsync(
+       int userId)
         {
-            // صلاحيات مباشرة قديمة
             var direct = await _db.UserPermissions
+                .AsNoTracking()
                 .Where(p => p.UserId == userId && p.IsActive)
                 .Select(p => p.PermissionKey)
                 .ToListAsync();
 
-            // صلاحيات من الباقات
             var fromPackages = await _db.UserPermissionPackages
-                .Where(x => x.UserId == userId && x.IsActive)
-                .SelectMany(x => x.Package!.Items.Select(i => i.PermissionKey))
+                .AsNoTracking()
+                .Where(link =>
+                    link.UserId == userId &&
+                    link.IsActive &&
+                    link.Package != null &&
+                    link.Package.IsActive)
+                .SelectMany(link =>
+                    link.Package!.Items.Select(item => item.PermissionKey))
                 .ToListAsync();
 
-            return direct.Concat(fromPackages).Distinct().ToList();
+            return direct
+                .Concat(fromPackages)
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToList();
         }
 
-        private async Task SyncUserPermissionsFromPackagesAsync(int userId)
+        public async Task<bool> AssignPackagesToUserAsync(
+       AssignPackagesToUserDto dto)
         {
-            var packageKeys = await _db.UserPermissionPackages
-                .Where(x => x.UserId == userId && x.IsActive)
-                .SelectMany(x => x.Package!.Items.Select(i => i.PermissionKey))
+            if (dto.PackageIds == null ||
+                !dto.ExpectedVersion.HasValue ||
+                dto.ExpectedVersion.Value < 0)
+            {
+                throw new InvalidOperationException(
+                    "يجب إرسال packageIds و expectedVersion صراحة");
+            }
+
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u =>
+                    u.Id == dto.UserId && u.IsActive);
+
+            if (user == null)
+                return false;
+
+            if (user.Role == UserRole.SuperAdmin ||
+                user.UserName.Equals(
+                    SystemConstants.SuperAdminUserName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "لا يمكن تعديل باقات مدير النظام");
+            }
+
+            if (user.PermissionsVersion != dto.ExpectedVersion.Value)
+                throw new PermissionVersionConflictException();
+
+            var requested = dto.PackageIds
                 .Distinct()
+                .ToHashSet();
+
+            var validIds = await _db.PermissionPackages
+                .Where(p => requested.Contains(p.Id) && p.IsActive)
+                .Select(p => p.Id)
                 .ToListAsync();
 
-            var oldPerms = await _db.UserPermissions.Where(p => p.UserId == userId).ToListAsync();
-            _db.UserPermissions.RemoveRange(oldPerms);
+            if (validIds.Count != requested.Count)
+                throw new InvalidOperationException(
+                    "إحدى الباقات غير موجودة أو غير نشطة");
 
-            foreach (var key in packageKeys)
+            var existing = await _db.UserPermissionPackages
+                .Where(link => link.UserId == dto.UserId)
+                .ToListAsync();
+
+            foreach (var link in existing)
             {
-                _db.UserPermissions.Add(new UserPermission
-                {
-                    UserId = userId,
-                    PermissionKey = key
-                });
+                if (requested.Contains(link.PackageId))
+                    link.IsActive = true;
+                else
+                    _db.UserPermissionPackages.Remove(link);
             }
+
+            var existingIds = existing
+                .Select(link => link.PackageId)
+                .ToHashSet();
+
+            foreach (var packageId in requested.Except(existingIds))
+            {
+                _db.UserPermissionPackages.Add(
+                    new UserPermissionPackage
+                    {
+                        UserId = dto.UserId,
+                        PackageId = packageId,
+                        IsActive = true
+                    });
+            }
+
+            // لا تعديل إطلاقاً على _db.UserPermissions هنا.
+            user.PermissionsVersion++;
+            user.UpdatedAt = DateTimeHelper.LibyaNow;
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _db.ChangeTracker.Clear();
+                throw new PermissionVersionConflictException(ex);
+            }
+
+            return true;
         }
+
 
         private static List<string> ExpandModulesToKeys(List<string> modules)
         {

@@ -2,6 +2,7 @@
 using Andalos.API.DTOs.System;
 using Andalos.API.DTOs.Users;
 using Andalos.API.Interfaces;
+using Andalos.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -134,24 +135,43 @@ namespace Andalos.API.Controllers
             return Ok(ApiResponseDto<UserPermissionsResponseDto>.SuccessResponse(permissions));
         }
 
-        // PUT: api/users/5/permissions
         [HttpPut("{id}/permissions")]
-        public async Task<IActionResult> AssignPermissions(int id, [FromBody] AssignUserPermissionsDto dto)
+        public async Task<IActionResult> AssignPermissions(
+      int id,
+      [FromBody] AssignUserPermissionsDto dto)
         {
             if (id != dto.UserId)
-                return BadRequest(ApiResponseDto<string>.FailResponse("رقم المستخدم غير متطابق"));
+            {
+                return BadRequest(
+                    ApiResponseDto<string>.FailResponse(
+                        "رقم المستخدم غير متطابق"));
+            }
 
             try
             {
-                var result = await _userService.AssignPermissionsAsync(dto);
-                if (!result)
-                    return NotFound(ApiResponseDto<string>.FailResponse("المستخدم غير موجود"));
+                var result =
+                    await _userService.AssignPermissionsAsync(dto);
 
-                return Ok(ApiResponseDto<bool>.SuccessResponse(true, "تم تحديث صلاحيات المستخدم بنجاح"));
+                if (!result)
+                {
+                    return NotFound(
+                        ApiResponseDto<string>.FailResponse(
+                            "المستخدم غير موجود"));
+                }
+
+                return Ok(
+                    ApiResponseDto<bool>.SuccessResponse(
+                        true, "تم تحديث الصلاحيات المباشرة"));
+            }
+            catch (PermissionVersionConflictException ex)
+            {
+                return Conflict(
+                    ApiResponseDto<string>.FailResponse(ex.Message));
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(ApiResponseDto<string>.FailResponse(ex.Message));
+                return BadRequest(
+                    ApiResponseDto<string>.FailResponse(ex.Message));
             }
         }
         [HttpGet("audit-logs")]

@@ -1,5 +1,6 @@
 ﻿using Andalos.API.Models;
 using Microsoft.IdentityModel.Tokens;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -15,43 +16,90 @@ namespace Andalos.API.Helpers
             _config = config;
         }
 
-        // 👈 إضافة معامل الصلاحيات للدالة لزرعها داخل التوكن
-        public string GenerateToken(User user, List<string> permissions)
+        // للإبقاء على استدعاءات أخرى للدالة القديمة إن وُجدت.
+        public string GenerateToken(
+            User user,
+            List<string> permissions)
         {
-            var jwtSettings = _config.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new ArgumentNullException("Jwt SecretKey is missing");
+            return GenerateToken(
+                user, permissions, out _);
+        }
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        public string GenerateToken(
+            User user,
+            List<string> permissions,
+            out DateTime expirationUtc)
+        {
+            var settings = _config.GetSection("JwtSettings");
+
+            var secret = settings["SecretKey"]
+                ?? throw new InvalidOperationException(
+                    "JwtSettings:SecretKey is missing");
+
+            if (!double.TryParse(
+                    settings["ExpiryMinutes"],
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out var minutes) ||
+                !double.IsFinite(minutes) ||
+                minutes <= 0)
+            {
+                throw new InvalidOperationException(
+                    "JwtSettings:ExpiryMinutes must be positive");
+            }
+
+            var issuedAtUtc = DateTime.UtcNow;
+            expirationUtc = issuedAtUtc.AddMinutes(minutes);
+
+            var signingKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(secret));
+
+            var credentials = new SigningCredentials(
+                signingKey,
+                SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim("FullName", user.FullName) // أضفنا الاسم الكامل للتوكن
+                new Claim(
+                    ClaimTypes.NameIdentifier,
+                    user.Id.ToString()),
+                new Claim(
+                    ClaimTypes.Name,
+                    user.UserName),
+                new Claim(
+                    ClaimTypes.Role,
+                    user.Role.ToString()),
+                new Claim(
+                    "FullName",
+                    user.FullName)
             };
 
             if (user.TenantId.HasValue)
             {
-                claims.Add(new Claim("TenantId", user.TenantId.Value.ToString()));
+                claims.Add(
+                    new Claim(
+                        "TenantId",
+                        user.TenantId.Value.ToString()));
             }
 
-            // 👈 زراعة الصلاحيات بداخل الـ JWT Claims تحت اسم "Permission"
+            // بيانات JWT لقطة وقت الدخول؛ المعالج أعلاه
+            // يتحقق من المنح الحالية في قاعدة البيانات.
             foreach (var permission in permissions)
             {
-                claims.Add(new Claim("Permission", permission));
+                claims.Add(
+                    new Claim("Permission", permission));
             }
 
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
+            var jwt = new JwtSecurityToken(
+                issuer: settings["Issuer"],
+                audience: settings["Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSettings["ExpiryMinutes"] ?? "1440")), // افتراضي يوم كامل
-                signingCredentials: creds
-            );
+                notBefore: issuedAtUtc,
+                expires: expirationUtc,
+                signingCredentials: credentials);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return new JwtSecurityTokenHandler()
+                .WriteToken(jwt);
         }
     }
 }

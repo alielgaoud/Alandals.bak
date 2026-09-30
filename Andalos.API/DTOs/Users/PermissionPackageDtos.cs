@@ -10,14 +10,14 @@ namespace Andalos.API.DTOs.Users
 
     public class CreatePermissionPackageDto
     {
-        [Required(ErrorMessage = "اسم الصلاحية مطلوب")]
+        [Required(ErrorMessage = "اسم الباقة مطلوب")]
         [MaxLength(150)]
-        public string Name { get; set; } = string.Empty; // الصيانة
+        public string Name { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 
-        // الأقسام المختارة فقط (بسيطة)
-        public List<string> Modules { get; set; } = new(); // ["Maintenance"]
+        [Required(ErrorMessage = "يجب إرسال permissionKeys صراحة")]
+        public List<string>? PermissionKeys { get; set; }
     }
 
     public class UpdatePermissionPackageDto
@@ -44,9 +44,13 @@ namespace Andalos.API.DTOs.Users
 
     public class AssignPackagesToUserDto
     {
-        [Required]
+        [Range(1, int.MaxValue)]
         public int UserId { get; set; }
 
-        public List<int> PackageIds { get; set; } = new();
+        [Required]
+        public List<int>? PackageIds { get; set; }
+
+        [Required]
+        public int? ExpectedVersion { get; set; }
     }
 }

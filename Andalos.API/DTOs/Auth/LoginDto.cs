@@ -48,6 +48,11 @@ namespace Andalos.API.DTOs.Auth
         // 👈 جديد: الأقسام المسموحة (للاستخدام السريع في الفرونت)
         public List<string> Modules { get; set; } = new();
     }
-
+    public class CurrentPermissionsDto
+    {
+        public string Role { get; set; } = string.Empty;
+        public List<string> Permissions { get; set; } = new();
+        public List<string> Modules { get; set; } = new();
+    }
 
 }

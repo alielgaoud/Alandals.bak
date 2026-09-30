@@ -1,77 +1,129 @@
 ﻿using Andalos.API.Data;
 using Andalos.API.Enums;
+using Andalos.API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace Andalos.API.Authorization
 {
     public class PermissionRequirement : IAuthorizationRequirement
     {
         public string Permission { get; }
+
         public PermissionRequirement(string permission)
         {
             Permission = permission;
         }
     }
 
-    public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
+    public class PermissionAuthorizationHandler
+        : AuthorizationHandler<PermissionRequirement>
     {
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public PermissionAuthorizationHandler(IServiceScopeFactory scopeFactory)
+        public PermissionAuthorizationHandler(
+            IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
         }
 
-        protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
+        protected override async Task HandleRequirementAsync(
+            AuthorizationHandlerContext context,
+            PermissionRequirement requirement)
         {
-            if (context.User == null || !context.User.Identity!.IsAuthenticated)
+            if (context.User.Identity?.IsAuthenticated != true)
                 return;
 
-            // 1. إذا كان المستخدم SuperAdmin يملك كافة الصلاحيات مباشرة دون تقييد 🚀
-            if (context.User.IsInRole(UserRole.SuperAdmin.ToString()))
+            var rawId = context.User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(rawId, out var userId))
+                return;
+
+            using var scope = _scopeFactory.CreateScope();
+
+            var db = scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+            var account = await db.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    u => u.Id == userId && u.IsActive);
+
+            if (account == null ||
+                account.IsLocked ||
+                !context.User.IsInRole(account.Role.ToString()))
+            {
+                return;
+            }
+
+            // التجاوز يعتمد الدور الحالي في قاعدة البيانات،
+            // وليس دوراً قديماً داخل التوكن.
+            if (account.Role == UserRole.SuperAdmin)
             {
                 context.Succeed(requirement);
                 return;
             }
 
-            var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdClaim, out var userId))
-                return;
+            var packages = scope.ServiceProvider
+                .GetRequiredService<IPermissionPackageService>();
 
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var effective = await packages
+                .GetEffectivePermissionsForUserAsync(userId);
 
-            // 2. التحقق مما إذا كانت الصلاحية المطلوبة موجودة لدى المستخدم في قاعدة البيانات
-            var hasPermission = await db.UserPermissions
-                .AnyAsync(p => p.UserId == userId && p.PermissionKey == requirement.Permission && p.IsActive);
-
-            if (hasPermission)
+            if (effective.Contains(
+                    requirement.Permission,
+                    StringComparer.Ordinal))
             {
                 context.Succeed(requirement);
             }
         }
     }
 
-    // Dynamic Policy Provider لإنشاء السياسات تلقائياً عند استدعاء [HasPermission("...")]
-    public class PermissionPolicyProvider : IAuthorizationPolicyProvider
+    public class PermissionPolicyProvider
+        : IAuthorizationPolicyProvider
     {
-        public DefaultAuthorizationPolicyProvider FallbackPolicyProvider { get; }
+        private readonly DefaultAuthorizationPolicyProvider _fallback;
 
-        public PermissionPolicyProvider(Microsoft.Extensions.Options.IOptions<AuthorizationOptions> options)
+        public PermissionPolicyProvider(
+            IOptions<AuthorizationOptions> options)
         {
-            FallbackPolicyProvider = new DefaultAuthorizationPolicyProvider(options);
+            _fallback =
+                new DefaultAuthorizationPolicyProvider(options);
         }
 
-        public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => FallbackPolicyProvider.GetDefaultPolicyAsync();
-        public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() => FallbackPolicyProvider.GetFallbackPolicyAsync();
+        public Task<AuthorizationPolicy> GetDefaultPolicyAsync()
+            => _fallback.GetDefaultPolicyAsync();
 
-        public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+        public Task<AuthorizationPolicy?> GetFallbackPolicyAsync()
+            => _fallback.GetFallbackPolicyAsync();
+
+        public async Task<AuthorizationPolicy?> GetPolicyAsync(
+            string policyName)
         {
-            var policy = new AuthorizationPolicyBuilder();
-            policy.AddRequirements(new PermissionRequirement(policyName));
-            return Task.FromResult<AuthorizationPolicy?>(policy.Build());
+            // لا تحوّل السياسات المسماة الأخرى تلقائياً
+            // إلى متطلبات صلاحية.
+            var configured = await _fallback
+                .GetPolicyAsync(policyName);
+
+            if (configured != null)
+                return configured;
+
+            if (!Regex.IsMatch(
+                    policyName,
+                    @"^[A-Za-z]+\.[A-Za-z]+$"))
+            {
+                return null;
+            }
+
+            return new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .AddRequirements(
+                    new PermissionRequirement(policyName))
+                .Build();
         }
     }
 }
