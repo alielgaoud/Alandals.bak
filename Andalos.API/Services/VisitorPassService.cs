@@ -13,11 +13,13 @@ namespace Andalos.API.Services
     {
         private readonly AppDbContext _db;
         private readonly INotificationService _notification; // 👈 حقن الإشعارات
+        private readonly IVisitorDayService _visitorDay; // 👈 اليوم التشغيلي للزوار (من الإعدادات)
 
-        public VisitorPassService(AppDbContext db, INotificationService notification)
+        public VisitorPassService(AppDbContext db, INotificationService notification, IVisitorDayService visitorDay)
         {
             _db = db;
             _notification = notification;
+            _visitorDay = visitorDay;
         }
 
         public async Task<VisitorPassResponseDto> CreatePassAsync(CreateVisitorPassDto dto, string createdBy)
@@ -271,7 +273,8 @@ namespace Andalos.API.Services
                 .Include(p => p.Unit)
                 .FirstOrDefaultAsync(p => p.PassCode == dto.PassCode && p.IsActive);
 
-            var today = DateTime.Today;
+            // 👈 اليوم التشغيلي الحالي (يمتد بعد منتصف الليل حتى ساعة نهاية اليوم من الإعدادات)
+            var businessToday = await _visitorDay.GetCurrentBusinessDateAsync();
 
             if (pass == null)
             {
@@ -298,13 +301,13 @@ namespace Andalos.API.Services
                 return FailResult(pass, destination, "❌ تم استخدام هذا التصريح واستنفاد عدد مرات الدخول");
             }
 
-            if (pass.ValidDate.Date != today)
+            if (pass.ValidDate.Date != businessToday)
             {
-                string reason = pass.ValidDate.Date < today
-                    ? "التصريح منتهي الصلاحية (تاريخ سابق)"
+                string reason = pass.ValidDate.Date < businessToday
+                    ? "التصريح منتهي الصلاحية (انتهى يومه التشغيلي)"
                     : $"التصريح صالح ليوم {pass.ValidDate:yyyy-MM-dd} وليس لليوم";
 
-                pass.Status = pass.ValidDate.Date < today ? PassStatus.Expired : pass.Status;
+                pass.Status = pass.ValidDate.Date < businessToday ? PassStatus.Expired : pass.Status;
                 await _db.SaveChangesAsync();
 
                 await LogEntryAsync(pass.Id, dto.GateName, scannedBy, false, reason);
@@ -359,7 +362,7 @@ namespace Andalos.API.Services
                 VisitorType = pass.VisitorType.ToString(),
                 DestinationUnit = destination,
                 Purpose = pass.Purpose,
-                ScanTime = DateTime.Now,
+                ScanTime = DateTimeHelper.LibyaNow,
                 RemainingEntries = pass.MaxEntries - pass.UsedCount
             };
         }

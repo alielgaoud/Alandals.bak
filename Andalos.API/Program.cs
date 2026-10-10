@@ -70,6 +70,7 @@ builder.Services.AddScoped<DemandLetterPdfService>();
 builder.Services.AddScoped<ISystemResetService, SystemResetService>();
 builder.Services.AddScoped<ICircularService, CircularService>();
 builder.Services.AddScoped<IPermissionPackageService, PermissionPackageService>();
+builder.Services.AddScoped<IVisitorDayService, VisitorDayService>();
 builder.Services.AddHostedService<SystemSchedulerService>();
 builder.Services.AddSignalR();
 

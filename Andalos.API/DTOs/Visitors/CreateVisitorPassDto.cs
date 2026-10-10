@@ -1,4 +1,5 @@
 ﻿using Andalos.API.Enums;
+using Andalos.API.Helpers;
 using System.ComponentModel.DataAnnotations;
 
 namespace Andalos.API.DTOs.Visitors
@@ -20,7 +21,7 @@ namespace Andalos.API.DTOs.Visitors
         public int? UnitId { get; set; } // null إذا كان الزائر للإدارة
 
         [Required(ErrorMessage = "تاريخ الزيارة مطلوب")]
-        public DateTime ValidDate { get; set; } = DateTime.Today;
+        public DateTime ValidDate { get; set; } = DateTimeHelper.LibyaToday;
 
         public int MaxEntries { get; set; } = 1;
 
@@ -64,7 +65,7 @@ namespace Andalos.API.DTOs.Visitors
         public string? VisitorType { get; set; }
         public string? DestinationUnit { get; set; } // اسم المحل المقصود أو الإدارة
         public string? Purpose { get; set; }
-        public DateTime ScanTime { get; set; } = DateTime.Now;
+        public DateTime ScanTime { get; set; } = DateTimeHelper.LibyaNow;
         public int RemainingEntries { get; set; }
     }
 
@@ -125,7 +126,7 @@ namespace Andalos.API.DTOs.Visitors
         public decimal ChargedFromPass { get; set; }    // القيمة المخصومة من الـ QR
         public decimal CashDifferenceToPay { get; set; } // الباقي المطلوب كاش من الزائر للمحل
         public decimal PassRemainingBalance { get; set; } // الرصيد المتبقي بالـ QR بعد العملية
-        public DateTime TransactionTime { get; set; } = DateTime.Now;
+        public DateTime TransactionTime { get; set; } = DateTimeHelper.LibyaNow;
     }
 
     // 3. ملخص مستحقات المحل لدى الإدارة

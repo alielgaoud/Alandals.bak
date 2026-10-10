@@ -16,17 +16,20 @@ namespace Andalos.API.Services
         private readonly ISettingService _settings;
         private readonly ITenantAccountService _tenantAccountService; // 👈 لخصم التسوية من الإيجار عند الرغبة
         private readonly INotificationService _notification; // 👈 حقن خدمة الإشعارات الفورية
+        private readonly IVisitorDayService _visitorDay; // 👈 اليوم التشغيلي للزوار (من الإعدادات)
 
         public VisitorWalletService(
             AppDbContext db,
             ISettingService settings,
             ITenantAccountService tenantAccountService,
-            INotificationService notification) // 👈 إضافة الخدمة في الباني
+            INotificationService notification,
+            IVisitorDayService visitorDay) // 👈 إضافة الخدمة في الباني
         {
             _db = db;
             _settings = settings;
             _tenantAccountService = tenantAccountService;
             _notification = notification;
+            _visitorDay = visitorDay;
         }
 
         // =====================================================
@@ -41,6 +44,9 @@ namespace Andalos.API.Services
 
             string passCode = await GenerateUniquePaidPassCodeAsync();
 
+            // 👈 يوم الصلاحية = اليوم التشغيلي الحالي (لا الساعة)، فالتصريح الصادر 10 مساءً يبقى صالحاً حتى نهاية اليوم التشغيلي
+            var businessDate = await _visitorDay.GetCurrentBusinessDateAsync();
+
             var pass = new VisitorPass
             {
                 PassCode = passCode,
@@ -48,7 +54,7 @@ namespace Andalos.API.Services
                 VisitorPhone = dto.VisitorPhone,
                 NationalId = dto.NationalId,
                 VisitorType = VisitorType.Customer,
-                ValidDate = DateTimeHelper.LibyaNow,
+                ValidDate = businessDate,
                 MaxEntries = 1,
                 UsedCount = 0,
                 Status = PassStatus.Active,
@@ -97,7 +103,7 @@ namespace Andalos.API.Services
                 VisitorPhone = pass.VisitorPhone,
                 NationalId = pass.NationalId,
                 VisitorType = pass.VisitorType.ToString(),
-                ValidDate = pass.ValidDate = DateTimeHelper.LibyaToday,
+                ValidDate = pass.ValidDate,
                 MaxEntries = pass.MaxEntries,
                 UsedCount = pass.UsedCount,
                 Status = pass.Status.ToString(),
@@ -125,8 +131,15 @@ namespace Andalos.API.Services
             if (!pass.IsPaidPass)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ هذا التصريح مجاني ولا يحتوي على محفظة مالية" };
 
-            if (pass.ValidDate.Date != DateTimeHelper.LibyaNow)
-                return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ صلاحية كود الشراء انتهت (تاريخ اليوم فقط)" };
+            var businessToday = await _visitorDay.GetCurrentBusinessDateAsync();
+            if (pass.ValidDate.Date != businessToday)
+            {
+                var endsAt = await _visitorDay.GetBusinessDayEndAsync(pass.ValidDate.Date);
+                string reason = pass.ValidDate.Date < businessToday
+                    ? $"❌ صلاحية كود الشراء انتهت (انتهى يومه التشغيلي في {endsAt:yyyy-MM-dd HH:mm})"
+                    : $"❌ كود الشراء صالح ليوم {pass.ValidDate:yyyy-MM-dd} وليس لليوم";
+                return new PassPurchaseResultDto { IsSuccess = false, Message = reason };
+            }
 
             if (pass.WalletStatus != WalletStatus.Active || pass.RemainingBalance <= 0)
                 return new PassPurchaseResultDto { IsSuccess = false, Message = "❌ رصيد هذا التصريح مستنفد بالكامل (0 د.ل)" };
@@ -375,11 +388,12 @@ namespace Andalos.API.Services
         // =====================================================
         public async Task<decimal> ExpireUnusedBalancesAsync()
         {
-            var today = DateTimeHelper.LibyaNow;
+            // 👈 اليوم التشغيلي الحالي: أي تصريح قبله انتهى يومه ويُصفّر رصيده
+            var businessToday = await _visitorDay.GetCurrentBusinessDateAsync();
 
             // تصاريح الأيام السابقة التي لم تُصفر بعد
             var expiredPasses = await _db.VisitorPasses
-                .Where(p => p.IsPaidPass && p.IsActive && p.ValidDate.Date < today && p.RemainingBalance > 0)
+                .Where(p => p.IsPaidPass && p.IsActive && p.ValidDate.Date < businessToday && p.RemainingBalance > 0)
                 .ToListAsync();
 
             decimal totalForfeited = 0;

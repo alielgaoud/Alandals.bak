@@ -31,7 +31,7 @@ namespace Andalos.API.Controllers
         [HttpGet("logs")]
         public async Task<IActionResult> GetLogs([FromQuery] DateTime? date)
         {
-            var logs = await _passService.GetEntryLogsAsync(date ?? DateTime.Today);
+            var logs = await _passService.GetEntryLogsAsync(date ?? Andalos.API.Helpers.DateTimeHelper.LibyaToday);
             return Ok(ApiResponseDto<List<EntryLogResponseDto>>.SuccessResponse(logs));
         }
     }

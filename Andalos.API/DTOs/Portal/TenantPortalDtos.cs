@@ -58,7 +58,7 @@ namespace Andalos.API.DTOs.Portal
         public VisitorType VisitorType { get; set; } = VisitorType.Customer;
 
         [Required(ErrorMessage = "تاريخ الزيارة مطلوب")]
-        public DateTime ValidDate { get; set; } = DateTime.Today;
+        public DateTime ValidDate { get; set; } = Andalos.API.Helpers.DateTimeHelper.LibyaToday;
 
         public int MaxEntries { get; set; } = 1;
 
